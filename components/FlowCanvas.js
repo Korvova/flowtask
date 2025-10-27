@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761573769 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761574029 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -216,6 +216,9 @@ window.FlowCanvas = {
                         if (parentTaskData) {
                             // Загружаем позицию родителя
                             const parentPosition = await loadTaskPosition(parentTaskData.id);
+                            addDebugLog('  📍 Позиция task-' + parentTaskData.id + ': ' +
+                                (parentPosition ? '(' + parentPosition.x + ', ' + parentPosition.y + ')' : 'не найдена, используем дефолт'),
+                                '#00bcd4');
 
                             parentNodes.push({
                                 id: 'task-' + parentTaskData.id,
@@ -378,39 +381,41 @@ window.FlowCanvas = {
             // Загрузка позиции задачи из entity
             const loadTaskPosition = (taskId) => {
                 return new Promise((resolve) => {
+                    // Загружаем ВСЕ позиции без фильтра (FILTER не работает с DETAIL_TEXT!)
                     BX24.callMethod('entity.item.get', {
-                        ENTITY: 'tflow_pos',
-                        FILTER: {
-                            PROPERTY_taskId: taskId.toString()
-                        }
+                        ENTITY: 'tflow_pos'
                     }, (result) => {
                         if (result.error()) {
-                            console.warn('Позиция задачи не найдена, используем default');
+                            console.warn('Ошибка загрузки позиций:', result.error());
                             resolve(null);
                         } else {
-                            const items = result.data();
-                            console.log("📥 Entity result:", items);
-                            if (items.length > 0) {
-                                const item = items[0];
-                                console.log("📦 Item FULL JSON:", JSON.stringify(item, null, 2));
-                                console.log("🔑 Keys:", Object.keys(item));
-                                if (item.DETAIL_TEXT) {
-                                    try {
-                                        const data = JSON.parse(item.DETAIL_TEXT);
-                                        console.log("✅ Position from DETAIL_TEXT:", data);
-                                        resolve({
-                                            x: parseFloat(data.positionX),
-                                            y: parseFloat(data.positionY)
-                                        });
-                                    } catch (e) {
-                                        console.error("❌ JSON parse error:", e);
-                                        resolve(null);
-                                    }
-                                } else {
-                                    console.error("❌ No DETAIL_TEXT:", item);
+                            const allItems = result.data();
+
+                            // Фильтруем вручную по taskId в DETAIL_TEXT
+                            const item = allItems.find(item => {
+                                if (!item.DETAIL_TEXT) return false;
+                                try {
+                                    const data = JSON.parse(item.DETAIL_TEXT);
+                                    return data.taskId == taskId;
+                                } catch (e) {
+                                    return false;
+                                }
+                            });
+
+                            if (item && item.DETAIL_TEXT) {
+                                try {
+                                    const data = JSON.parse(item.DETAIL_TEXT);
+                                    console.log('✅ Позиция найдена для task-' + taskId + ':', data.positionX, data.positionY);
+                                    resolve({
+                                        x: parseFloat(data.positionX),
+                                        y: parseFloat(data.positionY)
+                                    });
+                                } catch (e) {
+                                    console.error('❌ Ошибка парсинга позиции:', e);
                                     resolve(null);
                                 }
                             } else {
+                                console.log('ℹ️ Позиция не найдена для task-' + taskId + ', используем дефолт');
                                 resolve(null);
                             }
                         }
