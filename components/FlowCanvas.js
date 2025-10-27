@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761576717 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761577052 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -927,35 +927,55 @@ window.FlowCanvas = {
 
             // Соединение узел -> узел (когда тянут от одного узла к другому)
             const onConnect = useCallback((params) => {
-                addDebugLog('🔗 Создание связи: ' + params.source + ' → ' + params.target, '#2196f3');
+                console.log('═══════════════════════════════════════');
+                console.log('🔗 onConnect ВЫЗВАН!', params);
+                console.log('═══════════════════════════════════════');
+
+                addDebugLog('═══════════════════════════════════════', '#ff0000');
+                addDebugLog('🔗 onConnect ВЫЗВАН!', '#ff0000');
+                addDebugLog('source: ' + params.source, '#2196f3');
+                addDebugLog('target: ' + params.target, '#2196f3');
+                addDebugLog('═══════════════════════════════════════', '#ff0000');
 
                 // Создаём прямую связь между узлами визуально
+                addDebugLog('STEP 1: Создаём визуальную связь', '#2196f3');
                 setEdges((eds) => addEdge({ ...params, animated: true }, eds));
+                addDebugLog('✅ Визуальная связь создана', '#00ff00');
 
                 // Определяем тип связи
                 const connectionType = params.target.startsWith('future-') ? 'future' : 'task';
+                addDebugLog('STEP 2: Тип связи = ' + connectionType, '#2196f3');
 
-                // Сохраняем связь в Entity
+                // Сохраняем связь в Entity (ИДЕНТИЧНО saveFutureTask!)
                 const connectionData = {
+                    parentTaskId: task.id,  // ДОБАВЛЕНО!
                     sourceId: params.source,
                     targetId: params.target,
                     connectionType: connectionType
                 };
 
-                addDebugLog('💾 Сохраняем связь в Entity: ' + connectionType, '#2196f3');
+                addDebugLog('STEP 3: Сохраняем в Entity...', '#2196f3');
+                addDebugLog('  • parentTaskId: ' + connectionData.parentTaskId, '#9c27b0');
+                addDebugLog('  • sourceId: ' + connectionData.sourceId, '#9c27b0');
+                addDebugLog('  • targetId: ' + connectionData.targetId, '#9c27b0');
+                addDebugLog('  • connectionType: ' + connectionData.connectionType, '#9c27b0');
 
                 BX24.callMethod('entity.item.add', {
                     ENTITY: 'tflow_conn',
-                    NAME: 'conn_' + params.source.replace(/[^a-zA-Z0-9]/g, '_') + '_' + params.target.replace(/[^a-zA-Z0-9]/g, '_'),
+                    NAME: params.source + '->' + params.target,  // УПРОЩЕНО как в saveFutureTask!
                     DETAIL_TEXT: JSON.stringify(connectionData)
                 }, (result) => {
                     if (result.error()) {
-                        addDebugLog('❌ Ошибка сохранения связи: ' + result.error(), '#f44336');
+                        addDebugLog('❌ ОШИБКА при сохранении связи!', '#f44336');
+                        addDebugLog('Ошибка: ' + JSON.stringify(result.error()), '#f44336');
                     } else {
-                        addDebugLog('✅ Связь сохранена в Entity (ID: ' + result.data() + ')', '#00ff00');
+                        addDebugLog('✅✅ Связь сохранена в Entity!', '#00ff00');
+                        addDebugLog('Entity ID: ' + result.data(), '#00ff00');
                     }
                 });
-            }, [setEdges]);
+
+                addDebugLog('STEP 4: BX24.callMethod вызван (ждём ответ)', '#2196f3');
+            }, [setEdges, task.id]);
 
             // Сохранение предзадачи
             const saveFutureTask = (futureTaskData) => {
