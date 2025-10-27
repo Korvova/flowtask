@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761575480 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761575594 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -1207,34 +1207,36 @@ window.FlowCanvas = {
 
             // Callback при завершении задачи
             const handleTaskComplete = React.useCallback((taskId, taskData) => {
-                console.log('%c✅ ЗАДАЧА ЗАВЕРШЕНА! ID: ' + taskId, 'color: #ff0000; font-weight: bold;');
-                console.log('%c🚀 Вызов TaskCreator.processCompletedTask', 'color: #2196f3; font-weight: bold;');
                 addDebugLog('✅ ЗАДАЧА ЗАВЕРШЕНА! ID: ' + taskId, '#ff0000');
                 addDebugLog('🚀 Вызов TaskCreator.processCompletedTask', '#2196f3');
 
-                console.log('Проверяем window.TaskCreator:', window.TaskCreator);
-                console.log('Тип processCompletedTask:', typeof window.TaskCreator?.processCompletedTask);
+                try {
+                    // Проверяем что TaskCreator загружен
+                    const hasTaskCreator = !!window.TaskCreator;
+                    const hasFunction = typeof window.TaskCreator?.processCompletedTask === 'function';
 
-                // Проверяем что TaskCreator загружен
-                if (!window.TaskCreator || typeof window.TaskCreator.processCompletedTask !== 'function') {
-                    console.error('%c❌ TaskCreator не загружен или processCompletedTask не определён!', 'color: #f44336; font-weight: bold;');
-                    addDebugLog('❌ TaskCreator не загружен!', '#f44336');
-                    return;
+                    addDebugLog('🔍 window.TaskCreator существует: ' + hasTaskCreator, '#9c27b0');
+                    addDebugLog('🔍 processCompletedTask функция: ' + hasFunction, '#9c27b0');
+
+                    if (!hasTaskCreator || !hasFunction) {
+                        addDebugLog('❌ TaskCreator не загружен!', '#f44336');
+                        return;
+                    }
+
+                    addDebugLog('✅ TaskCreator найден, вызываем...', '#00ff00');
+
+                    window.TaskCreator.processCompletedTask(taskId, (createdTasks) => {
+                        addDebugLog('✅ СОЗДАНО ЗАДАЧ: ' + createdTasks.length, '#00ff00');
+
+                        // Даём время на сохранение связей в Entity, затем перезагружаем
+                        setTimeout(() => {
+                            addDebugLog('🔄 ПЕРЕЗАГРУЗКА ПОЛОТНА...', '#2196f3');
+                            loadProcessData();
+                        }, 1500);
+                    });
+                } catch (error) {
+                    addDebugLog('❌ ОШИБКА: ' + error.message, '#f44336');
                 }
-
-                console.log('%c✅ TaskCreator найден, вызываем processCompletedTask...', 'color: #00ff00; font-weight: bold;');
-
-                window.TaskCreator.processCompletedTask(taskId, (createdTasks) => {
-                    console.log('%c✅ СОЗДАНО ЗАДАЧ: ' + createdTasks.length, 'color: #00ff00; font-weight: bold;');
-                    addDebugLog('✅ СОЗДАНО ЗАДАЧ: ' + createdTasks.length, '#00ff00');
-
-                    // Даём время на сохранение связей в Entity, затем перезагружаем
-                    setTimeout(() => {
-                        console.log('%c🔄 ПЕРЕЗАГРУЗКА ПОЛОТНА...', 'color: #2196f3; font-weight: bold;');
-                        addDebugLog('🔄 ПЕРЕЗАГРУЗКА ПОЛОТНА...', '#2196f3');
-                        loadProcessData();
-                    }, 1500); // 1.5 секунды
-                });
             }, []);
 
             // Подписка на изменения задачи через Pull & Push
