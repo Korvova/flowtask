@@ -741,27 +741,34 @@ window.FlowCanvas = {
                 };
 
                 // Callback при завершении задачи
+                // Защита от повторных вызовов
+                let isProcessingComplete = false;
                 const handleTaskComplete = (taskId, taskData) => {
                     console.log('%c╔═══════════════════════════════════════════╗', 'color: #ff0000; font-size: 16px; font-weight: bold;');
                     console.log('%c║  ✅ ЗАДАЧА ЗАВЕРШЕНА! ID: ' + taskId + '           ║', 'color: #ff0000; font-size: 16px; font-weight: bold;');
-                    console.log('%c║  Сейчас создадим предзадачи...            ║', 'color: #ff0000; font-size: 16px; font-weight: bold;');
                     console.log('%c╚═══════════════════════════════════════════╝', 'color: #ff0000; font-size: 16px; font-weight: bold;');
 
-                    alert('🎯 ЗАДАЧА #' + taskId + ' ЗАВЕРШЕНА!\n\nСейчас создадим предзадачи.\nОткройте консоль (F12) чтобы увидеть детали.');
+                    // Защита от повторных вызовов
+                    if (isProcessingComplete) {
+                        console.log('%c⏭️  УЖЕ ОБРАБАТЫВАЕТСЯ, ПРОПУСКАЕМ', 'color: #ff9800; font-weight: bold;');
+                        return;
+                    }
+                    isProcessingComplete = true;
+
+                    console.log('%c🚀 Вызываем TaskCreator.processCompletedTask...', 'color: #2196f3; font-weight: bold;');
 
                     window.TaskCreator.processCompletedTask(taskId, (createdTasks) => {
-                        console.log('%c✅✅✅ СОЗДАНО ЗАДАЧ: ' + createdTasks.length, 'color: #00ff00; font-size: 20px; font-weight: bold;');
-
-                        if (createdTasks.length > 0) {
-                            alert('✅ Создано задач: ' + createdTasks.length + '\n\nСейчас перезагружу полотно через 1.5 секунды...');
-                        } else {
-                            alert('⚠️ Задач не создано!\nПроверьте консоль для деталей.');
-                        }
+                        console.log('%c✅✅✅ CALLBACK ВЕРНУЛСЯ! СОЗДАНО ЗАДАЧ: ' + createdTasks.length, 'color: #00ff00; font-size: 20px; font-weight: bold;');
 
                         // Даём время на сохранение связей в Entity, затем перезагружаем
                         setTimeout(() => {
                             console.log('%c🔄 ПЕРЕЗАГРУЖАЕМ ПОЛОТНО...', 'color: #2196f3; font-size: 18px; font-weight: bold;');
                             loadProcessData();
+                            // Сбрасываем флаг через 3 секунды
+                            setTimeout(() => {
+                                isProcessingComplete = false;
+                                console.log('%c🔓 Флаг isProcessingComplete сброшен', 'color: #9e9e9e;');
+                            }, 3000);
                         }, 1500); // 1.5 секунды
                     });
                 };
