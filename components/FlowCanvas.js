@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761573267 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761573525 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -158,6 +158,15 @@ window.FlowCanvas = {
 
                     // 3.5. Загружаем родительскую задачу и её процесс (если есть)
                     const parentNodes = [];
+
+                    // Добавим детальное логирование
+                    console.log('🔍 Проверка родителя для task-' + task.id + ':', {
+                        parentId: freshTaskData.parentId,
+                        parentIdType: typeof freshTaskData.parentId,
+                        freshTaskData: freshTaskData
+                    });
+                    addDebugLog('🔍 parentId: ' + freshTaskData.parentId + ' (тип: ' + typeof freshTaskData.parentId + ')', '#9c27b0');
+
                     if (freshTaskData.parentId && freshTaskData.parentId != 0) {
                         addDebugLog('🔼 Текущая задача имеет родителя: task-' + freshTaskData.parentId, '#9c27b0');
 
