@@ -109,12 +109,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761562455"></script>
-    <script src="components/PullSubscription.js?v=1761562455"></script>
-    <script src="components/TaskCreator.js?v=1761562455"></script>
-    <script src="components/TaskNode.js?v=1761562455"></script>
-    <script src="components/TaskModal.js?v=1761562455"></script>
-    <script src="components/FlowCanvas.js?v=1761562455"></script>
+    <script src="components/StatusColors.js?v=1761563702"></script>
+    <script src="components/PullSubscription.js?v=1761563702"></script>
+    <script src="components/TaskCreator.js?v=1761563702"></script>
+    <script src="components/TaskNode.js?v=1761563702"></script>
+    <script src="components/TaskModal.js?v=1761563702"></script>
+    <script src="components/FlowCanvas.js?v=1761563702"></script>
 
     <script>
         // Debug functions

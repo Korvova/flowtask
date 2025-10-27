@@ -79,31 +79,41 @@ window.PullSubscription = {
      * Загрузка актуальных данных задачи
      */
     fetchTaskData: function(taskId, onStatusChange, onTaskComplete) {
+        console.log('%c🔄 fetchTaskData вызван для задачи:', 'color: #2196f3; font-weight: bold;', taskId);
+
         BX24.callMethod('tasks.task.get', {
             taskId: taskId,
             select: ['ID', 'TITLE', 'STATUS', 'REAL_STATUS']
         }, (result) => {
             if (result.error()) {
-                console.error('❌ Ошибка получения задачи:', result.error());
+                console.error('%c❌ tasks.task.get ERROR:', 'color: #f44336; font-weight: bold;', result.error());
                 return;
             }
-            
+
             const taskData = result.data();
             if (taskData && taskData.task) {
                 const newStatus = taskData.task.status;
                 const realStatus = taskData.task.real_status;
-                
-                console.log('📊 Статус задачи:', newStatus, '(real:', realStatus, ')');
-                
+
+                console.log('%c📊 Текущий статус задачи #' + taskId + ':', 'color: #2196f3; font-weight: bold;', newStatus, '(real:', realStatus, ')');
+
                 // Вызываем callback изменения статуса
                 if (onStatusChange) {
+                    console.log('%c  → Вызываем onStatusChange callback', 'color: #9c27b0;');
                     onStatusChange(newStatus, taskData.task);
                 }
-                
+
                 // Проверяем завершение (статус 5 = Завершена)
-                if (newStatus == 5 && onTaskComplete) {
-                    console.log('✅ Задача завершена! Вызываем callback...');
-                    onTaskComplete(taskId, taskData.task);
+                if (newStatus == 5) {
+                    console.log('%c✅✅✅ ЗАДАЧА ЗАВЕРШЕНА (status=5)!', 'color: #00ff00; font-size: 16px; font-weight: bold;');
+                    if (onTaskComplete) {
+                        console.log('%c  → Вызываем onTaskComplete callback...', 'color: #00ff00; font-weight: bold;');
+                        onTaskComplete(taskId, taskData.task);
+                    } else {
+                        console.warn('%c  ⚠️  onTaskComplete callback НЕ ОПРЕДЕЛЁН!', 'color: #ff9800; font-weight: bold;');
+                    }
+                } else {
+                    console.log('%c  ℹ️  Задача ещё не завершена (status=' + newStatus + ')', 'color: #9c27b0;');
                 }
             }
         });
