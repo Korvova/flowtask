@@ -100,12 +100,8 @@
         <div class="debug-content">
             <h2>🔍 Отладка Entity</h2>
             <div>
-                <button onclick="listAllEntities()">1. Список Entity</button>
-                <button onclick="testAddPosition()">2. Добавить позицию</button>
-                <button onclick="testGetPosition()">3. Получить позицию</button>
-                <button onclick="checkEntityProperties()" style="background: #fd7e14;">🔬 Проверить свойства</button>
-                <button onclick="showEntityDetails()" style="background: #17a2b8;">🔬 Детали Entity</button>
-                <button onclick="checkFutureTasksDebug()" style="background: #6f42c1;">📋 Проверить предзадачи</button>
+                <button onclick="listAllEntities()">📋 Список Entity</button>
+                <button onclick="listAllPositions()" style="background: #17a2b8;">📍 Список позиций</button>
                 <button onclick="createAllEntities()" style="background: #28a745;">➕ Создать Entity</button>
                 <button onclick="deleteOldEntities()" style="background: #dc3545;">🗑️ Удалить старые</button>
                 <button onclick="hideDebugModal()" style="background: #ccc; color: #333;">Закрыть</button>
@@ -114,12 +110,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761570687"></script>
-    <script src="components/PullSubscription.js?v=1761570687"></script>
-    <script src="components/TaskCreator.js?v=1761570687"></script>
-    <script src="components/TaskNode.js?v=1761570687"></script>
-    <script src="components/TaskModal.js?v=1761570687"></script>
-    <script src="components/FlowCanvas.js?v=1761570687"></script>
+    <script src="components/StatusColors.js?v=1761571234"></script>
+    <script src="components/PullSubscription.js?v=1761571234"></script>
+    <script src="components/TaskCreator.js?v=1761571234"></script>
+    <script src="components/TaskNode.js?v=1761571234"></script>
+    <script src="components/TaskModal.js?v=1761571234"></script>
+    <script src="components/FlowCanvas.js?v=1761571234"></script>
 
     <script>
         // Debug functions
@@ -166,53 +162,42 @@
             });
         }
 
-        function testAddPosition() {
+        function listAllPositions() {
             clearDebugLog();
-            debugLog("➕ Тест добавления позиции...\n");
-
-            BX24.callMethod("entity.item.add", {
-                ENTITY: "tflow_task_pos",
-                NAME: "Test position for task 99",
-                PROPERTY_VALUES: {
-                    taskId: "99",
-                    positionX: "300",
-                    positionY: "200"
-                }
-            }, function(result) {
-                if (result.error()) {
-                    debugLog("❌ ОШИБКА: " + JSON.stringify(result.error(), null, 2));
-                } else {
-                    debugLog("✅ Позиция добавлена!");
-                    debugLog("ID: " + result.data());
-                }
-            });
-        }
-
-        function testGetPosition() {
-            clearDebugLog();
-            debugLog("🔍 Тест получения позиции...\n");
+            debugLog("📍 Все сохранённые позиции в tflow_pos...\n");
 
             BX24.callMethod("entity.item.get", {
-                ENTITY: "tflow_task_pos",
-                FILTER: {
-                    PROPERTY_taskId: "99"
-                }
+                ENTITY: "tflow_pos"
             }, function(result) {
                 if (result.error()) {
                     debugLog("❌ ОШИБКА: " + JSON.stringify(result.error(), null, 2));
                 } else {
                     const items = result.data();
-                    debugLog("✅ Найдено: " + items.length + "\n");
+                    debugLog("✅ Найдено позиций: " + items.length + "\n");
+
+                    if (items.length === 0) {
+                        debugLog("⚠️ Entity tflow_pos пустая!\n");
+                        debugLog("Позиции не сохраняются или не были созданы.");
+                        return;
+                    }
 
                     items.forEach((item, index) => {
+                        debugLog("━━━━━━━━━━━━━━━━━━━━");
                         debugLog((index + 1) + ". ID: " + item.ID);
-                        if (item.PROPERTY_VALUES) {
-                        debugLog("   taskId: " + item.PROPERTY_VALUES.taskId);
-                        debugLog("   positionX: " + item.PROPERTY_VALUES.positionX);
-                        debugLog("   positionY: " + item.PROPERTY_VALUES.positionY);
-                    } else {
-                        debugLog("   (нет свойств)");
-                    }
+                        debugLog("   NAME: " + item.NAME);
+
+                        if (item.DETAIL_TEXT) {
+                            try {
+                                const data = JSON.parse(item.DETAIL_TEXT);
+                                debugLog("   taskId: " + data.taskId);
+                                debugLog("   positionX: " + data.positionX);
+                                debugLog("   positionY: " + data.positionY);
+                            } catch (e) {
+                                debugLog("   ❌ Ошибка парсинга JSON");
+                            }
+                        } else {
+                            debugLog("   (нет DETAIL_TEXT)");
+                        }
                     });
                 }
             });
@@ -331,139 +316,8 @@
                 });
             });
         }
+
         // Main app initialization
-        // Глобальные debug функции (должны быть вне showInstallPage)
-        function checkFutureTasksDebug() {
-        const output = document.getElementById('debugOutput');
-        output.innerHTML = '<div class="loading">Загрузка предзадач...</div>';
-
-        // Get current task ID
-        const urlParams = new URLSearchParams(window.location.search);
-        const taskId = urlParams.get('task_id');
-
-        if (!taskId) {
-            output.innerHTML = '<div style="color: red;">❌ Не найден task_id в URL</div>';
-            return;
-        }
-
-        output.innerHTML += '<div>🔍 Проверяем предзадачи для задачи #' + taskId + '</div>';
-
-        BX24.callMethod('entity.item.get', {
-            ENTITY: 'tflow_future'
-        }, (result) => {
-            if (result.error()) {
-                output.innerHTML = '<div style="color: red;">❌ Ошибка: ' + JSON.stringify(result.error()) + '</div>';
-                return;
-            }
-
-            const items = result.data();
-            let html = '<h3>📋 Предзадачи для задачи #' + taskId + '</h3>';
-            html += '<div>Всего предзадач в Entity: ' + items.length + '</div><hr>';
-
-            let foundCount = 0;
-            items.forEach(item => {
-                if (!item.DETAIL_TEXT) return;
-
-                try {
-                    const data = JSON.parse(item.DETAIL_TEXT);
-                    if (data.parentTaskId == taskId) {
-                        foundCount++;
-                        html += '<div style="border: 2px solid #667eea; padding: 15px; margin: 10px 0; border-radius: 8px;">';
-                        html += '<h4 style="color: #667eea; margin: 0 0 10px 0;">Предзадача #' + item.ID + '</h4>';
-                        html += '<div><strong>Future ID:</strong> ' + data.futureId + '</div>';
-                        html += '<div><strong>Название:</strong> ' + data.title + '</div>';
-                        html += '<div><strong>Родитель:</strong> task-' + data.parentTaskId + '</div>';
-
-                        const isCreated = data.isCreated || false;
-                        const createdStyle = isCreated ? 'color: green; font-weight: bold;' : 'color: orange;';
-                        html += '<div style="' + createdStyle + '"><strong>⭐ isCreated:</strong> ' + (isCreated ? 'true ✅' : 'false ⚠️') + '</div>';
-
-                        const realTaskId = data.realTaskId || 'не установлен';
-                        const taskStyle = (realTaskId !== 'не установлен') ? 'color: green; font-weight: bold;' : 'color: orange;';
-                        html += '<div style="' + taskStyle + '"><strong>⭐ realTaskId:</strong> ' + realTaskId + '</div>';
-
-                        html += '<div><strong>Позиция:</strong> (' + data.positionX + ', ' + data.positionY + ')</div>';
-                        html += '<div><strong>Условие:</strong> ' + data.conditionType + '</div>';
-                        html += '<div><strong>Ответственный:</strong> ' + data.responsibleId + '</div>';
-                        if (data.groupId) {
-                            html += '<div><strong>Группа:</strong> ' + data.groupId + '</div>';
-                        }
-                        html += '</div>';
-                    }
-                } catch (e) {
-                    console.error('Parse error:', e);
-                }
-            });
-
-            if (foundCount === 0) {
-                html += '<div style="color: orange; padding: 20px; border: 2px dashed orange; border-radius: 8px;">⚠️ Не найдено предзадач для задачи #' + taskId + '</div>';
-            } else {
-                html += '<div style="color: green; padding: 15px; background: #d4edda; border-radius: 8px; margin-top: 20px;">✅ Найдено предзадач: ' + foundCount + '</div>';
-            }
-
-            // Also check connections
-            html += '<hr><h3>🔗 Связи</h3>';
-            BX24.callMethod('entity.item.get', {
-                ENTITY: 'tflow_conn'
-            }, (connResult) => {
-                if (connResult.error()) {
-                    html += '<div style="color: red;">❌ Ошибка загрузки связей</div>';
-                    output.innerHTML = html;
-                    return;
-                }
-
-                const connections = connResult.data();
-                html += '<div>Всего связей в Entity: ' + connections.length + '</div>';
-
-                let connCount = 0;
-                connections.forEach(conn => {
-                    if (!conn.DETAIL_TEXT) return;
-
-                    try {
-                        const data = JSON.parse(conn.DETAIL_TEXT);
-                        if (data.sourceId.includes(taskId) || data.targetId.includes(taskId) ||
-                            data.sourceId.includes('future-') || data.targetId.includes('future-')) {
-                            connCount++;
-                            html += '<div style="border-left: 4px solid #17a2b8; padding: 10px; margin: 8px 0; background: #f8f9fa;">';
-                            html += '<div><strong>ID:</strong> ' + conn.ID + '</div>';
-                            html += '<div><strong>Источник:</strong> ' + data.sourceId + '</div>';
-                            html += '<div><strong>→ Цель:</strong> ' + data.targetId + '</div>';
-                            html += '<div><strong>Тип:</strong> ' + data.connectionType + '</div>';
-                            html += '</div>';
-                        }
-                    } catch (e) {
-                        console.error('Parse error:', e);
-                    }
-                });
-
-                if (connCount === 0) {
-                    html += '<div style="color: orange; padding: 15px; margin-top: 10px;">⚠️ Не найдено связей</div>';
-                } else {
-                    html += '<div style="color: green; padding: 15px; background: #d4edda; border-radius: 8px; margin-top: 10px;">✅ Найдено связей: ' + connCount + '</div>';
-                }
-
-                output.innerHTML = html;
-            });
-        });
-    }
-
-        function showEntityDetails() {
-            clearDebugLog();
-            debugLog("🔍 Детали Entity tflow_task_pos...\n");
-
-            BX24.callMethod("entity.get", {
-                ENTITY: "tflow_task_pos"
-            }, function(result) {
-                if (result.error()) {
-                    debugLog("❌ ОШИБКА: " + result.error());
-                } else {
-                    const entity = result.data();
-                    debugLog("✅ Entity найден:\n");
-                    debugLog(JSON.stringify(entity, null, 2));
-                }
-            });
-        }
-
         function showInstallPage() {
             document.getElementById("root").innerHTML = `
                 <div style="max-width: 800px; margin: 50px auto; padding: 40px; background: white; border-radius: 15px;">
@@ -476,7 +330,7 @@
 
         BX24.init(function() {
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761570687', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761571234', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const placement = BX24.placement.info();

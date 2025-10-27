@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761570687 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761571234 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -441,17 +441,27 @@ window.FlowCanvas = {
                 });
             };
 
+            // Ref для отслеживания актуального состояния узлов
+            const nodesRef = React.useRef(nodes);
+            React.useEffect(() => {
+                nodesRef.current = nodes;
+            }, [nodes]);
+
             // Сохранение позиции узла (с debounce)
             let savePositionTimeout = null;
             const saveNodePosition = (nodeId, position) => {
                 console.log('💾 Сохраняем позицию узла:', nodeId, position);
+                addDebugLog('💾 saveNodePosition вызван для ' + nodeId, '#00bcd4');
 
-                // Проверяем что узел всё ещё существует (не был удалён)
-                const nodeExists = nodes.find(n => n.id === nodeId);
+                // Проверяем что узел всё ещё существует (используем ref для актуального состояния)
+                const nodeExists = nodesRef.current.find(n => n.id === nodeId);
                 if (!nodeExists) {
                     console.log('⚠️  Узел не найден (возможно удалён), пропускаем сохранение:', nodeId);
+                    addDebugLog('⚠️ Узел ' + nodeId + ' не найден в nodesRef.current (всего узлов: ' + nodesRef.current.length + ')', '#ff9800');
                     return;
                 }
+
+                addDebugLog('✅ Узел ' + nodeId + ' найден, продолжаем сохранение', '#4caf50');
 
                 // Если это основная задача (начинается с 'task-')
                 if (nodeId.startsWith('task-')) {
@@ -572,8 +582,12 @@ window.FlowCanvas = {
                             });
                         } else {
                             console.warn('⚠️  Предзадача не найдена:', nodeId);
+                            addDebugLog('⚠️ Предзадача ' + nodeId + ' не найдена в Entity', '#ff9800');
                         }
                     });
+                } else {
+                    // Это что-то другое (не task и не future)
+                    addDebugLog('⚠️ Неизвестный тип узла: ' + nodeId, '#ff9800');
                 }
             };
 
