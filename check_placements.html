@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Проверка Placements</title>
+    <script src="//api.bitrix24.com/api/v1/"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow: auto; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Проверка Placements</h1>
+    <button onclick="checkPlacements()">Проверить Placements</button>
+    <button onclick="fixPlacements()">Исправить Placements</button>
+    <pre id="output"></pre>
+
+    <script>
+        function log(msg) {
+            document.getElementById('output').textContent += msg + '\n';
+        }
+
+        BX24.init(function() {
+            log('✅ BX24 initialized');
+        });
+
+        function checkPlacements() {
+            document.getElementById('output').textContent = '';
+            log('Проверяем placements...\n');
+
+            BX24.callMethod('placement.list', {}, function(result) {
+                if (result.error()) {
+                    log('❌ Ошибка: ' + result.error());
+                } else {
+                    log('Найдено placements: ' + result.data().length);
+                    log('\n' + JSON.stringify(result.data(), null, 2));
+                }
+            });
+        }
+
+        function fixPlacements() {
+            document.getElementById('output').textContent = '';
+            log('Исправляем placements...\n');
+
+            // Сначала удаляем все TASK_VIEW_TAB placements
+            BX24.callMethod('placement.unbind', {
+                PLACEMENT: 'TASK_VIEW_TAB'
+            }, function(unbindResult) {
+                if (unbindResult.error()) {
+                    log('⚠️ Unbind: ' + unbindResult.error());
+                } else {
+                    log('✅ Старые placements удалены');
+                }
+
+                // Теперь создаём новый с правильным URL
+                BX24.callMethod('placement.bind', {
+                    PLACEMENT: 'TASK_VIEW_TAB',
+                    HANDLER: window.location.origin + '/telegsarflow/handler.php',
+                    LANG_ALL: {
+                        ru: { TITLE: 'Процессы' },
+                        en: { TITLE: 'Processes' }
+                    }
+                }, function(bindResult) {
+                    if (bindResult.error()) {
+                        log('❌ Bind error: ' + bindResult.error());
+                    } else {
+                        log('✅ Новый placement создан!');
+                        log('\n' + JSON.stringify(bindResult.data(), null, 2));
+                        log('\n🎉 Готово! Обновите страницу задачи.');
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>

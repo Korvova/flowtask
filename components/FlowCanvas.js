@@ -1,0 +1,882 @@
+/**
+ * FlowCanvas - Главный компонент полотна React Flow
+ * ВАЖНО: Entity names ≤20 chars (Bitrix24 limitation)
+ */
+window.FlowCanvas = {
+    render: function(task) {
+        const React = window.React;
+        const ReactDOM = window.ReactDOM;
+        const RF = window.ReactFlow || window.reactflow;
+
+        if (!React || !ReactDOM || !RF) {
+            console.error('React или ReactFlow не загружены');
+            return;
+        }
+
+        const { useState, useCallback, useEffect, useMemo } = React;
+        const { ReactFlow, Controls, Background, addEdge, applyNodeChanges, applyEdgeChanges, useNodesState, useEdgesState } = RF;
+
+        // Главный компонент
+        function FlowApp() {
+            console.log('🚀 FlowApp инициализирован');
+            const [nodes, setNodes, onNodesChange] = useNodesState([]);
+            const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+            const [isLoading, setIsLoading] = useState(true);
+            const isDraggingRef = React.useRef(false);
+            const connectingNodeId = React.useRef(null);
+            const reactFlowInstance = React.useRef(null);
+
+            // Загрузка данных процесса при монтировании
+            useEffect(() => {
+                console.log('🔧 Загружаем данные процесса для задачи ID:', task.id);
+                loadProcessData();
+            }, [task.id]);
+
+            // Загрузка всех данных процесса
+            const loadProcessData = async () => {
+                try {
+                    // 1. Загружаем позицию текущей задачи
+                    const taskPosition = await loadTaskPosition(task.id);
+
+                    // 2. Загружаем свежий статус задачи
+                    const freshTaskData = await new Promise((resolve) => {
+                        BX24.callMethod('tasks.task.get', {
+                            taskId: task.id,
+                            select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID']
+                        }, (result) => {
+                            if (result.error()) {
+                                console.warn('Не удалось загрузить свежий статус, используем кэш');
+                                resolve(task);
+                            } else {
+                                resolve(result.data().task);
+                            }
+                        });
+                    });
+
+                    // 3. Создаём узел текущей задачи с актуальным статусом
+                    const mainNode = {
+                        id: 'task-' + task.id,
+                        type: 'taskNode',
+                        position: taskPosition || { x: 250, y: 100 },
+                        draggable: true,
+                        data: {
+                            id: freshTaskData.id,
+                            title: freshTaskData.title,
+                            statusCode: freshTaskData.status,
+                            responsibleId: freshTaskData.responsibleId,
+                            isFuture: false,
+                            isRealTask: true
+                        }
+                    };
+
+                    // 4. Загружаем предзадачи (future tasks)
+                    const futureTasks = await loadFutureTasks(task.id);
+
+                    // Разделяем на созданные и несозданные задачи
+                    const futureNodes = [];
+                    const createdTaskIds = [];
+
+                    console.log('🔍 Всего загружено предзадач:', futureTasks.length);
+                    futureTasks.forEach(ft => {
+                        console.log('  → ' + ft.futureId + ' | isCreated=' + (ft.isCreated || false) + ' | realTaskId=' + (ft.realTaskId || 'нет'));
+                    });
+
+                    for (const ft of futureTasks) {
+                        if (ft.isCreated && ft.realTaskId) {
+                            // Эта предзадача уже стала реальной задачей
+                            console.log('✅ Предзадача уже создана:', ft.futureId, '→ task-' + ft.realTaskId);
+                            createdTaskIds.push(ft.realTaskId);
+                        } else {
+                            // Обычная предзадача (ещё не создана)
+                            console.log('📋 Обычная предзадача (не создана):', ft.futureId);
+                            futureNodes.push({
+                                id: ft.futureId,
+                                type: 'taskNode',
+                                position: { x: parseFloat(ft.positionX), y: parseFloat(ft.positionY) },
+                                draggable: true,
+                                data: {
+                                    id: ft.futureId,
+                                    title: ft.title,
+                                    description: ft.description,
+                                    isFuture: true,
+                                    isRealTask: false,
+                                    conditionType: ft.conditionType,
+                                    entityItemId: ft.id,  // ID в Entity для удаления
+                                    onDelete: () => deleteFutureTask(ft.futureId, ft.id)
+                                }
+                            });
+                        }
+                    }
+
+                    // Загружаем данные созданных задач
+                    const createdTaskNodes = await loadCreatedTasks(createdTaskIds, futureTasks);
+
+                    // 4. Загружаем связи (connections)
+                    const connections = await loadConnections(task.id);
+                    const loadedEdges = connections.map(conn => {
+                        console.log('📊 Создаём edge:', conn.sourceId, '→', conn.targetId);
+                        return {
+                            id: 'edge-' + conn.sourceId + '-' + conn.targetId,
+                            source: conn.sourceId,
+                            target: conn.targetId,
+                            type: conn.connectionType === 'future' ? 'default' : 'default',
+                            className: conn.connectionType === 'future' ? 'future-edge' : ''
+                        };
+                    });
+                    
+                    console.log('📊 Всего загружено edges:', loadedEdges.length);
+                    loadedEdges.forEach(edge => {
+                        console.log('  ↳', edge.source, '→', edge.target);
+                    });
+
+                    setNodes([mainNode, ...futureNodes, ...createdTaskNodes]);
+                    setEdges(loadedEdges);
+                    setIsLoading(false);
+
+                    console.log('✅ Данные процесса загружены:', {
+                        nodes: [mainNode, ...futureNodes].length,
+                        edges: loadedEdges.length
+                    });
+
+                } catch (error) {
+                    console.error('❌ Ошибка загрузки данных процесса:', error);
+                    // Если ошибка - показываем хотя бы основную задачу
+                    setNodes([{
+                        id: 'task-' + task.id,
+                        type: 'taskNode',
+                        position: { x: 250, y: 100 },
+                        data: {
+                            id: task.id,
+                            title: task.title,
+                            statusCode: task.status,
+                            responsibleId: task.responsibleId,
+                            isFuture: false,
+                            isRealTask: true
+                        }
+                    }]);
+                    setIsLoading(false);
+                }
+            };
+
+            // Загрузка позиции задачи из entity
+            const loadTaskPosition = (taskId) => {
+                return new Promise((resolve) => {
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_pos',
+                        FILTER: {
+                            PROPERTY_taskId: taskId.toString()
+                        }
+                    }, (result) => {
+                        if (result.error()) {
+                            console.warn('Позиция задачи не найдена, используем default');
+                            resolve(null);
+                        } else {
+                            const items = result.data();
+                            console.log("📥 Entity result:", items);
+                            if (items.length > 0) {
+                                const item = items[0];
+                                console.log("📦 Item FULL JSON:", JSON.stringify(item, null, 2));
+                                console.log("🔑 Keys:", Object.keys(item));
+                                if (item.DETAIL_TEXT) {
+                                    try {
+                                        const data = JSON.parse(item.DETAIL_TEXT);
+                                        console.log("✅ Position from DETAIL_TEXT:", data);
+                                        resolve({
+                                            x: parseFloat(data.positionX),
+                                            y: parseFloat(data.positionY)
+                                        });
+                                    } catch (e) {
+                                        console.error("❌ JSON parse error:", e);
+                                        resolve(null);
+                                    }
+                                } else {
+                                    console.error("❌ No DETAIL_TEXT:", item);
+                                    resolve(null);
+                                }
+                            } else {
+                                resolve(null);
+                            }
+                        }
+                    });
+                });
+            };
+
+            // Загрузка предзадач из entity
+            const loadFutureTasks = (taskId) => {
+                return new Promise((resolve) => {
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_future'
+                    }, (result) => {
+                        if (result.error()) {
+                            console.warn('Предзадачи не найдены');
+                            resolve([]);
+                        } else {
+                            const items = result.data();
+                            console.log("📥 Entity result:", items);
+                            const futureTasks = items
+                                .filter(item => {
+                                    if (!item.DETAIL_TEXT) return false;
+                                    try {
+                                        const data = JSON.parse(item.DETAIL_TEXT);
+                                        return data.parentTaskId == taskId;
+                                    } catch (e) {
+                                        console.warn('Failed to parse DETAIL_TEXT:', e);
+                                        return false;
+                                    }
+                                })
+                                .map(item => {
+                                    const data = JSON.parse(item.DETAIL_TEXT);
+                                    return {
+                                        id: item.ID,
+                                        futureId: data.futureId,
+                                        title: data.title,
+                                        description: data.description,
+                                        groupId: data.groupId,
+                                        responsibleId: data.responsibleId,
+                                        conditionType: data.conditionType,
+                                        delayMinutes: data.delayMinutes,
+                                        positionX: data.positionX,
+                                        positionY: data.positionY,
+                                        isCreated: data.isCreated,
+                                        realTaskId: data.realTaskId
+                                    };
+                                });
+                            resolve(futureTasks);
+                        }
+                    });
+                });
+            };
+
+            // Загрузка созданных задач (которые были предзадачами)
+            const loadCreatedTasks = async (taskIds, futureTasks) => {
+                if (taskIds.length === 0) {
+                    console.log('ℹ️  Нет созданных задач для загрузки');
+                    return [];
+                }
+
+                console.log('📥 Загружаем созданные задачи:', taskIds);
+                console.log('📥 Соответствующие предзадачи:', futureTasks.filter(ft => ft.isCreated).map(ft => ft.futureId));
+
+                const createdNodes = [];
+
+                for (const taskId of taskIds) {
+                    try {
+                        const taskData = await new Promise((resolve) => {
+                            BX24.callMethod('tasks.task.get', {
+                                taskId: taskId,
+                                select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID']
+                            }, (result) => {
+                                if (result.error()) {
+                                    console.warn('Не удалось загрузить задачу:', taskId);
+                                    resolve(null);
+                                } else {
+                                    resolve(result.data().task);
+                                }
+                            });
+                        });
+
+                        if (!taskData) continue;
+
+                        // Находим соответствующую предзадачу для получения позиции
+                        const futureTask = futureTasks.find(ft => ft.realTaskId == taskId);
+                        if (!futureTask) continue;
+
+                        createdNodes.push({
+                            id: 'task-' + taskId,
+                            type: 'taskNode',
+                            position: { x: parseFloat(futureTask.positionX), y: parseFloat(futureTask.positionY) },
+                            draggable: true,
+                            data: {
+                                id: taskId,
+                                title: taskData.title,
+                                statusCode: taskData.status,
+                                responsibleId: taskData.responsibleId,
+                                isFuture: false,
+                                isRealTask: true
+                            }
+                        });
+
+                        console.log('✅ Загружена созданная задача:', taskId, taskData.title);
+
+                    } catch (error) {
+                        console.error('Ошибка при загрузке задачи:', taskId, error);
+                    }
+                }
+
+                return createdNodes;
+            };
+
+            // Загрузка связей из entity
+            const loadConnections = (taskId) => {
+                return new Promise((resolve) => {
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_conn'
+                    }, (result) => {
+                        if (result.error()) {
+                            console.warn('Связи не найдены');
+                            resolve([]);
+                        } else {
+                            const items = result.data();
+                            console.log("📥 Entity result:", items);
+                            const connections = items
+                                .filter(item => {
+                                    if (!item.DETAIL_TEXT) return false;
+                                    try {
+                                        const data = JSON.parse(item.DETAIL_TEXT);
+                                        // Фильтруем связи где source или target связан с текущей задачей
+                                        return data.sourceId === 'task-' + taskId ||
+                                               data.targetId === 'task-' + taskId ||
+                                               data.sourceId.includes('future-') ||
+                                               data.targetId.includes('future-');
+                                    } catch (e) {
+                                        console.warn('Failed to parse DETAIL_TEXT:', e);
+                                        return false;
+                                    }
+                                })
+                                .map(item => {
+                                    const data = JSON.parse(item.DETAIL_TEXT);
+                                    return {
+                                        id: item.ID,
+                                        sourceId: data.sourceId,
+                                        targetId: data.targetId,
+                                        connectionType: data.connectionType
+                                    };
+                                });
+                            resolve(connections);
+                        }
+                    });
+                });
+            };
+
+            // Сохранение позиции узла (с debounce)
+            let savePositionTimeout = null;
+            const saveNodePosition = (nodeId, position) => {
+                console.log('💾 Сохраняем позицию узла:', nodeId, position);
+
+                // Проверяем что узел всё ещё существует (не был удалён)
+                const nodeExists = nodes.find(n => n.id === nodeId);
+                if (!nodeExists) {
+                    console.log('⚠️  Узел не найден (возможно удалён), пропускаем сохранение:', nodeId);
+                    return;
+                }
+
+                // Если это основная задача (начинается с 'task-')
+                if (nodeId.startsWith('task-')) {
+                    const taskId = nodeId.replace('task-', '');
+
+                    // Проверяем, есть ли уже запись
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_pos',
+                        FILTER: {
+                            PROPERTY_taskId: taskId
+                        }
+                    }, (getResult) => {
+                        if (getResult.error()) {
+                            console.error('Ошибка проверки позиции:', getResult.error());
+                            return;
+                        }
+
+                        const items = getResult.data();
+
+                        if (items.length > 0) {
+                            // Обновляем существующую
+                            const itemId = items[0].ID;
+                            BX24.callMethod('entity.item.update', {
+                                ENTITY: 'tflow_pos',
+                                ID: itemId,
+                                DETAIL_TEXT: JSON.stringify({
+                                    taskId: taskId,
+                                    positionX: position.x,
+                                    positionY: position.y
+                                })
+                            }, (updateResult) => {
+                                if (updateResult.error()) {
+                                    console.error('Ошибка обновления позиции:', updateResult.error());
+                                } else {
+                                    console.log('✅ Позиция задачи обновлена');
+                                }
+                            });
+                        } else {
+                            // Создаём новую
+                            BX24.callMethod('entity.item.add', {
+                                ENTITY: 'tflow_pos',
+                                NAME: 'Task ' + taskId,
+                                DETAIL_TEXT: JSON.stringify({
+                                    taskId: taskId,
+                                    positionX: position.x,
+                                    positionY: position.y
+                                })
+                            }, (addResult) => {
+                                if (addResult.error()) {
+                                    console.error('Ошибка создания позиции:', addResult.error());
+                                } else {
+                                    console.log('✅ Позиция задачи создана:', addResult.data());
+                                }
+                            });
+                        }
+                    });
+                }
+                // Если это предзадача (начинается с 'future-')
+                else if (nodeId.startsWith('future-')) {
+                    console.log('📍 Сохраняем позицию предзадачи:', nodeId);
+                    
+                    // Находим предзадачу по futureId и обновляем её позицию
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_future'
+                    }, (getResult) => {
+                        if (getResult.error()) {
+                            console.error('Ошибка получения предзадач:', getResult.error());
+                            return;
+                        }
+
+                        const items = getResult.data();
+                        const futureItem = items.find(item => {
+                            if (!item.DETAIL_TEXT) return false;
+                            try {
+                                const data = JSON.parse(item.DETAIL_TEXT);
+                                return data.futureId === nodeId;
+                            } catch (e) {
+                                return false;
+                            }
+                        });
+
+                        if (futureItem) {
+                            // Парсим существующие данные
+                            const existingData = JSON.parse(futureItem.DETAIL_TEXT);
+                            
+                            // Обновляем позицию
+                            existingData.positionX = position.x;
+                            existingData.positionY = position.y;
+
+                            // Сохраняем обратно
+                            BX24.callMethod('entity.item.update', {
+                                ENTITY: 'tflow_future',
+                                ID: futureItem.ID,
+                                DETAIL_TEXT: JSON.stringify(existingData)
+                            }, (updateResult) => {
+                                if (updateResult.error()) {
+                                    console.error('Ошибка обновления позиции предзадачи:', updateResult.error());
+                                } else {
+                                    console.log('✅ Позиция предзадачи обновлена');
+                                }
+                            });
+                        } else {
+                            console.warn('⚠️  Предзадача не найдена:', nodeId);
+                        }
+                    });
+                }
+            };
+
+            // Обработчики изменений узлов
+            const onNodeDragStop = useCallback((event, node) => {
+                console.log('🎯 Drag stopped for:', node.id, node.position);
+                isDraggingRef.current = false;
+                saveNodePosition(node.id, node.position);
+            }, []);
+
+            // Начало создания связи (когда начинают тянуть от handle)
+            const onConnectStart = useCallback((event, { nodeId, handleType }) => {
+                console.log('🔗 Начало соединения от узла:', nodeId, 'тип:', handleType);
+                connectingNodeId.current = nodeId;
+                console.log('✅ connectingNodeId установлен:', connectingNodeId.current);
+            }, []);
+
+            // Конец создания связи (когда отпускают)
+            const onConnectEnd = useCallback((event) => {
+                console.log('🔗 Конец соединения, target:', event.target.className);
+
+                // Проверяем, отпустили ли на пустое место (react-flow__pane)
+                const targetIsPane = event.target.classList.contains('react-flow__pane');
+
+                if (targetIsPane && connectingNodeId.current) {
+                    console.log('✅ Отпустили на пустое место! Открываем модалку для создания предзадачи');
+
+                    // Конвертируем координаты браузера в координаты React Flow canvas
+                    const { clientX, clientY } = event;
+                    let position = { x: clientX - 300, y: clientY - 100 }; // Приблизительная компенсация
+                    
+                    // Если reactFlowInstance доступен, используем screenToFlowPosition
+                    if (reactFlowInstance.current) {
+                        position = reactFlowInstance.current.screenToFlowPosition({
+                            x: clientX,
+                            y: clientY
+                        });
+                        console.log('📍 Позиция: browser', { clientX, clientY }, '→ flow', position);
+                    } else {
+                        console.warn('⚠️  reactFlowInstance не готов, используем приблизительные координаты');
+                    }
+                    
+                    // Открываем модальное окно
+                    if (typeof window.TaskModal !== 'undefined') {
+                        window.TaskModal.show({
+                            sourceId: connectingNodeId.current,
+                            taskId: task.id,
+                            position: position,
+                            onSave: (futureTaskData) => {
+                                const sourceNodeId = connectingNodeId.current;
+                                console.log('💾 Сохраняем предзадачу, sourceId:', sourceNodeId);
+                                
+                                // Сбрасываем connectingNodeId теперь
+                                connectingNodeId.current = null;
+                                
+                                // Добавляем sourceId к данным
+                                saveFutureTask({
+                                    ...futureTaskData,
+                                    sourceId: sourceNodeId
+                                });
+                            }
+                        });
+                    } else {
+                        console.error('❌ TaskModal не загружен');
+                    }
+                }
+
+                // НЕ сбрасываем connectingNodeId сразу - он нужен в callback onSave
+                // Сбросим только если модалка не открылась
+                if (!targetIsPane || !connectingNodeId.current) {
+                    connectingNodeId.current = null;
+                }
+            }, [task.id]);
+
+            // Соединение узел -> узел (когда тянут от одного узла к другому)
+            const onConnect = useCallback((params) => {
+                console.log('🔗 Соединение узел -> узел:', params);
+                // Создаём прямую связь между узлами
+                setEdges((eds) => addEdge({ ...params, animated: true }, eds));
+            }, [setEdges]);
+
+            // Сохранение предзадачи
+            const saveFutureTask = (futureTaskData) => {
+                console.log('💾 Сохраняем предзадачу:', futureTaskData);
+
+                const futureId = 'future-' + Date.now();
+                // Используем sourceId из параметров (может быть task-X или future-X)
+                const sourceId = futureTaskData.sourceId || ('task-' + task.id);
+                
+                console.log('🔗 Создаём связь от', sourceId, 'к', futureId);
+
+                // Сохраняем в entity через DETAIL_TEXT (PROPERTY_VALUES не работает!)
+                BX24.callMethod('entity.item.add', {
+                    ENTITY: 'tflow_future',
+                    NAME: futureTaskData.title.substring(0, 50),
+                    DETAIL_TEXT: JSON.stringify({
+                        futureId: futureId,
+                        parentTaskId: task.id,
+                        title: futureTaskData.title,
+                        description: futureTaskData.description,
+                        groupId: futureTaskData.groupId,
+                        responsibleId: futureTaskData.responsibleId,
+                        conditionType: futureTaskData.conditionType,
+                        delayMinutes: futureTaskData.delayMinutes,
+                        positionX: futureTaskData.positionX,
+                        positionY: futureTaskData.positionY,
+                        isCreated: false,
+                        realTaskId: null
+                    })
+                }, (result) => {
+                    if (result.error()) {
+                        console.error('Ошибка создания предзадачи:', result.error());
+                        return;
+                    }
+
+                    console.log('✅ Предзадача создана:', result.data());
+
+                    // Сохраняем связь через DETAIL_TEXT
+                    const connectionData = {
+                        parentTaskId: task.id,
+                        sourceId: sourceId,
+                        targetId: futureId,
+                        connectionType: 'future'
+                    };
+                    console.log('💾 Сохраняем связь в Entity:', connectionData);
+                    
+                    BX24.callMethod('entity.item.add', {
+                        ENTITY: 'tflow_conn',
+                        NAME: sourceId + '->' + futureId,
+                        DETAIL_TEXT: JSON.stringify(connectionData)
+                    }, (connResult) => {
+                        if (connResult.error()) {
+                            console.error('Ошибка создания связи:', connResult.error());
+                        } else {
+                            console.log('✅ Связь создана');
+                            
+                            // Вместо полной перезагрузки добавляем только новые узлы и edges
+                            // Это предотвращает мигание основной задачи
+                            
+                            // Создаём новый узел предзадачи
+                            const newFutureNode = {
+                                id: futureId,
+                                type: 'taskNode',
+                                position: { 
+                                    x: parseFloat(futureTaskData.positionX), 
+                                    y: parseFloat(futureTaskData.positionY) 
+                                },
+                                draggable: true,
+                                data: {
+                                    id: futureId,
+                                    title: futureTaskData.title,
+                                    description: futureTaskData.description,
+                                    isFuture: true,
+                                    isRealTask: false,
+                                    conditionType: futureTaskData.conditionType,
+                                    entityItemId: result.data(),  // ID из Entity
+                                    onDelete: () => deleteFutureTask(futureId, result.data())
+                                }
+                            };
+                            
+                            // Создаём новый edge
+                            const newEdge = {
+                                id: 'edge-' + sourceId + '-' + futureId,
+                                source: sourceId,
+                                target: futureId,
+                                type: 'default',
+                                className: 'future-edge'
+                            };
+                            
+                            console.log('➕ Добавляем новый узел:', futureId);
+                            console.log('➕ Добавляем новую связь:', sourceId, '→', futureId);
+                            
+                            // Обновляем состояние напрямую (без полной перезагрузки)
+                            setNodes(currentNodes => [...currentNodes, newFutureNode]);
+                            setEdges(currentEdges => [...currentEdges, newEdge]);
+                        }
+                    });
+                });
+            };
+
+            // Удаление предзадачи
+            const deleteFutureTask = (futureId, entityItemId) => {
+                console.log('🗑️  Удаляем предзадачу:', futureId, 'Entity ID:', entityItemId);
+                
+                if (!confirm('Удалить предзадачу?')) {
+                    return;
+                }
+                
+                // 1. Удаляем предзадачу из Entity
+                BX24.callMethod('entity.item.delete', {
+                    ENTITY: 'tflow_future',
+                    ID: entityItemId
+                }, (result) => {
+                    if (result.error()) {
+                        console.error('Ошибка удаления предзадачи:', result.error());
+                        alert('Ошибка удаления: ' + result.error());
+                        return;
+                    }
+                    
+                    console.log('✅ Предзадача удалена из Entity');
+                    
+                    // 2. Удаляем все связи с этой предзадачей
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_conn'
+                    }, (getResult) => {
+                        if (getResult.error()) {
+                            console.warn('Не удалось загрузить связи');
+                            loadProcessData();
+                            return;
+                        }
+                        
+                        const connections = getResult.data();
+                        const toDelete = connections.filter(conn => {
+                            if (!conn.DETAIL_TEXT) return false;
+                            try {
+                                const data = JSON.parse(conn.DETAIL_TEXT);
+                                return data.sourceId === futureId || data.targetId === futureId;
+                            } catch (e) {
+                                return false;
+                            }
+                        });
+                        
+                        console.log('🗑️  Найдено связей для удаления:', toDelete.length);
+                        
+                        // Удаляем связи
+                        let deleted = 0;
+                        toDelete.forEach(conn => {
+                            BX24.callMethod('entity.item.delete', {
+                                ENTITY: 'tflow_conn',
+                                ID: conn.ID
+                            }, (delResult) => {
+                                if (!delResult.error()) {
+                                    deleted++;
+                                    console.log('✅ Связь удалена:', conn.ID);
+                                }
+                                
+                                // Перезагружаем после последней операции
+                                if (deleted === toDelete.length) {
+                                    console.log('✅ Все связи удалены, перезагружаем...');
+                                    loadProcessData();
+                                }
+                            });
+                        });
+                        
+                        // Если связей не было, просто перезагружаем
+                        if (toDelete.length === 0) {
+                            loadProcessData();
+                        }
+                    });
+                });
+            };
+
+            // Подписка на изменения задачи через Pull & Push
+            useEffect(() => {
+                console.log('🔔 Подписываемся на изменения задачи через PullSubscription');
+
+                // Callback при изменении статуса
+                const handleStatusChange = (newStatus, taskData) => {
+                    console.log('🔄 Статус изменился:', newStatus);
+                    setNodes((currentNodes) => {
+                        return currentNodes.map(node => {
+                            if (node.id === 'task-' + task.id) {
+                                return {
+                                    ...node,
+                                    data: {
+                                        ...node.data,
+                                        statusCode: newStatus,
+                                        title: taskData.title || node.data.title
+                                    }
+                                };
+                            }
+                            return node;
+                        });
+                    });
+                };
+
+                // Callback при завершении задачи
+                const handleTaskComplete = (taskId, taskData) => {
+                    console.log('✅ Задача завершена! Создаём задачи из предзадач...');
+                    
+                    window.TaskCreator.processCompletedTask(taskId, (createdTasks) => {
+                        console.log('✅ Создано задач:', createdTasks.length);
+                        // Даём время на сохранение связей в Entity, затем перезагружаем
+                        setTimeout(() => {
+                            console.log('🔄 Перезагружаем полотно...');
+                            loadProcessData();
+                        }, 1500); // 1.5 секунды
+                    });
+                };
+
+                // Подписываемся через PullSubscription
+                window.PullSubscription.subscribe(
+                    task.id,
+                    handleStatusChange,
+                    handleTaskComplete
+                );
+
+                // Старый код polling (закомментирован):
+                /*
+                const pollInterval = setInterval(() => {
+                    BX24.callMethod('tasks.task.get', {
+                        taskId: task.id,
+                        select: ['ID', 'TITLE', 'STATUS']
+                    }, (result) => {
+                        if (result.error()) {
+                            console.error('❌ Ошибка получения задачи:', result.error());
+                            return;
+                        }
+
+                        const taskData = result.data();
+                        if (taskData && taskData.task) {
+                            const currentStatus = taskData.task.status;
+
+                            // Обновляем только если статус изменился
+                            setNodes((currentNodes) => {
+                                const currentNode = currentNodes.find(n => n.id === 'task-' + task.id);
+                                if (currentNode && currentNode.data.statusCode != currentStatus) {
+                                    console.log('🔄 Статус изменился:', currentNode.data.statusCode, '→', currentStatus);
+
+                                    return currentNodes.map((node) => {
+                                        if (node.id === 'task-' + task.id) {
+                                            return {
+                                                ...node,
+                                                data: {
+                                                    ...node.data,
+                                                    statusCode: currentStatus,
+                                                    title: taskData.task.title || node.data.title
+                                                }
+                                            };
+                                        }
+                                        return node;
+                                    });
+                                }
+                                return currentNodes;
+                            });
+                        }
+                    });
+                }, 3000);
+                return () => clearInterval(pollInterval);
+                */
+
+                // Очистка при размонтировании
+                return () => {
+                    window.PullSubscription.unsubscribe(task.id);
+                    console.log('🧹 Очистка подписок');
+                };
+            }, [task.id, setNodes]);
+
+            // Типы узлов (обёрнуты в useMemo для предотвращения бесконечного цикла)
+            const nodeTypes = useMemo(() => ({
+                taskNode: window.TaskNode
+            }), []);
+
+            if (isLoading) {
+                return React.createElement('div', {
+                    style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100vh',
+                        fontSize: '24px'
+                    }
+                }, '⏳ Загрузка...');
+            }
+
+            return React.createElement('div', {
+                style: {
+                    width: '100%',
+                    height: '100vh',
+                    background: '#f5f7fa'
+                }
+            },
+                React.createElement(ReactFlow, {
+                    nodes: nodes,
+                    edges: edges,
+                    nodesDraggable: true,
+                    onNodesChange: onNodesChange,
+                    onEdgesChange: onEdgesChange,
+                    onNodeDragStop: onNodeDragStop,
+                    onConnect: onConnect,
+                    onConnectStart: onConnectStart,
+                    onConnectEnd: onConnectEnd,
+                    onInit: (instance) => {
+                        reactFlowInstance.current = instance;
+                        console.log('✅ ReactFlow instance готов');
+                    },
+                    nodeTypes: nodeTypes,
+                    fitView: true,
+                    minZoom: 0.5,
+                    maxZoom: 1.5,
+                    connectionMode: 'loose', // Позволяет создавать связи в пустое место
+                    defaultEdgeOptions: {
+                        type: 'default',
+                        animated: false
+                    }
+                },
+                    React.createElement(Controls),
+                    React.createElement(Background, {
+                        variant: 'dots',
+                        gap: 12,
+                        size: 1,
+                        color: '#ddd'
+                    })
+                )
+            );
+        }
+
+        // Рендерим приложение
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(FlowApp));
+
+        console.log('✅ FlowCanvas rendered');
+    }
+};
+
+console.log('✅ FlowCanvas component loaded');

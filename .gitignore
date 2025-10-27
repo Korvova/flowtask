@@ -1,0 +1,36 @@
+# Logs
+*.log
+logs/
+events.log
+handler.log
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.DS_Store
+
+# Backup files
+*.backup
+*.backup_*
+*_backup.*
+*.bak
+*_old.*
+*_broken.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Node modules (if any)
+node_modules/
+
+# PHP
+vendor/
+composer.lock

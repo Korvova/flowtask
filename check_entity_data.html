@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Проверка Entity данных</title>
+    <script src="https://api.bitrix24.com/api/v1/"></script>
+</head>
+<body>
+    <h1>Проверка Entity данных для задачи #31</h1>
+    <button onclick="checkData()">Проверить данные</button>
+    <pre id="output"></pre>
+
+<script>
+BX24.init(function() {
+    console.log('BX24 initialized');
+});
+
+function checkData() {
+    const output = document.getElementById('output');
+    output.textContent = 'Загрузка...\n';
+
+    // 1. Проверяем предзадачи
+    BX24.callMethod('entity.item.get', {
+        ENTITY: 'tflow_future'
+    }, (result) => {
+        if (result.error()) {
+            output.textContent += '\n❌ Ошибка загрузки предзадач: ' + result.error();
+            return;
+        }
+
+        const items = result.data();
+        output.textContent += '\n📋 ПРЕДЗАДАЧИ (tflow_future):\n';
+        output.textContent += '=====================================\n';
+
+        items.forEach(item => {
+            try {
+                const data = JSON.parse(item.DETAIL_TEXT);
+                if (data.parentTaskId == 31) {
+                    output.textContent += `\nID: ${item.ID}\n`;
+                    output.textContent += `Future ID: ${data.futureId}\n`;
+                    output.textContent += `Title: ${data.title}\n`;
+                    output.textContent += `Parent Task: ${data.parentTaskId}\n`;
+                    output.textContent += `Is Created: ${data.isCreated || false}\n`;
+                    output.textContent += `Real Task ID: ${data.realTaskId || 'нет'}\n`;
+                    output.textContent += `Position: (${data.positionX}, ${data.positionY})\n`;
+                    output.textContent += '---\n';
+                }
+            } catch (e) {
+                console.error('Parse error:', e);
+            }
+        });
+
+        // 2. Проверяем связи
+        BX24.callMethod('entity.item.get', {
+            ENTITY: 'tflow_conn'
+        }, (result) => {
+            if (result.error()) {
+                output.textContent += '\n❌ Ошибка загрузки связей: ' + result.error();
+                return;
+            }
+
+            const connections = result.data();
+            output.textContent += '\n\n🔗 СВЯЗИ (tflow_conn):\n';
+            output.textContent += '=====================================\n';
+
+            connections.forEach(conn => {
+                try {
+                    const data = JSON.parse(conn.DETAIL_TEXT);
+                    if (data.sourceId === 'task-31' || data.targetId === 'task-31' ||
+                        data.sourceId.includes('future-') || data.targetId.includes('future-')) {
+                        output.textContent += `\nID: ${conn.ID}\n`;
+                        output.textContent += `Source: ${data.sourceId}\n`;
+                        output.textContent += `Target: ${data.targetId}\n`;
+                        output.textContent += `Type: ${data.connectionType}\n`;
+                        output.textContent += '---\n';
+                    }
+                } catch (e) {
+                    console.error('Parse error:', e);
+                }
+            });
+
+            output.textContent += '\n✅ Проверка завершена!';
+        });
+    });
+}
+</script>
+</body>
+</html>

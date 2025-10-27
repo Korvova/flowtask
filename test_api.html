@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Тест API задач</title>
+    <script src="//api.bitrix24.com/api/v1/"></script>
+</head>
+<body>
+    <h1>Тест API tasks.task.get</h1>
+    <div id="result"></div>
+
+    <script>
+        BX24.init(function() {
+            const placement = BX24.placement.info();
+            const taskId = placement?.options?.taskId ||
+                          placement?.options?.TASK_ID ||
+                          new URLSearchParams(window.location.search).get('taskId') ||
+                          '2';
+
+            document.getElementById('result').innerHTML = '<p>Загружаем задачу ID: ' + taskId + '...</p>';
+
+            BX24.callMethod('tasks.task.get', { taskId: taskId }, function(result) {
+                if (result.error()) {
+                    document.getElementById('result').innerHTML = '<pre style="color: red;">Ошибка:\n' + JSON.stringify(result.error(), null, 2) + '</pre>';
+                } else {
+                    const data = result.data();
+                    document.getElementById('result').innerHTML = '<h2>Результат result.data():</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+
+                    console.log('=== RAW DATA ===');
+                    console.log('result.data():', data);
+                    console.log('data.task:', data.task);
+                    console.log('data.title:', data.title);
+                    console.log('data.status:', data.status);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
