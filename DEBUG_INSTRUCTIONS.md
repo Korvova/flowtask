@@ -1,6 +1,42 @@
 # Debug Instructions - Future Task Disappearing Issue
 
-## Changes Made (2025-10-27)
+## Latest Changes (2025-10-27 v=1761572194)
+
+### Fixed Two Critical Issues:
+
+**1. Pull Subscription Closure Fix**
+- Fixed closure problem in PullSubscription.js where all handlers used the last subscribed taskId
+- Now each subscription has its own closure-preserved taskId
+- Status changes on task-71 should now update colors on task-70's canvas
+
+**2. Parent Task Loading**
+- Modified loadConnections to accept parentId parameter
+- When task has PARENT_ID, now loads:
+  - Parent task node
+  - Parent's future tasks (предзадачи)
+  - Parent's connections
+- task-71 should now see processes from parent task-70
+
+### Testing Instructions:
+
+**Test 1: Pull Subscription (Real-time Color Updates)**
+1. Open task-70: https://test.test-rms.ru/company/personal/user/1/tasks/task/view/70/
+2. Open "Процессы" tab
+3. You should see task-71 as a subtask (подзадача) on the canvas
+4. In another browser tab, open task-71 and change its status
+5. **Expected**: task-71's card color should change on task-70's canvas in real-time
+6. Check console for: `✅ Событие PULL для задачи: 71`
+
+**Test 2: Parent Task Loading**
+1. Open task-71: https://test.test-rms.ru/company/personal/user/1/tasks/task/view/71/
+2. Open "Процессы" tab
+3. **Expected**: Should now see parent task-70 and its future tasks/connections
+4. Check console for:
+   - `🔼 Текущая задача имеет родителя: task-70`
+   - `➕ Добавлена родительская задача: 70`
+   - `📋 Предзадач у родителя: X`
+
+## Previous Changes (2025-10-27)
 
 I've added comprehensive console logging to track the entire workflow when a task is completed.
 
