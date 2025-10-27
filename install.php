@@ -356,7 +356,7 @@ if (isset($_REQUEST['event']) && $_REQUEST['event'] === 'ONAPPINSTALL') {
             
             BX24.callMethod('placement.bind', {
                 PLACEMENT: 'TASK_VIEW_TAB',
-                HANDLER: window.location.origin + '/flowtask/handler.php',
+                HANDLER: 'https://rms-bot.com/flowtask/handler.php',
                 LANG_ALL: {
                     ru: { TITLE: 'Процессы' },
                     en: { TITLE: 'Processes' }

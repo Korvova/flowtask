@@ -109,12 +109,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761563702"></script>
-    <script src="components/PullSubscription.js?v=1761563702"></script>
-    <script src="components/TaskCreator.js?v=1761563702"></script>
-    <script src="components/TaskNode.js?v=1761563702"></script>
-    <script src="components/TaskModal.js?v=1761563702"></script>
-    <script src="components/FlowCanvas.js?v=1761563702"></script>
+    <script src="components/StatusColors.js?v=1761564081"></script>
+    <script src="components/PullSubscription.js?v=1761564081"></script>
+    <script src="components/TaskCreator.js?v=1761564081"></script>
+    <script src="components/TaskNode.js?v=1761564081"></script>
+    <script src="components/TaskModal.js?v=1761564081"></script>
+    <script src="components/FlowCanvas.js?v=1761564081"></script>
 
     <script>
         // Debug functions
@@ -471,10 +471,12 @@
         }
 
         BX24.init(function() {
-            console.log("✅ Telegsarflow initialized");
+            console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
+            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761564081', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const placement = BX24.placement.info();
-            console.log("Placement:", placement);
+            console.log('%c📍 Placement Info:', 'color: #2196f3; font-weight: bold;', placement);
 
             if (placement?.placement === "DEFAULT") {
                 showInstallPage();
@@ -496,14 +498,17 @@
 
             BX24.callMethod("tasks.task.get", { taskId: taskId }, function(result) {
                 if (result.error()) {
-                    console.error("Error:", result.error());
+                    console.error('%c❌ ОШИБКА загрузки задачи:', 'color: #f44336; font-weight: bold;', result.error());
                     document.getElementById("root").innerHTML =
                         "<div class=\"loading\">❌ Ошибка загрузки задачи</div>";
                     return;
                 }
 
                 const task = result.data().task;
-                console.log("Task loaded:", task);
+                console.log('%c✅ Задача загружена:', 'color: #4caf50; font-weight: bold;', task);
+                console.log('%c  • ID:', 'color: #2196f3;', task.id);
+                console.log('%c  • Название:', 'color: #2196f3;', task.title);
+                console.log('%c  • Статус:', 'color: #2196f3;', task.status);
 
                 if (typeof window.FlowCanvas !== "undefined") {
                     window.FlowCanvas.render(task);
