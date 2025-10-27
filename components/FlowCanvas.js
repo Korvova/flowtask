@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761567183 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761568892 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -124,13 +124,28 @@ window.FlowCanvas = {
                                 draggable: true,
                                 data: {
                                     id: ft.futureId,
+                                    futureId: ft.futureId,
+                                    parentTaskId: ft.parentTaskId,
                                     title: ft.title,
                                     description: ft.description,
+                                    groupId: ft.groupId,
+                                    responsibleId: ft.responsibleId,
                                     isFuture: true,
                                     isRealTask: false,
                                     conditionType: ft.conditionType,
+                                    delayMinutes: ft.delayMinutes,
+                                    positionX: ft.positionX,
+                                    positionY: ft.positionY,
+                                    isCreated: ft.isCreated,
+                                    realTaskId: ft.realTaskId,
                                     entityItemId: ft.id,  // ID в Entity для удаления
-                                    onDelete: () => deleteFutureTask(ft.futureId, ft.id)
+                                    onDelete: () => deleteFutureTask(ft.futureId, ft.id),
+                                    onEdit: (data) => {
+                                        console.log('📝 Открываем редактирование:', data.futureId);
+                                        // Добавляем callback для обновления
+                                        data.onUpdate = updateFutureTask;
+                                        window.TaskModal.showEdit(data);
+                                    }
                                 }
                             });
                         }
@@ -637,20 +652,34 @@ window.FlowCanvas = {
                             const newFutureNode = {
                                 id: futureId,
                                 type: 'taskNode',
-                                position: { 
-                                    x: parseFloat(futureTaskData.positionX), 
-                                    y: parseFloat(futureTaskData.positionY) 
+                                position: {
+                                    x: parseFloat(futureTaskData.positionX),
+                                    y: parseFloat(futureTaskData.positionY)
                                 },
                                 draggable: true,
                                 data: {
                                     id: futureId,
+                                    futureId: futureId,
+                                    parentTaskId: futureTaskData.parentTaskId,
                                     title: futureTaskData.title,
                                     description: futureTaskData.description,
+                                    groupId: futureTaskData.groupId,
+                                    responsibleId: futureTaskData.responsibleId,
                                     isFuture: true,
                                     isRealTask: false,
                                     conditionType: futureTaskData.conditionType,
+                                    delayMinutes: futureTaskData.delayMinutes,
+                                    positionX: futureTaskData.positionX,
+                                    positionY: futureTaskData.positionY,
+                                    isCreated: futureTaskData.isCreated || false,
+                                    realTaskId: futureTaskData.realTaskId || null,
                                     entityItemId: result.data(),  // ID из Entity
-                                    onDelete: () => deleteFutureTask(futureId, result.data())
+                                    onDelete: () => deleteFutureTask(futureId, result.data()),
+                                    onEdit: (data) => {
+                                        console.log('📝 Открываем редактирование:', data.futureId);
+                                        data.onUpdate = updateFutureTask;
+                                        window.TaskModal.showEdit(data);
+                                    }
                                 }
                             };
                             
@@ -742,6 +771,73 @@ window.FlowCanvas = {
                         if (toDelete.length === 0) {
                             loadProcessData();
                         }
+                    });
+                });
+            };
+
+            // Обновление предзадачи
+            const updateFutureTask = (updatedData) => {
+                console.log('✏️ Обновляем предзадачу:', updatedData.futureId);
+
+                // Найти Entity ID для этой предзадачи
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_future'
+                }, (result) => {
+                    if (result.error()) {
+                        console.error('Ошибка загрузки предзадач:', result.error());
+                        alert('Ошибка обновления: ' + result.error());
+                        return;
+                    }
+
+                    const items = result.data();
+                    const futureItem = items.find(item => {
+                        if (!item.DETAIL_TEXT) return false;
+                        try {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            return data.futureId === updatedData.futureId;
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+
+                    if (!futureItem) {
+                        console.error('Предзадача не найдена:', updatedData.futureId);
+                        alert('Предзадача не найдена');
+                        return;
+                    }
+
+                    // Обновляем Entity
+                    BX24.callMethod('entity.item.update', {
+                        ENTITY: 'tflow_future',
+                        ID: futureItem.ID,
+                        DETAIL_TEXT: JSON.stringify(updatedData)
+                    }, (updateResult) => {
+                        if (updateResult.error()) {
+                            console.error('Ошибка обновления:', updateResult.error());
+                            alert('Ошибка обновления: ' + updateResult.error());
+                            return;
+                        }
+
+                        console.log('✅ Предзадача обновлена');
+
+                        // Обновляем узел на полотне без полной перезагрузки
+                        setNodes((currentNodes) => {
+                            return currentNodes.map(node => {
+                                if (node.id === updatedData.futureId) {
+                                    return {
+                                        ...node,
+                                        data: {
+                                            ...node.data,
+                                            title: updatedData.title,
+                                            description: updatedData.description,
+                                            conditionType: updatedData.conditionType,
+                                            delayMinutes: updatedData.delayMinutes
+                                        }
+                                    };
+                                }
+                                return node;
+                            });
+                        });
                     });
                 });
             };

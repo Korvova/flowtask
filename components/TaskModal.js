@@ -5,6 +5,8 @@ window.TaskModal = {
     currentConnectionData: null,
     users: [],
     groups: [],
+    editMode: false,
+    editingFutureTask: null,
 
     init: function() {
         console.log('✅ TaskModal initialized');
@@ -101,17 +103,53 @@ window.TaskModal = {
     },
 
     show: function(connectionData) {
+        this.editMode = false;
+        this.editingFutureTask = null;
         this.currentConnectionData = connectionData;
-        
+
         const modal = document.getElementById('taskModal');
         if (!modal) {
             this.createModal();
         }
-        
+
         // Обновляем селекты
         this.updateResponsibleSelect();
         this.updateGroupSelect();
-        
+
+        // Обновляем заголовок и кнопку
+        document.getElementById('modalTitle').textContent = 'Создать предзадачу';
+        document.getElementById('saveButton').textContent = 'Создать';
+
+        document.getElementById('taskModal').style.display = 'flex';
+        document.getElementById('futureTaskTitle').focus();
+    },
+
+    showEdit: function(futureTaskData) {
+        this.editMode = true;
+        this.editingFutureTask = futureTaskData;
+        this.currentConnectionData = null;
+
+        const modal = document.getElementById('taskModal');
+        if (!modal) {
+            this.createModal();
+        }
+
+        // Обновляем селекты
+        this.updateResponsibleSelect();
+        this.updateGroupSelect();
+
+        // Заполняем форму данными
+        document.getElementById('futureTaskTitle').value = futureTaskData.title || '';
+        document.getElementById('futureTaskDescription').value = futureTaskData.description || '';
+        document.getElementById('futureTaskGroup').value = futureTaskData.groupId || '';
+        document.getElementById('futureTaskResponsible').value = futureTaskData.responsibleId || '';
+        document.getElementById('futureTaskCondition').value = futureTaskData.conditionType || 'immediately';
+        document.getElementById('futureTaskDelay').value = futureTaskData.delayMinutes || '0';
+
+        // Обновляем заголовок и кнопку
+        document.getElementById('modalTitle').textContent = 'Редактировать предзадачу';
+        document.getElementById('saveButton').textContent = 'Сохранить';
+
         document.getElementById('taskModal').style.display = 'flex';
         document.getElementById('futureTaskTitle').focus();
     },
@@ -128,6 +166,8 @@ window.TaskModal = {
         document.getElementById('futureTaskResponsible').value = '';
         document.getElementById('futureTaskCondition').value = 'immediately';
         document.getElementById('futureTaskDelay').value = '0';
+        this.editMode = false;
+        this.editingFutureTask = null;
     },
 
     save: function() {
@@ -149,26 +189,52 @@ window.TaskModal = {
             return;
         }
 
-        // Используем координаты мыши из currentConnectionData
-        const targetPos = this.currentConnectionData.position || { x: 500, y: 300 };
-        console.log('📍 Позиция для новой предзадачи:', targetPos);
+        if (this.editMode && this.editingFutureTask) {
+            // РЕЖИМ РЕДАКТИРОВАНИЯ
+            console.log('✏️ Редактируем предзадачу:', this.editingFutureTask.id);
 
-        const futureTaskData = {
-            title: title,
-            description: description,
-            groupId: groupId,
-            responsibleId: responsibleId,
-            conditionType: conditionType,
-            delayMinutes: delayMinutes,
-            positionX: targetPos.x,
-            positionY: targetPos.y
-        };
+            const updatedData = {
+                futureId: this.editingFutureTask.futureId,
+                parentTaskId: this.editingFutureTask.parentTaskId,
+                title: title,
+                description: description,
+                groupId: groupId,
+                responsibleId: responsibleId,
+                conditionType: conditionType,
+                delayMinutes: delayMinutes,
+                positionX: this.editingFutureTask.positionX,
+                positionY: this.editingFutureTask.positionY,
+                isCreated: this.editingFutureTask.isCreated || false,
+                realTaskId: this.editingFutureTask.realTaskId || null
+            };
 
-        console.log('💾 Сохраняем предзадачу:', futureTaskData);
+            // Вызываем callback для обновления
+            if (this.editingFutureTask.onUpdate) {
+                this.editingFutureTask.onUpdate(updatedData);
+            }
+        } else {
+            // РЕЖИМ СОЗДАНИЯ
+            // Используем координаты мыши из currentConnectionData
+            const targetPos = this.currentConnectionData.position || { x: 500, y: 300 };
+            console.log('📍 Позиция для новой предзадачи:', targetPos);
 
-        // Вызываем callback для сохранения
-        if (this.currentConnectionData && this.currentConnectionData.onSave) {
-            this.currentConnectionData.onSave(futureTaskData);
+            const futureTaskData = {
+                title: title,
+                description: description,
+                groupId: groupId,
+                responsibleId: responsibleId,
+                conditionType: conditionType,
+                delayMinutes: delayMinutes,
+                positionX: targetPos.x,
+                positionY: targetPos.y
+            };
+
+            console.log('💾 Сохраняем новую предзадачу:', futureTaskData);
+
+            // Вызываем callback для сохранения
+            if (this.currentConnectionData && this.currentConnectionData.onSave) {
+                this.currentConnectionData.onSave(futureTaskData);
+            }
         }
 
         this.close();
@@ -176,9 +242,9 @@ window.TaskModal = {
 
     createModal: function() {
         const modalHTML = `
-            <div id="taskModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
-                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-                    <h2 style="margin-bottom: 20px; color: #1f2937;">Создать предзадачу</h2>
+            <div id="taskModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 999999; align-items: center; justify-content: center;">
+                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                    <h2 id="modalTitle" style="margin-bottom: 20px; color: #1f2937;">Создать предзадачу</h2>
                     
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">Название задачи *</label>
@@ -221,7 +287,7 @@ window.TaskModal = {
 
                     <div style="display: flex; gap: 10px; justify-content: flex-end;">
                         <button onclick="window.TaskModal.close()" style="padding: 10px 20px; background: #e5e7eb; color: #374151; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500;">Отмена</button>
-                        <button onclick="window.TaskModal.save()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500;">Создать</button>
+                        <button id="saveButton" onclick="window.TaskModal.save()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500;">Создать</button>
                     </div>
                 </div>
             </div>
@@ -240,4 +306,4 @@ if (typeof BX24 !== 'undefined') {
     console.warn('⚠️  BX24 не загружен, TaskModal не инициализирован');
 }
 
-console.log('✅ TaskModal component loaded with user/group selectors');
+console.log('✅ TaskModal component loaded with edit mode support');

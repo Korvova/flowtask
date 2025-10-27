@@ -1,9 +1,9 @@
 /**
  * TaskNode - Компонент карточки задачи для React Flow
  */
-window.TaskNode = function({ id, data }) {
+window.TaskNode = function({ id, data, selected }) {
     const React = window.React;
-    const { Handle } = window.ReactFlow || window.reactflow || {};
+    const { Handle, NodeToolbar, Position } = window.ReactFlow || window.reactflow || {};
 
     if (!Handle) {
         console.error('Handle не найден в ReactFlow');
@@ -90,25 +90,6 @@ window.TaskNode = function({ id, data }) {
         marginTop: '4px'
     };
 
-    // Стиль кнопки удаления
-    const deleteButtonStyle = {
-        position: 'absolute',
-        top: '8px',
-        right: '8px',
-        background: 'rgba(239, 68, 68, 0.9)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        width: '24px',
-        height: '24px',
-        fontSize: '14px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transition: 'all 0.2s ease',
-        zIndex: 10
-    };
 
     // Получаем название условия создания
     const getConditionName = (conditionType) => {
@@ -129,7 +110,81 @@ window.TaskNode = function({ id, data }) {
         }
     };
 
-    return React.createElement('div', { style: nodeStyle },
+    // Обработчик открытия для редактирования (для предзадач)
+    const handleEdit = (e) => {
+        e.stopPropagation();
+        console.log('✏️ Редактируем предзадачу:', id);
+        if (data.onEdit) {
+            data.onEdit(data);
+        }
+    };
+
+    // Обработчик открытия задачи в Bitrix24 (для реальных задач)
+    const handleOpen = (e) => {
+        e.stopPropagation();
+        const taskId = typeof data.id === 'string' ? data.id.replace('task-', '') : data.id;
+        console.log('📂 Открываем задачу Bitrix24:', taskId);
+
+        if (typeof BX24 !== 'undefined' && BX24.openPath) {
+            BX24.openPath('/company/personal/user/1/tasks/task/view/' + taskId + '/');
+        } else {
+            console.warn('BX24.openPath недоступен');
+        }
+    };
+
+    // Стиль кнопки в тулбаре
+    const toolbarButtonStyle = {
+        padding: '8px 16px',
+        background: '#667eea',
+        color: 'white',
+        border: 'none',
+        borderRadius: '5px',
+        cursor: 'pointer',
+        fontSize: '13px',
+        fontWeight: '500',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+        transition: 'all 0.2s ease',
+        marginRight: '4px'
+    };
+
+    const deleteToolbarButtonStyle = {
+        ...toolbarButtonStyle,
+        background: '#ef4444'
+    };
+
+    return React.createElement(React.Fragment, null,
+        // NodeToolbar - появляется при выборе узла
+        NodeToolbar && React.createElement(NodeToolbar, {
+            isVisible: selected,
+            position: Position.Top
+        },
+            // Кнопка редактирования для предзадач
+            isFuture && React.createElement('button', {
+                style: toolbarButtonStyle,
+                onClick: handleEdit,
+                onMouseEnter: (e) => { e.target.style.background = '#5568d3'; },
+                onMouseLeave: (e) => { e.target.style.background = '#667eea'; }
+            }, '✏️ Редактировать'),
+
+            // Кнопка открытия для реальных задач
+            isRealTask && React.createElement('button', {
+                style: toolbarButtonStyle,
+                onClick: handleOpen,
+                onMouseEnter: (e) => { e.target.style.background = '#5568d3'; },
+                onMouseLeave: (e) => { e.target.style.background = '#667eea'; }
+            }, '📂 Открыть'),
+
+            // Кнопка удаления для предзадач
+            isFuture && React.createElement('button', {
+                style: deleteToolbarButtonStyle,
+                onClick: handleDelete,
+                onMouseEnter: (e) => { e.target.style.background = '#dc2626'; },
+                onMouseLeave: (e) => { e.target.style.background = '#ef4444'; }
+            }, '🗑️ Удалить')
+        ),
+
+        // Сама карточка
+        React.createElement('div', { style: nodeStyle },
         // Handle для входящих связей (слева)
         React.createElement(Handle, {
             type: 'target',
@@ -141,21 +196,6 @@ window.TaskNode = function({ id, data }) {
                 border: '2px solid white'
             }
         }),
-
-        // Кнопка удаления (только для предзадач)
-        isFuture && React.createElement('button', {
-            style: deleteButtonStyle,
-            onClick: handleDelete,
-            onMouseEnter: (e) => {
-                e.target.style.background = 'rgba(220, 38, 38, 1)';
-                e.target.style.transform = 'scale(1.1)';
-            },
-            onMouseLeave: (e) => {
-                e.target.style.background = 'rgba(239, 68, 68, 0.9)';
-                e.target.style.transform = 'scale(1)';
-            },
-            title: 'Удалить предзадачу'
-        }, '×'),
 
         // Заголовок с иконкой
         React.createElement('div', { style: headerStyle },
@@ -191,7 +231,8 @@ window.TaskNode = function({ id, data }) {
                 border: '2px solid white'
             }
         })
-    );
+        ) // закрываем div карточки
+    ); // закрываем React.Fragment
 };
 
-console.log('✅ TaskNode component loaded with delete button');
+console.log('✅ TaskNode component loaded with NodeToolbar buttons');
