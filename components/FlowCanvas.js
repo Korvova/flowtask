@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761571928 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761572194 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -64,11 +64,11 @@ window.FlowCanvas = {
                     // 1. Загружаем позицию текущей задачи
                     const taskPosition = await loadTaskPosition(task.id);
 
-                    // 2. Загружаем свежий статус задачи
+                    // 2. Загружаем свежий статус задачи (включая PARENT_ID)
                     const freshTaskData = await new Promise((resolve) => {
                         BX24.callMethod('tasks.task.get', {
                             taskId: task.id,
-                            select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID']
+                            select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID', 'PARENT_ID']
                         }, (result) => {
                             if (result.error()) {
                                 console.warn('Не удалось загрузить свежий статус, используем кэш');
@@ -156,7 +156,96 @@ window.FlowCanvas = {
                     const createdTaskNodes = await loadCreatedTasks(createdTaskIds, futureTasks);
                     addDebugLog('✅ Загружено узлов: ' + createdTaskNodes.length, '#00ff00');
 
-                    // 3.5. Рекурсивно загружаем все подзадачи текущей задачи
+                    // 3.5. Загружаем родительскую задачу и её процесс (если есть)
+                    const parentNodes = [];
+                    if (freshTaskData.parentId && freshTaskData.parentId != 0) {
+                        addDebugLog('🔼 Текущая задача имеет родителя: task-' + freshTaskData.parentId, '#9c27b0');
+
+                        // Загружаем данные родительской задачи
+                        const parentTaskData = await new Promise((resolve) => {
+                            BX24.callMethod('tasks.task.get', {
+                                taskId: freshTaskData.parentId,
+                                select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID', 'PARENT_ID']
+                            }, (result) => {
+                                if (result.error()) {
+                                    resolve(null);
+                                } else {
+                                    resolve(result.data().task);
+                                }
+                            });
+                        });
+
+                        if (parentTaskData) {
+                            // Загружаем позицию родителя
+                            const parentPosition = await loadTaskPosition(parentTaskData.id);
+
+                            parentNodes.push({
+                                id: 'task-' + parentTaskData.id,
+                                type: 'taskNode',
+                                position: parentPosition || {
+                                    x: 250,
+                                    y: -200
+                                },
+                                draggable: true,
+                                data: {
+                                    id: parentTaskData.id,
+                                    title: parentTaskData.title,
+                                    statusCode: parentTaskData.status,
+                                    responsibleId: parentTaskData.responsibleId,
+                                    isFuture: false,
+                                    isRealTask: true,
+                                    isParent: true
+                                }
+                            });
+
+                            addDebugLog('  ➕ Добавлена родительская задача: ' + parentTaskData.id, '#00bcd4');
+
+                            // Загружаем предзадачи родительской задачи
+                            const parentFutureTasks = await loadFutureTasks(parentTaskData.id);
+                            addDebugLog('  📋 Предзадач у родителя: ' + parentFutureTasks.length, '#9c27b0');
+
+                            for (const ft of parentFutureTasks) {
+                                if (ft.isCreated && ft.realTaskId && ft.realTaskId == task.id) {
+                                    // Это связь родителя с текущей задачей - не дублируем
+                                    continue;
+                                }
+
+                                // Добавляем предзадачи родителя
+                                if (!ft.isCreated) {
+                                    parentNodes.push({
+                                        id: ft.futureId,
+                                        type: 'taskNode',
+                                        position: { x: parseFloat(ft.positionX), y: parseFloat(ft.positionY) },
+                                        draggable: true,
+                                        data: {
+                                            id: ft.futureId,
+                                            futureId: ft.futureId,
+                                            parentTaskId: ft.parentTaskId,
+                                            title: ft.title,
+                                            description: ft.description,
+                                            groupId: ft.groupId,
+                                            responsibleId: ft.responsibleId,
+                                            isFuture: true,
+                                            isRealTask: false,
+                                            conditionType: ft.conditionType,
+                                            delayMinutes: ft.delayMinutes,
+                                            positionX: ft.positionX,
+                                            positionY: ft.positionY,
+                                            isCreated: ft.isCreated,
+                                            realTaskId: ft.realTaskId,
+                                            entityItemId: ft.id,
+                                            onDelete: () => {}, // TODO
+                                            onEdit: () => {} // TODO
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    addDebugLog('📊 Узлов от родителя: ' + parentNodes.length, '#673ab7');
+
+                    // 3.6. Рекурсивно загружаем все подзадачи текущей задачи
                     addDebugLog('🔄 Начинаем рекурсивную загрузку подзадач...', '#673ab7');
                     const allSubtasks = await loadAllSubtasks(task.id);
                     addDebugLog('✅ Найдено подзадач (рекурсивно): ' + allSubtasks.length, '#4caf50');
@@ -198,8 +287,9 @@ window.FlowCanvas = {
 
                     addDebugLog('📊 Всего узлов подзадач: ' + subtaskNodes.length, '#673ab7');
 
-                    // 4. Загружаем связи (connections)
-                    const connections = await loadConnections(task.id);
+                    // 4. Загружаем связи (connections) - для текущей задачи и родителя (если есть)
+                    const parentId = freshTaskData.parentId && freshTaskData.parentId != 0 ? freshTaskData.parentId : null;
+                    const connections = await loadConnections(task.id, parentId);
                     const loadedEdges = connections.map(conn => {
                         console.log('📊 Создаём edge:', conn.sourceId, '→', conn.targetId);
                         return {
@@ -216,15 +306,16 @@ window.FlowCanvas = {
                         console.log('  ↳', edge.source, '→', edge.target);
                     });
 
-                    setNodes([mainNode, ...futureNodes, ...createdTaskNodes, ...subtaskNodes]);
+                    setNodes([mainNode, ...parentNodes, ...futureNodes, ...createdTaskNodes, ...subtaskNodes]);
                     setEdges(loadedEdges);
                     setIsLoading(false);
 
+                    const totalNodes = [mainNode, ...parentNodes, ...futureNodes, ...createdTaskNodes, ...subtaskNodes].length;
                     console.log('✅ Данные процесса загружены:', {
-                        nodes: [mainNode, ...futureNodes, ...createdTaskNodes, ...subtaskNodes].length,
+                        nodes: totalNodes,
                         edges: loadedEdges.length
                     });
-                    addDebugLog('🎉 Загрузка завершена! Узлов: ' + [mainNode, ...futureNodes, ...createdTaskNodes, ...subtaskNodes].length, '#4caf50');
+                    addDebugLog('🎉 Загрузка завершена! Узлов: ' + totalNodes, '#4caf50');
 
                 } catch (error) {
                     console.error('❌ Ошибка загрузки данных процесса:', error);
@@ -492,7 +583,7 @@ window.FlowCanvas = {
             };
 
             // Загрузка связей из entity
-            const loadConnections = (taskId) => {
+            const loadConnections = (taskId, parentId = null) => {
                 return new Promise((resolve) => {
                     BX24.callMethod('entity.item.get', {
                         ENTITY: 'tflow_conn'
@@ -508,11 +599,15 @@ window.FlowCanvas = {
                                     if (!item.DETAIL_TEXT) return false;
                                     try {
                                         const data = JSON.parse(item.DETAIL_TEXT);
-                                        // Фильтруем связи где source или target связан с текущей задачей
-                                        return data.sourceId === 'task-' + taskId ||
-                                               data.targetId === 'task-' + taskId ||
-                                               data.sourceId.includes('future-') ||
-                                               data.targetId.includes('future-');
+                                        // Фильтруем связи где source или target связан с текущей задачей ИЛИ с родителем
+                                        const isCurrentTask = data.sourceId === 'task-' + taskId ||
+                                                             data.targetId === 'task-' + taskId;
+                                        const isParentTask = parentId && (data.sourceId === 'task-' + parentId ||
+                                                             data.targetId === 'task-' + parentId);
+                                        const isFutureConnection = data.sourceId.includes('future-') ||
+                                                                  data.targetId.includes('future-');
+
+                                        return isCurrentTask || isParentTask || isFutureConnection;
                                     } catch (e) {
                                         console.warn('Failed to parse DETAIL_TEXT:', e);
                                         return false;
