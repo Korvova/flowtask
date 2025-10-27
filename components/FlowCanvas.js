@@ -18,13 +18,37 @@ window.FlowCanvas = {
 
         // Главный компонент
         function FlowApp() {
-            console.log('🚀 FlowApp инициализирован');
+            console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FlowApp ИНИЦИАЛИЗИРОВАН!', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+
+            // Добавляем видимый индикатор на страницу
+            const debugDiv = document.createElement('div');
+            debugDiv.id = 'flowtask-debug-indicator';
+            debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761565360 - Смотрите консоль';
+            document.body.appendChild(debugDiv);
+            setTimeout(() => debugDiv.remove(), 5000);
+
             const [nodes, setNodes, onNodesChange] = useNodesState([]);
             const [edges, setEdges, onEdgesChange] = useEdgesState([]);
             const [isLoading, setIsLoading] = useState(true);
+            const [debugLog, setDebugLog] = useState([]);
             const isDraggingRef = React.useRef(false);
             const connectingNodeId = React.useRef(null);
             const reactFlowInstance = React.useRef(null);
+
+            // Функция добавления в debug лог
+            const addDebugLog = (message, color = '#000') => {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = `[${timestamp}] ${message}`;
+                console.log(`%c${logEntry}`, `color: ${color}; font-weight: bold;`);
+                setDebugLog(prev => [...prev, { message: logEntry, color }].slice(-20)); // Последние 20 записей
+            };
+
+            React.useEffect(() => {
+                addDebugLog('FlowApp смонтирован', '#00ff00');
+            }, []);
 
             // Загрузка данных процесса при монтировании
             useEffect(() => {
@@ -34,9 +58,7 @@ window.FlowCanvas = {
 
             // Загрузка всех данных процесса
             const loadProcessData = async () => {
-                console.log('%c╔══════════════════════════════════════════════╗', 'color: #2196f3; font-size: 14px;');
-                console.log('%c║ 📥 ЗАГРУЗКА ДАННЫХ ПРОЦЕССА (loadProcessData) ║', 'color: #2196f3; font-size: 14px; font-weight: bold;');
-                console.log('%c╚══════════════════════════════════════════════╝', 'color: #2196f3; font-size: 14px;');
+                addDebugLog('📥 ЗАГРУЗКА ДАННЫХ ПРОЦЕССА', '#2196f3');
 
                 try {
                     // 1. Загружаем позицию текущей задачи
@@ -722,13 +744,11 @@ window.FlowCanvas = {
 
             // Подписка на изменения задачи через Pull & Push
             useEffect(() => {
-                console.log('%c═══════════════════════════════════════════', 'color: #9c27b0; font-size: 14px;');
-                console.log('%c🔔 ПОДПИСЫВАЕМСЯ на изменения задачи #' + task.id, 'color: #9c27b0; font-size: 14px; font-weight: bold;');
-                console.log('%c═══════════════════════════════════════════', 'color: #9c27b0; font-size: 14px;');
+                addDebugLog('🔔 ПОДПИСКА на задачу #' + task.id, '#9c27b0');
 
                 // Callback при изменении статуса
                 const handleStatusChange = (newStatus, taskData) => {
-                    console.log('%c🔄 handleStatusChange ВЫЗВАН! Новый статус:', 'color: #ff9800; font-weight: bold;', newStatus);
+                    addDebugLog('🔄 Статус изменён: ' + newStatus, '#ff9800');
                     setNodes((currentNodes) => {
                         return currentNodes.map(node => {
                             if (node.id === 'task-' + task.id) {
@@ -751,30 +771,28 @@ window.FlowCanvas = {
                 // Защита от повторных вызовов
                 let isProcessingComplete = false;
                 const handleTaskComplete = (taskId, taskData) => {
-                    console.log('%c╔═══════════════════════════════════════════╗', 'color: #ff0000; font-size: 16px; font-weight: bold;');
-                    console.log('%c║  ✅ ЗАДАЧА ЗАВЕРШЕНА! ID: ' + taskId + '           ║', 'color: #ff0000; font-size: 16px; font-weight: bold;');
-                    console.log('%c╚═══════════════════════════════════════════╝', 'color: #ff0000; font-size: 16px; font-weight: bold;');
+                    addDebugLog('✅ ЗАДАЧА ЗАВЕРШЕНА! ID: ' + taskId, '#ff0000');
 
                     // Защита от повторных вызовов
                     if (isProcessingComplete) {
-                        console.log('%c⏭️  УЖЕ ОБРАБАТЫВАЕТСЯ, ПРОПУСКАЕМ', 'color: #ff9800; font-weight: bold;');
+                        addDebugLog('⏭️ УЖЕ ОБРАБАТЫВАЕТСЯ, ПРОПУСК', '#ff9800');
                         return;
                     }
                     isProcessingComplete = true;
 
-                    console.log('%c🚀 Вызываем TaskCreator.processCompletedTask...', 'color: #2196f3; font-weight: bold;');
+                    addDebugLog('🚀 Вызов TaskCreator.processCompletedTask', '#2196f3');
 
                     window.TaskCreator.processCompletedTask(taskId, (createdTasks) => {
-                        console.log('%c✅✅✅ CALLBACK ВЕРНУЛСЯ! СОЗДАНО ЗАДАЧ: ' + createdTasks.length, 'color: #00ff00; font-size: 20px; font-weight: bold;');
+                        addDebugLog('✅ СОЗДАНО ЗАДАЧ: ' + createdTasks.length, '#00ff00');
 
                         // Даём время на сохранение связей в Entity, затем перезагружаем
                         setTimeout(() => {
-                            console.log('%c🔄 ПЕРЕЗАГРУЖАЕМ ПОЛОТНО...', 'color: #2196f3; font-size: 18px; font-weight: bold;');
+                            addDebugLog('🔄 ПЕРЕЗАГРУЗКА ПОЛОТНА...', '#2196f3');
                             loadProcessData();
                             // Сбрасываем флаг через 3 секунды
                             setTimeout(() => {
                                 isProcessingComplete = false;
-                                console.log('%c🔓 Флаг isProcessingComplete сброшен', 'color: #9e9e9e;');
+                                addDebugLog('🔓 Флаг сброшен', '#9e9e9e');
                             }, 3000);
                         }, 1500); // 1.5 секунды
                     });
@@ -866,9 +884,39 @@ window.FlowCanvas = {
                 style: {
                     width: '100%',
                     height: '100vh',
-                    background: '#f5f7fa'
+                    background: '#f5f7fa',
+                    position: 'relative'
                 }
             },
+                // Debug panel
+                React.createElement('div', {
+                    style: {
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        width: '400px',
+                        maxHeight: '300px',
+                        overflow: 'auto',
+                        background: 'rgba(0, 0, 0, 0.9)',
+                        color: '#00ff00',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        zIndex: 1000,
+                        fontFamily: 'monospace',
+                        fontSize: '11px',
+                        lineHeight: '1.4'
+                    }
+                },
+                    React.createElement('div', {
+                        style: { fontWeight: 'bold', marginBottom: '5px', borderBottom: '1px solid #00ff00', paddingBottom: '5px' }
+                    }, '🔍 DEBUG LOG (последние 20)'),
+                    debugLog.map((log, i) =>
+                        React.createElement('div', {
+                            key: i,
+                            style: { color: log.color, marginBottom: '2px' }
+                        }, log.message)
+                    )
+                ),
                 React.createElement(ReactFlow, {
                     nodes: nodes,
                     edges: edges,
