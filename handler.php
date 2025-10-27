@@ -110,12 +110,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761571647"></script>
-    <script src="components/PullSubscription.js?v=1761571647"></script>
-    <script src="components/TaskCreator.js?v=1761571647"></script>
-    <script src="components/TaskNode.js?v=1761571647"></script>
-    <script src="components/TaskModal.js?v=1761571647"></script>
-    <script src="components/FlowCanvas.js?v=1761571647"></script>
+    <script src="components/StatusColors.js?v=1761571928"></script>
+    <script src="components/PullSubscription.js?v=1761571928"></script>
+    <script src="components/TaskCreator.js?v=1761571928"></script>
+    <script src="components/TaskNode.js?v=1761571928"></script>
+    <script src="components/TaskModal.js?v=1761571928"></script>
+    <script src="components/FlowCanvas.js?v=1761571928"></script>
 
     <script>
         // Debug functions
@@ -330,7 +330,7 @@
 
         BX24.init(function() {
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761571647', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761571928', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const placement = BX24.placement.info();

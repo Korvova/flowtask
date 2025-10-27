@@ -13,46 +13,56 @@ window.PullSubscription = {
      */
     subscribe: function(taskId, onStatusChange, onTaskComplete) {
         console.log('🔔 Подписываемся на события задачи:', taskId);
-        
+
+        // Проверяем, не подписаны ли мы уже на эту задачу
+        if (this.subscriptions[taskId]) {
+            console.log('⏭️ Уже подписаны на задачу:', taskId);
+            return;
+        }
+
         // Проверяем доступность BX.PULL
         if (typeof BX === 'undefined' || typeof BX.PULL === 'undefined') {
             console.warn('⚠️  BX.PULL недоступен, используем fallback polling');
             return this.startPolling(taskId, onStatusChange, onTaskComplete);
         }
-        
-        // Создаём обработчик событий
-        const pullHandler = (data) => {
-            console.log('📨 Получено событие PULL:', data.command);
-            
-            // Обрабатываем события задач
-            if (data.command === 'task_update' || 
-                data.command === 'comment_add' || 
-                data.command === 'task_add') {
-                
-                // Проверяем что это наша задача
-                const eventTaskId = data.params?.TASK_ID || data.params?.ID;
-                
-                if (eventTaskId == taskId) {
-                    console.log('✅ Событие для нашей задачи:', taskId);
-                    
-                    // Загружаем актуальные данные задачи
-                    this.fetchTaskData(taskId, onStatusChange, onTaskComplete);
+
+        // ВАЖНО: Создаём замыкание для сохранения taskId, onStatusChange, onTaskComplete
+        const createHandler = (tid, onStatus, onComplete) => {
+            return (data) => {
+                // Обрабатываем события задач
+                if (data.command === 'task_update' ||
+                    data.command === 'comment_add' ||
+                    data.command === 'task_add') {
+
+                    // Проверяем что это наша задача
+                    const eventTaskId = data.params?.TASK_ID || data.params?.ID;
+
+                    if (eventTaskId == tid) {
+                        console.log('✅ Событие PULL для задачи:', tid, 'команда:', data.command);
+
+                        // Загружаем актуальные данные задачи
+                        this.fetchTaskData(tid, onStatus, onComplete);
+                    }
                 }
-            }
+            };
         };
-        
+
+        const pullHandler = createHandler(taskId, onStatusChange, onTaskComplete);
+
         // Подписываемся на модуль tasks
         BX.PULL.subscribe({
             moduleId: 'tasks',
             callback: pullHandler
         });
-        
+
         // Сохраняем подписку для отписки
         this.subscriptions[taskId] = {
             handler: pullHandler,
+            onStatusChange: onStatusChange,
+            onTaskComplete: onTaskComplete,
             type: 'pull'
         };
-        
+
         console.log('✅ Подписка на BX.PULL установлена для задачи:', taskId);
     },
     
