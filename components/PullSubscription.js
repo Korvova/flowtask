@@ -119,17 +119,29 @@ window.PullSubscription = {
             if (taskData && taskData.task) {
                 const newStatus = taskData.task.status;
                 const realStatus = taskData.task.real_status;
+                const lastStatus = this.lastStatuses[taskId];
 
-                console.log('%c📊 Текущий статус задачи #' + taskId + ':', 'color: #2196f3; font-weight: bold;', newStatus, '(real:', realStatus, ')');
+                console.log('%c📊 Текущий статус задачи #' + taskId + ':', 'color: #2196f3; font-weight: bold;', newStatus, '(real:', realStatus, ') предыдущий:', lastStatus);
+
+                // Проверяем, изменился ли статус
+                const statusChanged = lastStatus !== newStatus;
+
+                if (!statusChanged) {
+                    console.log('%c  ⏭️ Статус не изменился, пропускаем callbacks', 'color: #9e9e9e;');
+                    return;
+                }
+
+                // Сохраняем новый статус
+                this.lastStatuses[taskId] = newStatus;
 
                 // Вызываем callback изменения статуса
                 if (onStatusChange) {
-                    console.log('%c  → Вызываем onStatusChange callback', 'color: #9c27b0;');
+                    console.log('%c  → Вызываем onStatusChange callback (статус изменился: ' + lastStatus + ' → ' + newStatus + ')', 'color: #9c27b0;');
                     onStatusChange(newStatus, taskData.task);
                 }
 
-                // Проверяем завершение (статус 5 = Завершена)
-                if (newStatus == 5) {
+                // Проверяем завершение (статус 5 = Завершена) И это НОВОЕ завершение
+                if (newStatus == 5 && lastStatus != 5) {
                     console.log('%c✅✅✅ ЗАДАЧА ЗАВЕРШЕНА (status=5)!', 'color: #00ff00; font-size: 16px; font-weight: bold;');
                     if (onTaskComplete) {
                         console.log('%c  → Вызываем onTaskComplete callback...', 'color: #00ff00; font-weight: bold;');
@@ -137,6 +149,8 @@ window.PullSubscription = {
                     } else {
                         console.warn('%c  ⚠️  onTaskComplete callback НЕ ОПРЕДЕЛЁН!', 'color: #ff9800; font-weight: bold;');
                     }
+                } else if (newStatus == 5) {
+                    console.log('%c  ⏭️ Задача уже была завершена ранее, пропускаем onTaskComplete', 'color: #9e9e9e;');
                 } else {
                     console.log('%c  ℹ️  Задача ещё не завершена (status=' + newStatus + ')', 'color: #9c27b0;');
                 }
