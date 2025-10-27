@@ -340,23 +340,51 @@ window.TaskCreator = {
 
             console.log('%c    ✏️  Устанавливаем:', 'color: #9c27b0;', 'isCreated=true', 'realTaskId=' + futureData.realTaskId, 'type=' + typeof futureData.realTaskId);
 
-            console.log('%c    📦 Обновляем Entity с данными:', 'color: #9c27b0;', {
+            const jsonToSave = JSON.stringify(futureData);
+            console.log('%c    📦 JSON для сохранения (первые 200 символов):', 'color: #9c27b0;', jsonToSave.substring(0, 200));
+            console.log('%c    📦 Ключевые поля перед сохранением:', 'color: #9c27b0;', {
+                futureId: futureData.futureId,
                 isCreated: futureData.isCreated,
                 realTaskId: futureData.realTaskId,
-                futureId: futureData.futureId
+                parentTaskId: futureData.parentTaskId
             });
 
             BX24.callMethod('entity.item.update', {
                 ENTITY: 'tflow_future',
                 ID: entityId,
-                DETAIL_TEXT: JSON.stringify(futureData)
+                DETAIL_TEXT: jsonToSave
             }, (result) => {
                 if (result.error()) {
                     console.error('%c    ❌ entity.item.update ERROR:', 'color: #f44336; font-weight: bold;', result.error());
+                    console.error('%c    ❌ Параметры запроса:', 'color: #f44336;', {
+                        ENTITY: 'tflow_future',
+                        ID: entityId,
+                        DETAIL_TEXT_length: jsonToSave.length
+                    });
                     reject(result.error());
                 } else {
-                    console.log('%c    ✅✅ Entity обновлён! isCreated=true, realTaskId=' + realTaskId, 'color: #4caf50; font-weight: bold;');
+                    console.log('%c    ✅✅ Entity обновлён! isCreated=true, realTaskId=' + futureData.realTaskId, 'color: #4caf50; font-weight: bold;');
                     console.log('%c    📊 Результат entity.item.update:', 'color: #9c27b0;', result.data());
+
+                    // Проверка: перезагрузим этот Entity чтобы убедиться что сохранилось
+                    setTimeout(() => {
+                        BX24.callMethod('entity.item.get', {
+                            ENTITY: 'tflow_future',
+                            FILTER: { ID: entityId }
+                        }, (checkResult) => {
+                            if (!checkResult.error() && checkResult.data().length > 0) {
+                                const savedData = JSON.parse(checkResult.data()[0].DETAIL_TEXT);
+                                console.log('%c    🔍 ПРОВЕРКА: Что реально сохранилось в Entity:', 'color: #00ff00; font-weight: bold;', {
+                                    isCreated: savedData.isCreated,
+                                    realTaskId: savedData.realTaskId,
+                                    realTaskIdType: typeof savedData.realTaskId
+                                });
+                            } else {
+                                console.error('%c    ❌ Не удалось перезагрузить Entity для проверки', 'color: #f44336;');
+                            }
+                        });
+                    }, 500);
+
                     resolve();
                 }
             });
