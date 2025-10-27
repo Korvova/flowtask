@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761575944 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761576382 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -927,9 +927,34 @@ window.FlowCanvas = {
 
             // Соединение узел -> узел (когда тянут от одного узла к другому)
             const onConnect = useCallback((params) => {
-                console.log('🔗 Соединение узел -> узел:', params);
-                // Создаём прямую связь между узлами
+                addDebugLog('🔗 Создание связи: ' + params.source + ' → ' + params.target, '#2196f3');
+
+                // Создаём прямую связь между узлами визуально
                 setEdges((eds) => addEdge({ ...params, animated: true }, eds));
+
+                // Определяем тип связи
+                const connectionType = params.target.startsWith('future-') ? 'future' : 'task';
+
+                // Сохраняем связь в Entity
+                const connectionData = {
+                    sourceId: params.source,
+                    targetId: params.target,
+                    connectionType: connectionType
+                };
+
+                addDebugLog('💾 Сохраняем связь в Entity: ' + connectionType, '#2196f3');
+
+                BX24.callMethod('entity.item.add', {
+                    ENTITY: 'tflow_conn',
+                    NAME: 'conn_' + params.source.replace(/[^a-zA-Z0-9]/g, '_') + '_' + params.target.replace(/[^a-zA-Z0-9]/g, '_'),
+                    DETAIL_TEXT: JSON.stringify(connectionData)
+                }, (result) => {
+                    if (result.error()) {
+                        addDebugLog('❌ Ошибка сохранения связи: ' + result.error(), '#f44336');
+                    } else {
+                        addDebugLog('✅ Связь сохранена в Entity (ID: ' + result.data() + ')', '#00ff00');
+                    }
+                });
             }, [setEdges]);
 
             // Сохранение предзадачи
