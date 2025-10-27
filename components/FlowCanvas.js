@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761565360 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761565645 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -102,19 +102,21 @@ window.FlowCanvas = {
                     const futureNodes = [];
                     const createdTaskIds = [];
 
-                    console.log('🔍 Всего загружено предзадач:', futureTasks.length);
+                    addDebugLog('📋 Предзадач: ' + futureTasks.length, '#2196f3');
                     futureTasks.forEach(ft => {
-                        console.log('  → ' + ft.futureId + ' | isCreated=' + (ft.isCreated || false) + ' | realTaskId=' + (ft.realTaskId || 'нет'));
+                        const isCreated = ft.isCreated || false;
+                        const realTaskId = ft.realTaskId || 'нет';
+                        addDebugLog('  → ' + ft.futureId.substring(7, 17) + ' created=' + isCreated + ' taskId=' + realTaskId, '#2196f3');
                     });
 
                     for (const ft of futureTasks) {
                         if (ft.isCreated && ft.realTaskId) {
                             // Эта предзадача уже стала реальной задачей
-                            console.log('✅ Предзадача уже создана:', ft.futureId, '→ task-' + ft.realTaskId);
+                            addDebugLog('✅ Создана → task-' + ft.realTaskId, '#00ff00');
                             createdTaskIds.push(ft.realTaskId);
                         } else {
                             // Обычная предзадача (ещё не создана)
-                            console.log('📋 Обычная предзадача (не создана):', ft.futureId);
+                            addDebugLog('📋 Несоздана: ' + ft.futureId.substring(7, 17), '#ff9800');
                             futureNodes.push({
                                 id: ft.futureId,
                                 type: 'taskNode',
@@ -135,7 +137,9 @@ window.FlowCanvas = {
                     }
 
                     // Загружаем данные созданных задач
+                    addDebugLog('📥 Загружаем созданные: ' + createdTaskIds.length, '#2196f3');
                     const createdTaskNodes = await loadCreatedTasks(createdTaskIds, futureTasks);
+                    addDebugLog('✅ Загружено узлов: ' + createdTaskNodes.length, '#00ff00');
 
                     // 4. Загружаем связи (connections)
                     const connections = await loadConnections(task.id);
