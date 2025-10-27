@@ -104,6 +104,7 @@
                 <button onclick="listAllPositions()" style="background: #17a2b8;">📍 Список позиций</button>
                 <button onclick="listAllConnections()" style="background: #ff9800;">🔗 Список связей</button>
                 <button onclick="listAllFutureTasks()" style="background: #9c27b0;">🎯 Список предзадач</button>
+                <button onclick="createProcessIdField()" style="background: #673ab7;">🔧 Создать поле ProcessID</button>
                 <button onclick="createAllEntities()" style="background: #28a745;">➕ Создать Entity</button>
                 <button onclick="clearAllData()" style="background: #ff5722;">🧹 Очистить данные</button>
                 <button onclick="deleteOldEntities()" style="background: #dc3545;">🗑️ Удалить старые Entity</button>
@@ -113,12 +114,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761577584"></script>
-    <script src="components/PullSubscription.js?v=1761577584"></script>
-    <script src="components/TaskCreator.js?v=1761577584"></script>
-    <script src="components/TaskNode.js?v=1761577584"></script>
-    <script src="components/TaskModal.js?v=1761577584"></script>
-    <script src="components/FlowCanvas.js?v=1761577584"></script>
+    <script src="components/StatusColors.js?v=1761578238"></script>
+    <script src="components/PullSubscription.js?v=1761578238"></script>
+    <script src="components/TaskCreator.js?v=1761578238"></script>
+    <script src="components/TaskNode.js?v=1761578238"></script>
+    <script src="components/TaskModal.js?v=1761578238"></script>
+    <script src="components/FlowCanvas.js?v=1761578238"></script>
 
     <script>
         // Debug functions
@@ -293,6 +294,55 @@
             });
         }
 
+
+        function createProcessIdField() {
+            clearDebugLog();
+            debugLog("🔧 Создание пользовательского поля UF_FLOWTASK_PROCESS_ID...\n");
+
+            BX24.callMethod("task.item.userfield.add", {
+                fields: {
+                    FIELD_NAME: "UF_FLOWTASK_PROCESS_ID",
+                    USER_TYPE_ID: "string",
+                    LABEL: "Flowtask Process ID",
+                    MANDATORY: "N",
+                    SHOW_FILTER: "Y",
+                    SHOW_IN_LIST: "Y",
+                    EDIT_IN_LIST: "Y"
+                }
+            }, (result) => {
+                if (result.error()) {
+                    debugLog("❌ ОШИБКА: " + JSON.stringify(result.error(), null, 2));
+
+                    // Проверяем, может поле уже существует
+                    debugLog("\n🔍 Проверяем существующие поля...");
+                    BX24.callMethod("task.item.userfield.getlist", {}, (listResult) => {
+                        if (listResult.error()) {
+                            debugLog("❌ Ошибка получения списка полей: " + JSON.stringify(listResult.error()));
+                        } else {
+                            const fields = listResult.data();
+                            const processField = fields.find(f => f.FIELD_NAME === "UF_FLOWTASK_PROCESS_ID");
+
+                            if (processField) {
+                                debugLog("\n✅ Поле УЖЕ СУЩЕСТВУЕТ!");
+                                debugLog("ID: " + processField.ID);
+                                debugLog("Название: " + processField.FIELD_NAME);
+                                debugLog("Тип: " + processField.USER_TYPE_ID);
+                                debugLog("Метка: " + processField.LABEL);
+                            } else {
+                                debugLog("\n⚠️ Поле не найдено в списке существующих полей");
+                            }
+                        }
+                    });
+                } else {
+                    debugLog("✅ УСПЕШНО СОЗДАНО!");
+                    debugLog("\nДанные поля:");
+                    debugLog("ID: " + result.data().ID);
+                    debugLog("Название: UF_FLOWTASK_PROCESS_ID");
+                    debugLog("Тип: string");
+                    debugLog("\n🎉 Теперь можно использовать processId для группировки задач!");
+                }
+            });
+        }
 
         function createAllEntities() {
             clearDebugLog();
@@ -490,7 +540,7 @@
 
         BX24.init(function() {
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761577584', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761578238', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const placement = BX24.placement.info();
