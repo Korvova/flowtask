@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761568892 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761569146 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -322,14 +322,39 @@ window.FlowCanvas = {
 
                         if (!taskData) continue;
 
-                        // Находим соответствующую предзадачу для получения позиции
+                        // Находим соответствующую предзадачу для получения позиции по умолчанию
                         const futureTask = futureTasks.find(ft => ft.realTaskId == taskId);
                         if (!futureTask) continue;
+
+                        // ВАЖНО: Проверяем, есть ли сохранённая позиция в tflow_pos
+                        const savedPosition = await new Promise((resolve) => {
+                            BX24.callMethod('entity.item.get', {
+                                ENTITY: 'tflow_pos',
+                                FILTER: {
+                                    PROPERTY_taskId: taskId.toString()
+                                }
+                            }, (posResult) => {
+                                if (posResult.error() || !posResult.data().length) {
+                                    console.log('📍 Для задачи', taskId, 'нет сохранённой позиции, используем из предзадачи');
+                                    resolve(null);
+                                } else {
+                                    const posData = JSON.parse(posResult.data()[0].DETAIL_TEXT);
+                                    console.log('📍 Найдена сохранённая позиция для задачи', taskId, ':', posData);
+                                    resolve({ x: parseFloat(posData.positionX), y: parseFloat(posData.positionY) });
+                                }
+                            });
+                        });
+
+                        // Используем сохранённую позицию или позицию из предзадачи
+                        const position = savedPosition || {
+                            x: parseFloat(futureTask.positionX),
+                            y: parseFloat(futureTask.positionY)
+                        };
 
                         createdNodes.push({
                             id: 'task-' + taskId,
                             type: 'taskNode',
-                            position: { x: parseFloat(futureTask.positionX), y: parseFloat(futureTask.positionY) },
+                            position: position,
                             draggable: true,
                             data: {
                                 id: taskId,
@@ -341,7 +366,7 @@ window.FlowCanvas = {
                             }
                         });
 
-                        console.log('✅ Загружена созданная задача:', taskId, taskData.title);
+                        console.log('✅ Загружена созданная задача:', taskId, taskData.title, 'позиция:', position);
 
                     } catch (error) {
                         console.error('Ошибка при загрузке задачи:', taskId, error);
