@@ -3,100 +3,130 @@
  * Работает при выполнении условий (завершение родительской задачи и т.д.)
  */
 window.TaskCreator = {
-    
+
+    // Хелпер для логирования через DEBUG LOG (console.log не работает во фрейме!)
+    log: function(msg, color) {
+        color = color || '#2196f3';
+        if (window.FlowCanvas && window.FlowCanvas.addDebugLog) {
+            window.FlowCanvas.addDebugLog(msg, color);
+        }
+        console.log(msg); // Дублируем для бэкенд-логов
+    },
+
     /**
      * Обработка завершения задачи - создание связанных предзадач
      * @param {number} completedTaskId - ID завершённой задачи
      * @param {function} onSuccess - Callback после создания задач
      */
     processCompletedTask: async function(completedTaskId, onSuccess) {
-        console.log('%c🚀 НАЧАЛО: processCompletedTask для задачи:', 'color: #00ff00; font-size: 16px; font-weight: bold;', completedTaskId);
+        this.log('═══════════════════════════════════════════', '#ff0000');
+        this.log('🚀 НАЧАЛО: processCompletedTask для задачи: ' + completedTaskId, '#00ff00');
+        this.log('═══════════════════════════════════════════', '#ff0000');
 
         try {
+            this.log('STEP 1: Загружаем связи от задачи #' + completedTaskId, '#2196f3');
+
             // 1. Находим все связи от этой задачи
             const connections = await this.getConnectionsFromTask(completedTaskId);
-            console.log('%c📊 Найдено связей от задачи #' + completedTaskId + ':', 'color: #2196f3; font-weight: bold;', connections.length);
+
+            this.log('📊 Найдено связей: ' + connections.length, '#2196f3');
 
             if (connections.length > 0) {
-                console.log('%c📋 Список связей:', 'color: #2196f3;');
-                connections.forEach(conn => {
+                this.log('📋 Список связей:', '#2196f3');
+                connections.forEach((conn, idx) => {
                     const data = JSON.parse(conn.DETAIL_TEXT);
-                    console.log('  →', data.sourceId, '→', data.targetId, '(type:', data.connectionType + ')');
+                    this.log('  ' + (idx+1) + '. ' + data.sourceId + ' → ' + data.targetId + ' (type: ' + data.connectionType + ')', '#9c27b0');
                 });
             }
 
             if (connections.length === 0) {
-                console.log('%c⚠️  Нет связей для обработки - выходим', 'color: #ff9800;');
+                this.log('⚠️ Нет связей для обработки - выходим', '#ff9800');
                 return;
             }
 
             // 2. Для каждой связи проверяем предзадачи
             const createdTasks = [];
+            this.log('STEP 2: Обработка ' + connections.length + ' связей', '#2196f3');
 
-            for (const conn of connections) {
+            for (let i = 0; i < connections.length; i++) {
+                const conn = connections[i];
+                this.log('─────────────────────────────────────────', '#666');
+                this.log('🔍 Связь ' + (i+1) + ' из ' + connections.length, '#9c27b0');
+
                 const connData = JSON.parse(conn.DETAIL_TEXT);
                 const targetId = connData.targetId;
 
-                console.log('%c🔍 Обрабатываем связь:', 'color: #9c27b0; font-weight: bold;', connData.sourceId, '→', targetId);
+                this.log('  source: ' + connData.sourceId, '#9c27b0');
+                this.log('  target: ' + targetId, '#9c27b0');
 
                 // Пропускаем если это не предзадача
                 if (!targetId.startsWith('future-')) {
-                    console.log('%c  ⏭️  Это не предзадача (не начинается с future-), пропускаем', 'color: #9c27b0;');
+                    this.log('  ⏭️ Это НЕ предзадача (не начинается с future-), пропускаем', '#ff9800');
                     continue;
                 }
 
-                console.log('%c  ✅ Это предзадача! Загружаем данные...', 'color: #4caf50; font-weight: bold;');
+                this.log('  ✅ Это ПРЕДЗАДАЧА! Загружаем данные...', '#4caf50');
 
                 // Загружаем данные предзадачи
                 const futureTask = await this.getFutureTask(targetId);
 
                 if (!futureTask) {
-                    console.warn('%c  ❌ Предзадача не найдена в Entity:', 'color: #f44336; font-weight: bold;', targetId);
+                    this.log('  ❌ Предзадача не найдена в Entity: ' + targetId, '#f44336');
                     continue;
                 }
 
-                console.log('%c  📦 Данные предзадачи:', 'color: #2196f3;', futureTask.data);
-                console.log('    • isCreated:', futureTask.data.isCreated);
-                console.log('    • realTaskId:', futureTask.data.realTaskId);
-                console.log('    • conditionType:', futureTask.data.conditionType);
+                this.log('  📦 Данные предзадачи загружены:', '#2196f3');
+                this.log('    • futureId: ' + futureTask.data.futureId, '#2196f3');
+                this.log('    • title: ' + futureTask.data.title, '#2196f3');
+                this.log('    • isCreated: ' + futureTask.data.isCreated, '#2196f3');
+                this.log('    • realTaskId: ' + futureTask.data.realTaskId, '#2196f3');
+                this.log('    • conditionType: ' + futureTask.data.conditionType, '#2196f3');
 
                 // Пропускаем если уже создана
                 if (futureTask.data.isCreated) {
-                    console.log('%c  ⏭️  Задача УЖЕ создана (isCreated=true), пропускаем', 'color: #ff9800; font-weight: bold;');
+                    this.log('  ⏭️ Задача УЖЕ создана (isCreated=true), пропускаем', '#ff9800');
                     continue;
                 }
 
-                console.log('%c  🚀 Задача НЕ создана, проверяем условие и создаём...', 'color: #00ff00; font-weight: bold;');
+                this.log('  🚀 Задача НЕ создана, начинаем создание...', '#00ff00');
 
                 // Проверяем условие и создаём задачу
                 const newTaskId = await this.createTaskIfConditionMet(futureTask);
 
                 if (newTaskId) {
-                    console.log('%c  ✅ ЗАДАЧА СОЗДАНА! ID:', 'color: #00ff00; font-size: 14px; font-weight: bold;', newTaskId);
+                    this.log('  ✅✅ ЗАДАЧА СОЗДАНА! Новый ID: ' + newTaskId, '#00ff00');
                     createdTasks.push({
                         futureId: targetId,
                         taskId: newTaskId
                     });
                 } else {
-                    console.log('%c  ⚠️  Задача НЕ создана (условие не выполнено или ошибка)', 'color: #ff9800;');
+                    this.log('  ⚠️ Задача НЕ создана (условие не выполнено или ошибка)', '#ff9800');
                 }
             }
 
-            console.log('%c✅ ИТОГО создано задач:', 'color: #00ff00; font-size: 16px; font-weight: bold;', createdTasks.length);
+            this.log('═══════════════════════════════════════════', '#00ff00');
+            this.log('✅ ИТОГО создано задач: ' + createdTasks.length, '#00ff00');
+
             if (createdTasks.length > 0) {
-                console.log('%c📋 Список созданных задач:', 'color: #2196f3;');
+                this.log('📋 Список созданных задач:', '#2196f3');
                 createdTasks.forEach(ct => {
-                    console.log('  →', ct.futureId, '→ task ID:', ct.taskId);
+                    this.log('  → ' + ct.futureId + ' → task ID: ' + ct.taskId, '#2196f3');
                 });
             }
-            
+
             // Вызываем callback
             if (onSuccess && createdTasks.length > 0) {
+                this.log('📞 Вызываем callback onSuccess с ' + createdTasks.length + ' задачами', '#00ff00');
                 onSuccess(createdTasks);
+            } else if (!onSuccess) {
+                this.log('⚠️ onSuccess callback отсутствует', '#ff9800');
             }
-            
+
+            this.log('═══════════════════════════════════════════', '#00ff00');
+
         } catch (error) {
-            console.error('❌ Ошибка при обработке завершения задачи:', error);
+            this.log('❌❌❌ EXCEPTION: ' + error.toString(), '#f44336');
+            this.log('Stack: ' + error.stack, '#f44336');
         }
     },
     
@@ -170,31 +200,31 @@ window.TaskCreator = {
      */
     createTaskIfConditionMet: async function(futureTask) {
         const condition = futureTask.data.conditionType;
-        console.log('📋 Условие:', condition);
-        
+        this.log('    📋 Проверяем условие: ' + condition, '#9c27b0');
+
         if (condition === 'immediately') {
             // Создаём сразу
-            console.log('⚡ Создаём задачу немедленно');
+            this.log('    ⚡ Условие "immediately" - создаём задачу НЕМЕДЛЕННО', '#00ff00');
             return await this.createRealTask(futureTask);
-            
+
         } else if (condition === 'delay') {
             // Создаём с задержкой
             const delayMinutes = futureTask.data.delayMinutes || 0;
-            console.log('⏰ Создаём задачу через', delayMinutes, 'минут');
-            
+            this.log('    ⏰ Условие "delay" - создаём задачу через ' + delayMinutes + ' минут', '#ff9800');
+
             setTimeout(() => {
                 this.createRealTask(futureTask);
             }, delayMinutes * 60 * 1000);
-            
+
             return null; // Вернём null т.к. задача будет создана позже
-            
+
         } else if (condition === 'ifCancel_create') {
             // Создаём только при отмене (не обрабатываем здесь)
-            console.log('⏭️  Условие "при отмене", пропускаем');
+            this.log('    ⏭️ Условие "при отмене", пропускаем', '#ff9800');
             return null;
-            
+
         } else {
-            console.warn('⚠️  Неизвестное условие:', condition);
+            this.log('    ⚠️ НЕИЗВЕСТНОЕ условие: ' + condition, '#f44336');
             return null;
         }
     },
@@ -204,14 +234,12 @@ window.TaskCreator = {
      */
     createRealTask: function(futureTask) {
         const futureData = futureTask.data;
-        console.log('%c📝 createRealTask: Создаём реальную задачу:', 'color: #ff5722; font-weight: bold;', futureData.title);
-        console.log('  Параметры:', {
-            title: futureData.title,
-            description: futureData.description,
-            responsibleId: futureData.responsibleId,
-            groupId: futureData.groupId,
-            futureId: futureData.futureId
-        });
+        this.log('      📝 createRealTask ВЫЗВАН', '#ff5722');
+        this.log('      • Название: ' + futureData.title, '#ff5722');
+        this.log('      • Описание: ' + (futureData.description || '(пусто)'), '#ff5722');
+        this.log('      • Ответственный ID: ' + futureData.responsibleId, '#ff5722');
+        this.log('      • Группа ID: ' + (futureData.groupId || 0), '#ff5722');
+        this.log('      • Future ID: ' + futureData.futureId, '#ff5722');
 
         return new Promise((resolve) => {
             BX24.callMethod('tasks.task.add', {

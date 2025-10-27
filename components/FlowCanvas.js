@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761575594 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761575944 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -46,8 +46,11 @@ window.FlowCanvas = {
                 setDebugLog(prev => [...prev, { message: logEntry, color }].slice(-20)); // Последние 20 записей
             };
 
+            // Экспортируем addDebugLog глобально для TaskCreator
             React.useEffect(() => {
+                window.FlowCanvas.addDebugLog = addDebugLog;
                 addDebugLog('FlowApp смонтирован', '#00ff00');
+                addDebugLog('✅ addDebugLog экспортирован в window.FlowCanvas', '#00ff00');
             }, []);
 
             // Загрузка данных процесса при монтировании
