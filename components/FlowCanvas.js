@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761571234 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761571647 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -156,6 +156,48 @@ window.FlowCanvas = {
                     const createdTaskNodes = await loadCreatedTasks(createdTaskIds, futureTasks);
                     addDebugLog('✅ Загружено узлов: ' + createdTaskNodes.length, '#00ff00');
 
+                    // 3.5. Рекурсивно загружаем все подзадачи текущей задачи
+                    addDebugLog('🔄 Начинаем рекурсивную загрузку подзадач...', '#673ab7');
+                    const allSubtasks = await loadAllSubtasks(task.id);
+                    addDebugLog('✅ Найдено подзадач (рекурсивно): ' + allSubtasks.length, '#4caf50');
+
+                    // Создаём узлы для подзадач
+                    const subtaskNodes = [];
+                    for (const subtask of allSubtasks) {
+                        // Проверяем, не является ли эта подзадача уже загруженной (из createdTaskNodes)
+                        const alreadyLoaded = createdTaskNodes.find(n => n.id === 'task-' + subtask.id);
+                        if (alreadyLoaded) {
+                            addDebugLog('  ⏭️ Подзадача ' + subtask.id + ' уже загружена', '#9e9e9e');
+                            continue;
+                        }
+
+                        // Загружаем позицию подзадачи
+                        const subtaskPosition = await loadTaskPosition(subtask.id);
+
+                        subtaskNodes.push({
+                            id: 'task-' + subtask.id,
+                            type: 'taskNode',
+                            position: subtaskPosition || {
+                                x: 250 + Math.random() * 300,
+                                y: 300 + Math.random() * 200
+                            },
+                            draggable: true,
+                            data: {
+                                id: subtask.id,
+                                title: subtask.title,
+                                statusCode: subtask.status,
+                                responsibleId: subtask.responsibleId,
+                                isFuture: false,
+                                isRealTask: true,
+                                isSubtask: true
+                            }
+                        });
+
+                        addDebugLog('  ➕ Добавлена подзадача: ' + subtask.id + ' - ' + subtask.title, '#00bcd4');
+                    }
+
+                    addDebugLog('📊 Всего узлов подзадач: ' + subtaskNodes.length, '#673ab7');
+
                     // 4. Загружаем связи (connections)
                     const connections = await loadConnections(task.id);
                     const loadedEdges = connections.map(conn => {
@@ -174,14 +216,15 @@ window.FlowCanvas = {
                         console.log('  ↳', edge.source, '→', edge.target);
                     });
 
-                    setNodes([mainNode, ...futureNodes, ...createdTaskNodes]);
+                    setNodes([mainNode, ...futureNodes, ...createdTaskNodes, ...subtaskNodes]);
                     setEdges(loadedEdges);
                     setIsLoading(false);
 
                     console.log('✅ Данные процесса загружены:', {
-                        nodes: [mainNode, ...futureNodes].length,
+                        nodes: [mainNode, ...futureNodes, ...createdTaskNodes, ...subtaskNodes].length,
                         edges: loadedEdges.length
                     });
+                    addDebugLog('🎉 Загрузка завершена! Узлов: ' + [mainNode, ...futureNodes, ...createdTaskNodes, ...subtaskNodes].length, '#4caf50');
 
                 } catch (error) {
                     console.error('❌ Ошибка загрузки данных процесса:', error);
@@ -290,6 +333,55 @@ window.FlowCanvas = {
                         }
                     });
                 });
+            };
+
+            // Рекурсивная загрузка всех подзадач
+            const loadAllSubtasks = async (parentTaskId, visitedIds = new Set(), depth = 0) => {
+                // Защита от бесконечной рекурсии
+                if (depth > 5) {
+                    addDebugLog('⚠️ Достигнута максимальная глубина рекурсии (5)', '#ff9800');
+                    return [];
+                }
+
+                if (visitedIds.has(parentTaskId)) {
+                    addDebugLog('⚠️ Циклическая зависимость обнаружена для task-' + parentTaskId, '#ff9800');
+                    return [];
+                }
+
+                visitedIds.add(parentTaskId);
+                addDebugLog('🔍 Загружаем подзадачи для task-' + parentTaskId + ' (глубина: ' + depth + ')', '#9c27b0');
+
+                const subtasks = await new Promise((resolve) => {
+                    BX24.callMethod('tasks.task.getlist', {
+                        filter: { PARENT_ID: parentTaskId },
+                        select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID', 'PARENT_ID']
+                    }, (result) => {
+                        if (result.error()) {
+                            console.warn('Ошибка загрузки подзадач:', result.error());
+                            resolve([]);
+                        } else {
+                            const tasks = result.data().tasks || [];
+                            resolve(tasks);
+                        }
+                    });
+                });
+
+                if (subtasks.length === 0) {
+                    addDebugLog('  ℹ️ Подзадач не найдено для task-' + parentTaskId, '#9e9e9e');
+                    return [];
+                }
+
+                addDebugLog('  ✅ Найдено подзадач: ' + subtasks.length, '#4caf50');
+
+                const allSubtasks = [...subtasks];
+
+                // Рекурсивно загружаем подзадачи каждой подзадачи
+                for (const subtask of subtasks) {
+                    const nestedSubtasks = await loadAllSubtasks(subtask.id, visitedIds, depth + 1);
+                    allSubtasks.push(...nestedSubtasks);
+                }
+
+                return allSubtasks;
             };
 
             // Загрузка созданных задач (которые были предзадачами)
@@ -978,19 +1070,28 @@ window.FlowCanvas = {
                     });
                 };
 
-                // Подписываемся через PullSubscription
-                console.log('%c📞 Вызываем PullSubscription.subscribe с параметрами:', 'color: #9c27b0; font-weight: bold;');
-                console.log('  • taskId:', task.id);
-                console.log('  • handleStatusChange:', typeof handleStatusChange);
-                console.log('  • handleTaskComplete:', typeof handleTaskComplete);
+                // Подписываемся на ВСЕ задачи на полотне через PullSubscription
+                console.log('%c📞 Подписываемся на ВСЕ задачи на полотне', 'color: #9c27b0; font-weight: bold;');
 
-                window.PullSubscription.subscribe(
-                    task.id,
-                    handleStatusChange,
-                    handleTaskComplete
-                );
+                // Собираем все taskId из nodes (только реальные задачи, не future)
+                const allTaskIds = nodes
+                    .filter(node => node.id.startsWith('task-'))
+                    .map(node => node.id.replace('task-', ''));
 
-                console.log('%c✅ PullSubscription.subscribe выполнен!', 'color: #4caf50; font-weight: bold;');
+                addDebugLog('📡 Подписка на ' + allTaskIds.length + ' задач', '#673ab7');
+                console.log('  • Задачи для подписки:', allTaskIds);
+
+                // Подписываемся на каждую задачу
+                allTaskIds.forEach(taskId => {
+                    window.PullSubscription.subscribe(
+                        taskId,
+                        handleStatusChange,
+                        handleTaskComplete
+                    );
+                    console.log('  ✅ Подписка на task-' + taskId);
+                });
+
+                console.log('%c✅ Подписка завершена на ' + allTaskIds.length + ' задач!', 'color: #4caf50; font-weight: bold;');
 
                 // Старый код polling (закомментирован):
                 /*
