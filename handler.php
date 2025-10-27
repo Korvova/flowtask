@@ -12,12 +12,17 @@
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
+        html, body {
+            height: 100%;
+            overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            padding: 20px;
             background: #f5f7fa;
         }
-        #root { width: 100%; height: 100vh; }
+        #root {
+            width: 100%;
+            height: 100%;
+            min-height: 800px;
+        }
         .loading {
             display: flex;
             align-items: center;
@@ -109,12 +114,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761569146"></script>
-    <script src="components/PullSubscription.js?v=1761569146"></script>
-    <script src="components/TaskCreator.js?v=1761569146"></script>
-    <script src="components/TaskNode.js?v=1761569146"></script>
-    <script src="components/TaskModal.js?v=1761569146"></script>
-    <script src="components/FlowCanvas.js?v=1761569146"></script>
+    <script src="components/StatusColors.js?v=1761569231"></script>
+    <script src="components/PullSubscription.js?v=1761569231"></script>
+    <script src="components/TaskCreator.js?v=1761569231"></script>
+    <script src="components/TaskNode.js?v=1761569231"></script>
+    <script src="components/TaskModal.js?v=1761569231"></script>
+    <script src="components/FlowCanvas.js?v=1761569231"></script>
 
     <script>
         // Debug functions
@@ -471,7 +476,7 @@
 
         BX24.init(function() {
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761569146', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761569231', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const placement = BX24.placement.info();
@@ -516,7 +521,10 @@
                 }
             });
 
-            BX24.fitWindow();
+            // Увеличиваем высоту iframe для больше пространства
+            setTimeout(() => {
+                BX24.resizeWindow(window.innerWidth, Math.max(window.innerHeight, 1200));
+            }, 500);
         });
     </script>
 </body>
