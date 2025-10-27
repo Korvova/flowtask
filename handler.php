@@ -105,19 +105,20 @@
                 <button onclick="listAllConnections()" style="background: #ff9800;">🔗 Список связей</button>
                 <button onclick="listAllFutureTasks()" style="background: #9c27b0;">🎯 Список предзадач</button>
                 <button onclick="createAllEntities()" style="background: #28a745;">➕ Создать Entity</button>
-                <button onclick="deleteOldEntities()" style="background: #dc3545;">🗑️ Удалить старые</button>
+                <button onclick="clearAllData()" style="background: #ff5722;">🧹 Очистить данные</button>
+                <button onclick="deleteOldEntities()" style="background: #dc3545;">🗑️ Удалить старые Entity</button>
                 <button onclick="hideDebugModal()" style="background: #ccc; color: #333;">Закрыть</button>
             </div>
             <div id="debugResult" class="debug-result">Нажмите кнопку для проверки...</div>
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761577514"></script>
-    <script src="components/PullSubscription.js?v=1761577514"></script>
-    <script src="components/TaskCreator.js?v=1761577514"></script>
-    <script src="components/TaskNode.js?v=1761577514"></script>
-    <script src="components/TaskModal.js?v=1761577514"></script>
-    <script src="components/FlowCanvas.js?v=1761577514"></script>
+    <script src="components/StatusColors.js?v=1761577584"></script>
+    <script src="components/PullSubscription.js?v=1761577584"></script>
+    <script src="components/TaskCreator.js?v=1761577584"></script>
+    <script src="components/TaskNode.js?v=1761577584"></script>
+    <script src="components/TaskModal.js?v=1761577584"></script>
+    <script src="components/FlowCanvas.js?v=1761577584"></script>
 
     <script>
         // Debug functions
@@ -370,6 +371,76 @@
             });
         }
 
+        function clearAllData() {
+            clearDebugLog();
+
+            if (!confirm("⚠️ ВНИМАНИЕ!\n\nЭто удалит ВСЕ данные из:\n• tflow_pos (позиции)\n• tflow_conn (связи)\n• tflow_future (предзадачи)\n\nПродолжить?")) {
+                debugLog("❌ Отменено пользователем");
+                return;
+            }
+
+            debugLog("🧹 Очистка всех данных из tflow_*...\n");
+
+            const entities = ['tflow_pos', 'tflow_conn', 'tflow_future'];
+            let totalDeleted = 0;
+            let processed = 0;
+
+            entities.forEach((entityName) => {
+                debugLog("━━━━━━━━━━━━━━━━━━━━");
+                debugLog("🗑️ Очищаем " + entityName + "...");
+
+                BX24.callMethod("entity.item.get", {
+                    ENTITY: entityName
+                }, (result) => {
+                    if (result.error()) {
+                        debugLog("❌ Ошибка загрузки " + entityName + ": " + result.error());
+                        processed++;
+                        return;
+                    }
+
+                    const items = result.data();
+                    debugLog("📊 Найдено записей: " + items.length);
+
+                    if (items.length === 0) {
+                        debugLog("✅ " + entityName + " уже пуста");
+                        processed++;
+                        return;
+                    }
+
+                    let deleted = 0;
+                    items.forEach((item, index) => {
+                        setTimeout(() => {
+                            BX24.callMethod("entity.item.delete", {
+                                ENTITY: entityName,
+                                ID: item.ID
+                            }, (delResult) => {
+                                if (delResult.error()) {
+                                    debugLog("  ❌ ID " + item.ID + ": " + delResult.error());
+                                } else {
+                                    deleted++;
+                                    totalDeleted++;
+                                    if (deleted % 10 === 0 || deleted === items.length) {
+                                        debugLog("  ✅ Удалено: " + deleted + "/" + items.length);
+                                    }
+                                }
+
+                                if (index === items.length - 1) {
+                                    debugLog("✅ " + entityName + " очищен (" + deleted + " записей)");
+                                    processed++;
+
+                                    if (processed === entities.length) {
+                                        debugLog("\n━━━━━━━━━━━━━━━━━━━━");
+                                        debugLog("🎉 ОЧИСТКА ЗАВЕРШЕНА!");
+                                        debugLog("Всего удалено записей: " + totalDeleted);
+                                    }
+                                }
+                            });
+                        }, index * 100); // 100ms между удалениями
+                    });
+                });
+            });
+        }
+
         function deleteOldEntities() {
             clearDebugLog();
             debugLog("🗑️ Удаление старых Entity (telegsarflow_*)...\n");
@@ -419,7 +490,7 @@
 
         BX24.init(function() {
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761577514', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761577584', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const placement = BX24.placement.info();
