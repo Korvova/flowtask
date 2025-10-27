@@ -264,15 +264,38 @@ window.TaskCreator = {
                     newTaskId = parseInt(resultData);
                     console.log('✅ ID получен как строка, конвертируем:', newTaskId);
                 } else if (typeof resultData === 'object') {
-                    // Пробуем разные варианты
-                    newTaskId = resultData.task || resultData.ID || resultData.id || resultData.TASK_ID || resultData.taskId;
-                    console.log('✅ ID извлечён из объекта:', newTaskId);
+                    // Пробуем разные варианты извлечения ID
+                    // ВАЖНО: resultData.task это объект задачи, нужно взять task.id или task.ID
+                    if (resultData.task && typeof resultData.task === 'object') {
+                        newTaskId = resultData.task.id || resultData.task.ID;
+                        console.log('✅ ID извлечён из resultData.task.id/ID:', newTaskId);
+                    } else if (typeof resultData.task === 'number' || typeof resultData.task === 'string') {
+                        newTaskId = parseInt(resultData.task);
+                        console.log('✅ ID извлечён из resultData.task (число/строка):', newTaskId);
+                    } else {
+                        // Fallback: пробуем другие варианты
+                        newTaskId = resultData.ID || resultData.id || resultData.TASK_ID || resultData.taskId;
+                        console.log('✅ ID извлечён из других полей:', newTaskId);
+                    }
 
-                    if (!newTaskId) {
-                        // Если не нашли, берём первое числовое свойство
+                    // Если всё ещё не нашли, ищем первое числовое свойство
+                    if (!newTaskId || typeof newTaskId === 'object') {
+                        console.log('⚠️ ID не найден, ищем числовое свойство...');
                         for (let key in resultData) {
-                            if (typeof resultData[key] === 'number' || !isNaN(parseInt(resultData[key]))) {
-                                newTaskId = parseInt(resultData[key]);
+                            const val = resultData[key];
+                            if (typeof val === 'object' && val !== null) {
+                                // Смотрим внутрь объекта
+                                if (val.id && typeof val.id === 'number') {
+                                    newTaskId = val.id;
+                                    console.log('✅ ID найден в ' + key + '.id:', newTaskId);
+                                    break;
+                                } else if (val.ID && typeof val.ID === 'number') {
+                                    newTaskId = val.ID;
+                                    console.log('✅ ID найден в ' + key + '.ID:', newTaskId);
+                                    break;
+                                }
+                            } else if (typeof val === 'number' || !isNaN(parseInt(val))) {
+                                newTaskId = parseInt(val);
                                 console.log('✅ ID найден в свойстве "' + key + '":', newTaskId);
                                 break;
                             }
