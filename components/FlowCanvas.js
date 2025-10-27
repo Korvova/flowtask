@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761572462 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761572666 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -444,12 +444,13 @@ window.FlowCanvas = {
 
                 const subtasks = await new Promise((resolve) => {
                     BX24.callMethod('tasks.task.getlist', {
-                        filter: { PARENT_ID: parentTaskId },
-                        select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID', 'PARENT_ID']
+                        FILTER: { PARENT_ID: parentTaskId },
+                        SELECT: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID', 'PARENT_ID']
                     }, (result) => {
                         if (result.error()) {
-                            console.warn('Ошибка загрузки подзадач:', result.error());
-                            addDebugLog('  ❌ Ошибка загрузки подзадач: ' + JSON.stringify(result.error()), '#f44336');
+                            const err = result.error();
+                            console.warn('Ошибка загрузки подзадач:', err);
+                            addDebugLog('  ❌ Ошибка загрузки подзадач: ' + (err.error_description || err.error || 'неизвестная ошибка'), '#f44336');
                             resolve([]);
                         } else {
                             const data = result.data();
