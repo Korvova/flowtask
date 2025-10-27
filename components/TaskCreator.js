@@ -228,8 +228,12 @@ window.TaskCreator = {
                     return;
                 }
 
-                const newTaskId = result.data();
-                console.log('%c✅✅✅ ЗАДАЧА СОЗДАНА ЧЕРЕЗ tasks.task.add! ID:', 'color: #00ff00; font-size: 16px; font-weight: bold;', newTaskId);
+                const resultData = result.data();
+                console.log('%c📦 result.data() вернул:', 'color: #ff9800;', resultData, 'type:', typeof resultData);
+
+                // tasks.task.add может вернуть либо число, либо объект {task: ID}
+                const newTaskId = (typeof resultData === 'object' && resultData.task) ? resultData.task : resultData;
+                console.log('%c✅✅✅ ЗАДАЧА СОЗДАНА ЧЕРЕЗ tasks.task.add! ID:', 'color: #00ff00; font-size: 16px; font-weight: bold;', newTaskId, 'type:', typeof newTaskId);
 
                 // 1. Обновляем предзадачу в Entity
                 console.log('%c  📝 Шаг 1: Помечаем предзадачу как созданную (isCreated=true, realTaskId=' + newTaskId + ')', 'color: #2196f3;');
@@ -325,12 +329,16 @@ window.TaskCreator = {
         console.log('%c    🏷️  markFutureAsCreated вызван:', 'color: #9c27b0;', {
             entityId: entityId,
             futureId: futureData.futureId,
-            realTaskId: realTaskId
+            realTaskId: realTaskId,
+            realTaskIdType: typeof realTaskId
         });
 
         return new Promise((resolve, reject) => {
             futureData.isCreated = true;
-            futureData.realTaskId = realTaskId;
+            // Убедимся что realTaskId это число (не объект, не строка)
+            futureData.realTaskId = parseInt(realTaskId);
+
+            console.log('%c    ✏️  Устанавливаем:', 'color: #9c27b0;', 'isCreated=true', 'realTaskId=' + futureData.realTaskId, 'type=' + typeof futureData.realTaskId);
 
             console.log('%c    📦 Обновляем Entity с данными:', 'color: #9c27b0;', {
                 isCreated: futureData.isCreated,
