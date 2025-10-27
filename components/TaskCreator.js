@@ -235,6 +235,9 @@ window.TaskCreator = {
                 const newTaskId = (typeof resultData === 'object' && resultData.task) ? resultData.task : resultData;
                 console.log('%c✅✅✅ ЗАДАЧА СОЗДАНА ЧЕРЕЗ tasks.task.add! ID:', 'color: #00ff00; font-size: 16px; font-weight: bold;', newTaskId, 'type:', typeof newTaskId);
 
+                // DEBUG: показываем что вернул API
+                alert('ЗАДАЧА СОЗДАНА!\n\nID: ' + newTaskId + '\nТип ID: ' + typeof newTaskId + '\n\nresult.data(): ' + JSON.stringify(resultData).substring(0, 100));
+
                 // 1. Обновляем предзадачу в Entity
                 console.log('%c  📝 Шаг 1: Помечаем предзадачу как созданную (isCreated=true, realTaskId=' + newTaskId + ')', 'color: #2196f3;');
                 this.markFutureAsCreated(futureTask.entityId, futureData, newTaskId)
@@ -379,8 +382,12 @@ window.TaskCreator = {
                                     realTaskId: savedData.realTaskId,
                                     realTaskIdType: typeof savedData.realTaskId
                                 });
+
+                                // DEBUG: Показываем alert с результатом
+                                alert('ПРОВЕРКА ENTITY:\n\nisCreated: ' + savedData.isCreated + '\nrealTaskId: ' + savedData.realTaskId + '\nТип: ' + typeof savedData.realTaskId);
                             } else {
                                 console.error('%c    ❌ Не удалось перезагрузить Entity для проверки', 'color: #f44336;');
+                                alert('ОШИБКА: Не удалось перезагрузить Entity для проверки!');
                             }
                         });
                     }, 500);
