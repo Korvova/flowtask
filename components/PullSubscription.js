@@ -21,14 +21,26 @@ window.PullSubscription = {
         }
 
         // Проверяем доступность BX.PULL
+        console.log('🔍 Проверка BX:', typeof BX !== 'undefined' ? 'OK' : 'FAIL');
+        console.log('🔍 Проверка BX.PULL:', typeof BX !== 'undefined' && typeof BX.PULL !== 'undefined' ? 'OK' : 'FAIL');
+
         if (typeof BX === 'undefined' || typeof BX.PULL === 'undefined') {
             console.warn('⚠️  BX.PULL недоступен, используем fallback polling');
             return this.startPolling(taskId, onStatusChange, onTaskComplete);
         }
 
+        console.log('✅ BX.PULL доступен, используем PULL подписку');
+
         // ВАЖНО: Создаём замыкание для сохранения taskId, onStatusChange, onTaskComplete
         const createHandler = (tid, onStatus, onComplete) => {
             return (data) => {
+                console.log('📨 PULL событие получено:', {
+                    command: data.command,
+                    taskId: data.params?.TASK_ID || data.params?.ID,
+                    watchingFor: tid,
+                    fullData: data
+                });
+
                 // Обрабатываем события задач
                 if (data.command === 'task_update' ||
                     data.command === 'comment_add' ||
@@ -36,6 +48,8 @@ window.PullSubscription = {
 
                     // Проверяем что это наша задача
                     const eventTaskId = data.params?.TASK_ID || data.params?.ID;
+
+                    console.log('🔍 Сравнение: событие=' + eventTaskId + ' ожидаем=' + tid + ' совпадает=' + (eventTaskId == tid));
 
                     if (eventTaskId == tid) {
                         console.log('✅ Событие PULL для задачи:', tid, 'команда:', data.command);

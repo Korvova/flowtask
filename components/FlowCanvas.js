@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761572194 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761572462 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -449,9 +449,12 @@ window.FlowCanvas = {
                     }, (result) => {
                         if (result.error()) {
                             console.warn('Ошибка загрузки подзадач:', result.error());
+                            addDebugLog('  ❌ Ошибка загрузки подзадач: ' + JSON.stringify(result.error()), '#f44336');
                             resolve([]);
                         } else {
-                            const tasks = result.data().tasks || [];
+                            const data = result.data();
+                            const tasks = data.tasks || data || [];
+                            addDebugLog('  📦 API вернул подзадач: ' + tasks.length, '#2196f3');
                             resolve(tasks);
                         }
                     });
