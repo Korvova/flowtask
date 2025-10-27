@@ -34,6 +34,10 @@ window.FlowCanvas = {
 
             // Загрузка всех данных процесса
             const loadProcessData = async () => {
+                console.log('%c╔══════════════════════════════════════════════╗', 'color: #2196f3; font-size: 14px;');
+                console.log('%c║ 📥 ЗАГРУЗКА ДАННЫХ ПРОЦЕССА (loadProcessData) ║', 'color: #2196f3; font-size: 14px; font-weight: bold;');
+                console.log('%c╚══════════════════════════════════════════════╝', 'color: #2196f3; font-size: 14px;');
+
                 try {
                     // 1. Загружаем позицию текущей задачи
                     const taskPosition = await loadTaskPosition(task.id);
@@ -718,14 +722,17 @@ window.FlowCanvas = {
 
             // Подписка на изменения задачи через Pull & Push
             useEffect(() => {
-                console.log('🔔 Подписываемся на изменения задачи через PullSubscription');
+                console.log('%c═══════════════════════════════════════════', 'color: #9c27b0; font-size: 14px;');
+                console.log('%c🔔 ПОДПИСЫВАЕМСЯ на изменения задачи #' + task.id, 'color: #9c27b0; font-size: 14px; font-weight: bold;');
+                console.log('%c═══════════════════════════════════════════', 'color: #9c27b0; font-size: 14px;');
 
                 // Callback при изменении статуса
                 const handleStatusChange = (newStatus, taskData) => {
-                    console.log('🔄 Статус изменился:', newStatus);
+                    console.log('%c🔄 handleStatusChange ВЫЗВАН! Новый статус:', 'color: #ff9800; font-weight: bold;', newStatus);
                     setNodes((currentNodes) => {
                         return currentNodes.map(node => {
                             if (node.id === 'task-' + task.id) {
+                                console.log('%c  → Обновляем узел task-' + task.id + ' со статусом ' + newStatus, 'color: #ff9800;');
                                 return {
                                     ...node,
                                     data: {
@@ -774,11 +781,18 @@ window.FlowCanvas = {
                 };
 
                 // Подписываемся через PullSubscription
+                console.log('%c📞 Вызываем PullSubscription.subscribe с параметрами:', 'color: #9c27b0; font-weight: bold;');
+                console.log('  • taskId:', task.id);
+                console.log('  • handleStatusChange:', typeof handleStatusChange);
+                console.log('  • handleTaskComplete:', typeof handleTaskComplete);
+
                 window.PullSubscription.subscribe(
                     task.id,
                     handleStatusChange,
                     handleTaskComplete
                 );
+
+                console.log('%c✅ PullSubscription.subscribe выполнен!', 'color: #4caf50; font-weight: bold;');
 
                 // Старый код polling (закомментирован):
                 /*
