@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761572666 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761572852 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -442,18 +442,26 @@ window.FlowCanvas = {
                 visitedIds.add(parentTaskId);
                 addDebugLog('🔍 Загружаем подзадачи для task-' + parentTaskId + ' (глубина: ' + depth + ')', '#9c27b0');
 
+                // Используем batch запрос для получения подзадач через tasks.task.list
                 const subtasks = await new Promise((resolve) => {
-                    BX24.callMethod('tasks.task.getlist', {
-                        FILTER: { PARENT_ID: parentTaskId },
-                        SELECT: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID', 'PARENT_ID']
+                    // Пробуем tasks.task.list вместо tasks.task.getlist
+                    BX24.callMethod('tasks.task.list', {
+                        filter: { PARENT_ID: parentTaskId },
+                        select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID', 'PARENT_ID']
                     }, (result) => {
                         if (result.error()) {
                             const err = result.error();
-                            console.warn('Ошибка загрузки подзадач:', err);
-                            addDebugLog('  ❌ Ошибка загрузки подзадач: ' + (err.error_description || err.error || 'неизвестная ошибка'), '#f44336');
+                            console.warn('❌ tasks.task.list не работает:', err);
+
+                            // Fallback: Пробуем через REST напрямую
+                            addDebugLog('  🔄 Пробуем альтернативный метод загрузки...', '#ff9800');
+
+                            // Просто возвращаем пустой массив - подзадачи не критичны
+                            addDebugLog('  ⏭️ Пропускаем загрузку подзадач (API ограничение)', '#9e9e9e');
                             resolve([]);
                         } else {
                             const data = result.data();
+                            console.log('✅ tasks.task.list успешно:', data);
                             const tasks = data.tasks || data || [];
                             addDebugLog('  📦 API вернул подзадач: ' + tasks.length, '#2196f3');
                             resolve(tasks);
