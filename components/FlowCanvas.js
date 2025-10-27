@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761569231 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761569484 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -327,6 +327,7 @@ window.FlowCanvas = {
                         if (!futureTask) continue;
 
                         // ВАЖНО: Проверяем, есть ли сохранённая позиция в tflow_pos
+                        addDebugLog('🔍 Проверяем позицию для task-' + taskId, '#9c27b0');
                         const savedPosition = await new Promise((resolve) => {
                             BX24.callMethod('entity.item.get', {
                                 ENTITY: 'tflow_pos',
@@ -336,10 +337,12 @@ window.FlowCanvas = {
                             }, (posResult) => {
                                 if (posResult.error() || !posResult.data().length) {
                                     console.log('📍 Для задачи', taskId, 'нет сохранённой позиции, используем из предзадачи');
+                                    addDebugLog('⚠️ Нет сохранённой позиции для task-' + taskId + ', используем из предзадачи', '#ff9800');
                                     resolve(null);
                                 } else {
                                     const posData = JSON.parse(posResult.data()[0].DETAIL_TEXT);
                                     console.log('📍 Найдена сохранённая позиция для задачи', taskId, ':', posData);
+                                    addDebugLog('✅ Найдена позиция task-' + taskId + ': (' + Math.round(posData.positionX) + ', ' + Math.round(posData.positionY) + ')', '#4caf50');
                                     resolve({ x: parseFloat(posData.positionX), y: parseFloat(posData.positionY) });
                                 }
                             });
@@ -350,6 +353,8 @@ window.FlowCanvas = {
                             x: parseFloat(futureTask.positionX),
                             y: parseFloat(futureTask.positionY)
                         };
+
+                        addDebugLog('📍 Итоговая позиция task-' + taskId + ': (' + Math.round(position.x) + ', ' + Math.round(position.y) + ')', '#00bcd4');
 
                         createdNodes.push({
                             id: 'task-' + taskId,
@@ -451,6 +456,7 @@ window.FlowCanvas = {
                         if (items.length > 0) {
                             // Обновляем существующую
                             const itemId = items[0].ID;
+                            addDebugLog('💾 Обновляем позицию task-' + taskId + ': (' + Math.round(position.x) + ', ' + Math.round(position.y) + ')', '#2196f3');
                             BX24.callMethod('entity.item.update', {
                                 ENTITY: 'tflow_pos',
                                 ID: itemId,
@@ -462,12 +468,15 @@ window.FlowCanvas = {
                             }, (updateResult) => {
                                 if (updateResult.error()) {
                                     console.error('Ошибка обновления позиции:', updateResult.error());
+                                    addDebugLog('❌ Ошибка сохранения позиции task-' + taskId, '#f44336');
                                 } else {
                                     console.log('✅ Позиция задачи обновлена');
+                                    addDebugLog('✅ Позиция task-' + taskId + ' сохранена', '#4caf50');
                                 }
                             });
                         } else {
                             // Создаём новую
+                            addDebugLog('➕ Создаём новую позицию task-' + taskId + ': (' + Math.round(position.x) + ', ' + Math.round(position.y) + ')', '#2196f3');
                             BX24.callMethod('entity.item.add', {
                                 ENTITY: 'tflow_pos',
                                 NAME: 'Task ' + taskId,
@@ -479,8 +488,10 @@ window.FlowCanvas = {
                             }, (addResult) => {
                                 if (addResult.error()) {
                                     console.error('Ошибка создания позиции:', addResult.error());
+                                    addDebugLog('❌ Ошибка создания позиции task-' + taskId, '#f44336');
                                 } else {
                                     console.log('✅ Позиция задачи создана:', addResult.data());
+                                    addDebugLog('✅ Позиция task-' + taskId + ' создана (ID: ' + addResult.data() + ')', '#4caf50');
                                 }
                             });
                         }
@@ -540,6 +551,7 @@ window.FlowCanvas = {
             // Обработчики изменений узлов
             const onNodeDragStop = useCallback((event, node) => {
                 console.log('🎯 Drag stopped for:', node.id, node.position);
+                addDebugLog('🎯 Перетащили ' + node.id + ' в (' + Math.round(node.position.x) + ', ' + Math.round(node.position.y) + ')', '#ff5722');
                 isDraggingRef.current = false;
                 saveNodePosition(node.id, node.position);
             }, []);
