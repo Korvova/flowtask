@@ -4,6 +4,7 @@
  */
 window.PullSubscription = {
     subscriptions: {},
+    lastStatuses: {}, // Кэш последних статусов для проверки изменений
     
     /**
      * Подписка на изменения задачи
