@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761573046 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761573267 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -1121,61 +1121,54 @@ window.FlowCanvas = {
                 });
             };
 
+            // Callback при изменении статуса ЛЮБОЙ задачи на canvas
+            const handleStatusChange = React.useCallback((newStatus, taskData) => {
+                const changedTaskId = taskData.id;
+                addDebugLog('🔄 Статус изменён у task-' + changedTaskId + ': ' + newStatus, '#ff9800');
+
+                setNodes((currentNodes) => {
+                    return currentNodes.map(node => {
+                        // Обновляем ЛЮБУЮ задачу на canvas, не только текущую!
+                        if (node.id === 'task-' + changedTaskId && node.data.isRealTask) {
+                            console.log('%c  → Обновляем узел task-' + changedTaskId + ' со статусом ' + newStatus, 'color: #ff9800;');
+                            return {
+                                ...node,
+                                data: {
+                                    ...node.data,
+                                    statusCode: newStatus,
+                                    title: taskData.title || node.data.title
+                                }
+                            };
+                        }
+                        return node;
+                    });
+                });
+            }, [setNodes]);
+
+            // Callback при завершении задачи
+            const handleTaskComplete = React.useCallback((taskId, taskData) => {
+                addDebugLog('✅ ЗАДАЧА ЗАВЕРШЕНА! ID: ' + taskId, '#ff0000');
+                addDebugLog('🚀 Вызов TaskCreator.processCompletedTask', '#2196f3');
+
+                window.TaskCreator.processCompletedTask(taskId, (createdTasks) => {
+                    addDebugLog('✅ СОЗДАНО ЗАДАЧ: ' + createdTasks.length, '#00ff00');
+
+                    // Даём время на сохранение связей в Entity, затем перезагружаем
+                    setTimeout(() => {
+                        addDebugLog('🔄 ПЕРЕЗАГРУЗКА ПОЛОТНА...', '#2196f3');
+                        loadProcessData();
+                    }, 1500); // 1.5 секунды
+                });
+            }, []);
+
             // Подписка на изменения задачи через Pull & Push
             useEffect(() => {
+                // Не подписываемся пока идёт загрузка или nodes пустые
+                if (isLoading || nodes.length === 0) {
+                    return;
+                }
+
                 addDebugLog('🔔 ПОДПИСКА на задачу #' + task.id, '#9c27b0');
-
-                // Callback при изменении статуса
-                const handleStatusChange = (newStatus, taskData) => {
-                    addDebugLog('🔄 Статус изменён: ' + newStatus, '#ff9800');
-                    setNodes((currentNodes) => {
-                        return currentNodes.map(node => {
-                            if (node.id === 'task-' + task.id) {
-                                console.log('%c  → Обновляем узел task-' + task.id + ' со статусом ' + newStatus, 'color: #ff9800;');
-                                return {
-                                    ...node,
-                                    data: {
-                                        ...node.data,
-                                        statusCode: newStatus,
-                                        title: taskData.title || node.data.title
-                                    }
-                                };
-                            }
-                            return node;
-                        });
-                    });
-                };
-
-                // Callback при завершении задачи
-                // Защита от повторных вызовов
-                let isProcessingComplete = false;
-                const handleTaskComplete = (taskId, taskData) => {
-                    addDebugLog('✅ ЗАДАЧА ЗАВЕРШЕНА! ID: ' + taskId, '#ff0000');
-
-                    // Защита от повторных вызовов
-                    if (isProcessingComplete) {
-                        addDebugLog('⏭️ УЖЕ ОБРАБАТЫВАЕТСЯ, ПРОПУСК', '#ff9800');
-                        return;
-                    }
-                    isProcessingComplete = true;
-
-                    addDebugLog('🚀 Вызов TaskCreator.processCompletedTask', '#2196f3');
-
-                    window.TaskCreator.processCompletedTask(taskId, (createdTasks) => {
-                        addDebugLog('✅ СОЗДАНО ЗАДАЧ: ' + createdTasks.length, '#00ff00');
-
-                        // Даём время на сохранение связей в Entity, затем перезагружаем
-                        setTimeout(() => {
-                            addDebugLog('🔄 ПЕРЕЗАГРУЗКА ПОЛОТНА...', '#2196f3');
-                            loadProcessData();
-                            // Сбрасываем флаг через 3 секунды
-                            setTimeout(() => {
-                                isProcessingComplete = false;
-                                addDebugLog('🔓 Флаг сброшен', '#9e9e9e');
-                            }, 3000);
-                        }, 1500); // 1.5 секунды
-                    });
-                };
 
                 // Подписываемся на ВСЕ задачи на полотне через PullSubscription
                 console.log('%c📞 Подписываемся на ВСЕ задачи на полотне', 'color: #9c27b0; font-weight: bold;');
@@ -1252,7 +1245,7 @@ window.FlowCanvas = {
                     });
                     console.log('🧹 Очистка подписок для ' + allTaskIds.length + ' задач');
                 };
-            }, [nodes, task.id]);
+            }, [isLoading, task.id]); // Подписываемся только когда загрузка завершена!
 
             // Типы узлов (обёрнуты в useMemo для предотвращения бесконечного цикла)
             const nodeTypes = useMemo(() => ({
