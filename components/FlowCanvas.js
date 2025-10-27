@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761578238 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761578475 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -67,11 +67,11 @@ window.FlowCanvas = {
                     // 1. Загружаем позицию текущей задачи
                     const taskPosition = await loadTaskPosition(task.id);
 
-                    // 2. Загружаем свежий статус задачи (включая PARENT_ID)
+                    // 2. Загружаем свежий статус задачи (включая UF_FLOWTASK_PROCESS_ID)
                     const freshTaskData = await new Promise((resolve) => {
                         BX24.callMethod('tasks.task.get', {
                             taskId: task.id,
-                            select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID', 'PARENT_ID']
+                            select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID', 'PARENT_ID', 'UF_FLOWTASK_PROCESS_ID']
                         }, (result) => {
                             if (result.error()) {
                                 console.warn('Не удалось загрузить свежий статус, используем кэш');
@@ -83,6 +83,34 @@ window.FlowCanvas = {
                             }
                         });
                     });
+
+                    // 3. Определяем processId для текущей задачи
+                    let processId = freshTaskData.ufFlowtaskProcessId || freshTaskData.UF_FLOWTASK_PROCESS_ID;
+
+                    if (!processId) {
+                        // Если processId нет - это корневая задача процесса
+                        processId = task.id.toString();
+                        addDebugLog('🆕 Корневая задача процесса! processId = ' + processId, '#ff9800');
+
+                        // Устанавливаем processId в задачу
+                        BX24.callMethod('tasks.task.update', {
+                            taskId: task.id,
+                            fields: {
+                                UF_FLOWTASK_PROCESS_ID: processId
+                            }
+                        }, (updateResult) => {
+                            if (updateResult.error()) {
+                                addDebugLog('⚠️ Не удалось установить processId: ' + JSON.stringify(updateResult.error()), '#ff9800');
+                            } else {
+                                addDebugLog('✅ ProcessId установлен: ' + processId, '#00ff00');
+                            }
+                        });
+                    } else {
+                        addDebugLog('📌 ProcessId задачи: ' + processId, '#2196f3');
+                    }
+
+                    // Сохраняем processId для использования в компоненте
+                    window.currentProcessId = processId;
 
                     // 3. Создаём узел текущей задачи с актуальным статусом
                     const mainNode = {
@@ -439,9 +467,11 @@ window.FlowCanvas = {
                 return [parentNode, ...futureNodes, ...grandParents];
             };
 
-            // Загрузка предзадач из entity
+            // Загрузка предзадач из entity (по processId!)
             const loadFutureTasks = (taskId) => {
                 return new Promise((resolve) => {
+                    const currentProcessId = window.currentProcessId || taskId.toString();
+
                     BX24.callMethod('entity.item.get', {
                         ENTITY: 'tflow_future'
                     }, (result) => {
@@ -451,12 +481,15 @@ window.FlowCanvas = {
                         } else {
                             const items = result.data();
                             console.log("📥 Entity result:", items);
+
+                            // Фильтруем по processId (не по parentTaskId!)
                             const futureTasks = items
                                 .filter(item => {
                                     if (!item.DETAIL_TEXT) return false;
                                     try {
                                         const data = JSON.parse(item.DETAIL_TEXT);
-                                        return data.parentTaskId == taskId;
+                                        // Фильтруем по processId вместо parentTaskId
+                                        return data.processId == currentProcessId;
                                     } catch (e) {
                                         console.warn('Failed to parse DETAIL_TEXT:', e);
                                         return false;
@@ -653,9 +686,11 @@ window.FlowCanvas = {
                 return createdNodes;
             };
 
-            // Загрузка связей из entity
+            // Загрузка связей из entity (по processId!)
             const loadConnections = (taskId, parentIds = []) => {
                 return new Promise((resolve) => {
+                    const currentProcessId = window.currentProcessId || taskId.toString();
+
                     BX24.callMethod('entity.item.get', {
                         ENTITY: 'tflow_conn'
                     }, (result) => {
@@ -665,24 +700,15 @@ window.FlowCanvas = {
                         } else {
                             const items = result.data();
                             console.log("📥 Entity result:", items);
+
+                            // Фильтруем по processId (не по taskId!)
                             const connections = items
                                 .filter(item => {
                                     if (!item.DETAIL_TEXT) return false;
                                     try {
                                         const data = JSON.parse(item.DETAIL_TEXT);
-                                        // Фильтруем связи где source или target связан с текущей задачей ИЛИ с любым родителем
-                                        const isCurrentTask = data.sourceId === 'task-' + taskId ||
-                                                             data.targetId === 'task-' + taskId;
-
-                                        // Проверяем связи со ВСЕМИ родителями
-                                        const isParentTask = parentIds && parentIds.length > 0 && parentIds.some(pid =>
-                                            data.sourceId === 'task-' + pid || data.targetId === 'task-' + pid
-                                        );
-
-                                        const isFutureConnection = data.sourceId.includes('future-') ||
-                                                                  data.targetId.includes('future-');
-
-                                        return isCurrentTask || isParentTask || isFutureConnection;
+                                        // Фильтруем ТОЛЬКО по processId
+                                        return data.processId == currentProcessId;
                                     } catch (e) {
                                         console.warn('Failed to parse DETAIL_TEXT:', e);
                                         return false;
@@ -948,7 +974,8 @@ window.FlowCanvas = {
 
                 // Сохраняем связь в Entity (ИДЕНТИЧНО saveFutureTask!)
                 const connectionData = {
-                    parentTaskId: task.id,  // ДОБАВЛЕНО!
+                    parentTaskId: task.id,
+                    processId: window.currentProcessId || task.id.toString(), // ДОБАВЛЕНО: processId
                     sourceId: params.source,
                     targetId: params.target,
                     connectionType: connectionType
@@ -994,6 +1021,7 @@ window.FlowCanvas = {
                     DETAIL_TEXT: JSON.stringify({
                         futureId: futureId,
                         parentTaskId: task.id,
+                        processId: window.currentProcessId || task.id.toString(), // ДОБАВЛЕНО: processId
                         title: futureTaskData.title,
                         description: futureTaskData.description,
                         groupId: futureTaskData.groupId,
@@ -1017,6 +1045,7 @@ window.FlowCanvas = {
                     // Сохраняем связь через DETAIL_TEXT
                     const connectionData = {
                         parentTaskId: task.id,
+                        processId: window.currentProcessId || task.id.toString(), // ДОБАВЛЕНО: processId
                         sourceId: sourceId,
                         targetId: futureId,
                         connectionType: 'future'

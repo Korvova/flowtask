@@ -260,12 +260,17 @@ window.TaskCreator = {
         this.log('      • Future ID: ' + futureData.futureId, '#ff5722');
 
         return new Promise((resolve) => {
+            // Наследуем processId от предзадачи
+            const processId = futureData.processId || window.currentProcessId;
+            this.log('      • ProcessId: ' + processId, '#ff5722');
+
             BX24.callMethod('tasks.task.add', {
                 fields: {
                     TITLE: futureData.title,
                     DESCRIPTION: futureData.description || '',
                     RESPONSIBLE_ID: futureData.responsibleId,
-                    GROUP_ID: futureData.groupId || 0
+                    GROUP_ID: futureData.groupId || 0,
+                    UF_FLOWTASK_PROCESS_ID: processId // ДОБАВЛЕНО: наследуем processId!
                 }
             }, (result) => {
                 if (result.error()) {
