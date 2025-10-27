@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761577052 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761577279 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -1012,6 +1012,7 @@ window.FlowCanvas = {
                     }
 
                     console.log('✅ Предзадача создана:', result.data());
+                    addDebugLog('✅ Предзадача создана в Entity (ID: ' + result.data() + ')', '#00ff00');
 
                     // Сохраняем связь через DETAIL_TEXT
                     const connectionData = {
@@ -1021,7 +1022,10 @@ window.FlowCanvas = {
                         connectionType: 'future'
                     };
                     console.log('💾 Сохраняем связь в Entity:', connectionData);
-                    
+                    addDebugLog('💾 Сохраняем связь для новой предзадачи...', '#2196f3');
+                    addDebugLog('  • sourceId: ' + sourceId, '#9c27b0');
+                    addDebugLog('  • targetId: ' + futureId, '#9c27b0');
+
                     BX24.callMethod('entity.item.add', {
                         ENTITY: 'tflow_conn',
                         NAME: sourceId + '->' + futureId,
@@ -1029,8 +1033,10 @@ window.FlowCanvas = {
                     }, (connResult) => {
                         if (connResult.error()) {
                             console.error('Ошибка создания связи:', connResult.error());
+                            addDebugLog('❌ Ошибка создания связи: ' + JSON.stringify(connResult.error()), '#f44336');
                         } else {
                             console.log('✅ Связь создана');
+                            addDebugLog('✅ Связь для предзадачи создана (ID: ' + connResult.data() + ')', '#00ff00');
                             
                             // Вместо полной перезагрузки добавляем только новые узлы и edges
                             // Это предотвращает мигание основной задачи
