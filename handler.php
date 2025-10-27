@@ -102,6 +102,8 @@
             <div>
                 <button onclick="listAllEntities()">📋 Список Entity</button>
                 <button onclick="listAllPositions()" style="background: #17a2b8;">📍 Список позиций</button>
+                <button onclick="listAllConnections()" style="background: #ff9800;">🔗 Список связей</button>
+                <button onclick="listAllFutureTasks()" style="background: #9c27b0;">🎯 Список предзадач</button>
                 <button onclick="createAllEntities()" style="background: #28a745;">➕ Создать Entity</button>
                 <button onclick="deleteOldEntities()" style="background: #dc3545;">🗑️ Удалить старые</button>
                 <button onclick="hideDebugModal()" style="background: #ccc; color: #333;">Закрыть</button>
@@ -110,12 +112,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761576382"></script>
-    <script src="components/PullSubscription.js?v=1761576382"></script>
-    <script src="components/TaskCreator.js?v=1761576382"></script>
-    <script src="components/TaskNode.js?v=1761576382"></script>
-    <script src="components/TaskModal.js?v=1761576382"></script>
-    <script src="components/FlowCanvas.js?v=1761576382"></script>
+    <script src="components/StatusColors.js?v=1761576717"></script>
+    <script src="components/PullSubscription.js?v=1761576717"></script>
+    <script src="components/TaskCreator.js?v=1761576717"></script>
+    <script src="components/TaskNode.js?v=1761576717"></script>
+    <script src="components/TaskModal.js?v=1761576717"></script>
+    <script src="components/FlowCanvas.js?v=1761576717"></script>
 
     <script>
         // Debug functions
@@ -194,6 +196,93 @@
                                 debugLog("   positionY: " + data.positionY);
                             } catch (e) {
                                 debugLog("   ❌ Ошибка парсинга JSON");
+                            }
+                        } else {
+                            debugLog("   (нет DETAIL_TEXT)");
+                        }
+                    });
+                }
+            });
+        }
+
+        function listAllConnections() {
+            clearDebugLog();
+            debugLog("🔗 Все связи в tflow_conn...\n");
+
+            BX24.callMethod("entity.item.get", {
+                ENTITY: "tflow_conn"
+            }, function(result) {
+                if (result.error()) {
+                    debugLog("❌ ОШИБКА: " + JSON.stringify(result.error(), null, 2));
+                } else {
+                    const items = result.data();
+                    debugLog("✅ Найдено связей: " + items.length + "\n");
+
+                    if (items.length === 0) {
+                        debugLog("⚠️ Entity tflow_conn пустая!\n");
+                        debugLog("Связи не сохраняются или не были созданы.");
+                        return;
+                    }
+
+                    items.forEach((item, index) => {
+                        debugLog("━━━━━━━━━━━━━━━━━━━━");
+                        debugLog((index + 1) + ". ID: " + item.ID);
+                        debugLog("   NAME: " + item.NAME);
+
+                        if (item.DETAIL_TEXT) {
+                            try {
+                                const data = JSON.parse(item.DETAIL_TEXT);
+                                debugLog("   sourceId: " + data.sourceId);
+                                debugLog("   targetId: " + data.targetId);
+                                debugLog("   connectionType: " + data.connectionType);
+                            } catch (e) {
+                                debugLog("   ❌ Ошибка парсинга JSON");
+                                debugLog("   DETAIL_TEXT: " + item.DETAIL_TEXT);
+                            }
+                        } else {
+                            debugLog("   (нет DETAIL_TEXT)");
+                        }
+                    });
+                }
+            });
+        }
+
+        function listAllFutureTasks() {
+            clearDebugLog();
+            debugLog("🎯 Все предзадачи в tflow_future...\n");
+
+            BX24.callMethod("entity.item.get", {
+                ENTITY: "tflow_future"
+            }, function(result) {
+                if (result.error()) {
+                    debugLog("❌ ОШИБКА: " + JSON.stringify(result.error(), null, 2));
+                } else {
+                    const items = result.data();
+                    debugLog("✅ Найдено предзадач: " + items.length + "\n");
+
+                    if (items.length === 0) {
+                        debugLog("⚠️ Entity tflow_future пустая!\n");
+                        debugLog("Предзадачи не были созданы.");
+                        return;
+                    }
+
+                    items.forEach((item, index) => {
+                        debugLog("━━━━━━━━━━━━━━━━━━━━");
+                        debugLog((index + 1) + ". ID: " + item.ID);
+                        debugLog("   NAME: " + item.NAME);
+
+                        if (item.DETAIL_TEXT) {
+                            try {
+                                const data = JSON.parse(item.DETAIL_TEXT);
+                                debugLog("   futureId: " + data.futureId);
+                                debugLog("   title: " + data.title);
+                                debugLog("   parentTaskId: " + data.parentTaskId);
+                                debugLog("   isCreated: " + data.isCreated);
+                                debugLog("   realTaskId: " + (data.realTaskId || 'null'));
+                                debugLog("   conditionType: " + data.conditionType);
+                            } catch (e) {
+                                debugLog("   ❌ Ошибка парсинга JSON");
+                                debugLog("   DETAIL_TEXT: " + item.DETAIL_TEXT);
                             }
                         } else {
                             debugLog("   (нет DETAIL_TEXT)");
@@ -330,7 +419,7 @@
 
         BX24.init(function() {
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761576382', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761576717', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const placement = BX24.placement.info();
