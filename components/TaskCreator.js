@@ -135,15 +135,31 @@ window.TaskCreator = {
      */
     getConnectionsFromTask: function(taskId) {
         return new Promise((resolve) => {
+            this.log('    🔍 getConnectionsFromTask: Ищем связи для task-' + taskId, '#9c27b0');
+
             BX24.callMethod('entity.item.get', {
                 ENTITY: 'tflow_conn'
             }, (result) => {
                 if (result.error()) {
+                    this.log('    ❌ Ошибка загрузки связей: ' + JSON.stringify(result.error()), '#f44336');
                     resolve([]);
                     return;
                 }
-                
+
                 const items = result.data();
+                this.log('    📊 Всего связей в Entity: ' + items.length, '#2196f3');
+
+                // Логируем последние 5 связей для отладки
+                this.log('    📋 Последние 5 связей в Entity:', '#2196f3');
+                items.slice(-5).forEach((item, idx) => {
+                    try {
+                        const data = JSON.parse(item.DETAIL_TEXT);
+                        this.log('      ' + (items.length - 4 + idx) + '. ID=' + item.ID + ' source=' + data.sourceId + ' → target=' + data.targetId, '#9c27b0');
+                    } catch (e) {
+                        this.log('      ' + (items.length - 4 + idx) + '. ID=' + item.ID + ' (ошибка парсинга)', '#f44336');
+                    }
+                });
+
                 const filtered = items.filter(item => {
                     if (!item.DETAIL_TEXT) return false;
                     try {
@@ -153,7 +169,9 @@ window.TaskCreator = {
                         return false;
                     }
                 });
-                
+
+                this.log('    ✅ Найдено связей для task-' + taskId + ': ' + filtered.length, '#00ff00');
+
                 resolve(filtered);
             });
         });
