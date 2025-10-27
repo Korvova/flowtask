@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761574920 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761575290 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -1209,6 +1209,15 @@ window.FlowCanvas = {
             const handleTaskComplete = React.useCallback((taskId, taskData) => {
                 addDebugLog('✅ ЗАДАЧА ЗАВЕРШЕНА! ID: ' + taskId, '#ff0000');
                 addDebugLog('🚀 Вызов TaskCreator.processCompletedTask', '#2196f3');
+
+                // Проверяем что TaskCreator загружен
+                if (!window.TaskCreator || typeof window.TaskCreator.processCompletedTask !== 'function') {
+                    console.error('❌ TaskCreator не загружен или processCompletedTask не определён!');
+                    addDebugLog('❌ TaskCreator не загружен!', '#f44336');
+                    return;
+                }
+
+                console.log('✅ TaskCreator найден, вызываем processCompletedTask...');
 
                 window.TaskCreator.processCompletedTask(taskId, (createdTasks) => {
                     addDebugLog('✅ СОЗДАНО ЗАДАЧ: ' + createdTasks.length, '#00ff00');
