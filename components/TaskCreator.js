@@ -224,19 +224,80 @@ window.TaskCreator = {
             }, (result) => {
                 if (result.error()) {
                     console.error('%c❌ tasks.task.add ERROR:', 'color: #f44336; font-weight: bold;', result.error());
+                    alert('ОШИБКА tasks.task.add:\n' + JSON.stringify(result.error(), null, 2));
                     resolve(null);
                     return;
                 }
 
+                // ПОЛНЫЙ ДАМП результата
                 const resultData = result.data();
-                console.log('%c📦 result.data() вернул:', 'color: #ff9800;', resultData, 'type:', typeof resultData);
 
-                // tasks.task.add может вернуть либо число, либо объект {task: ID}
-                const newTaskId = (typeof resultData === 'object' && resultData.task) ? resultData.task : resultData;
-                console.log('%c✅✅✅ ЗАДАЧА СОЗДАНА ЧЕРЕЗ tasks.task.add! ID:', 'color: #00ff00; font-size: 16px; font-weight: bold;', newTaskId, 'type:', typeof newTaskId);
+                console.log('%c═════════════════════════════════════════', 'color: #ff0000; font-size: 16px; font-weight: bold;');
+                console.log('%c📦 ПОЛНЫЙ ДАМП tasks.task.add', 'color: #ff0000; font-size: 16px; font-weight: bold;');
+                console.log('%c═════════════════════════════════════════', 'color: #ff0000; font-size: 16px; font-weight: bold;');
 
-                // DEBUG: показываем что вернул API
-                alert('ЗАДАЧА СОЗДАНА!\n\nID: ' + newTaskId + '\nТип ID: ' + typeof newTaskId + '\n\nresult.data(): ' + JSON.stringify(resultData).substring(0, 100));
+                console.log('1️⃣ result:', result);
+                console.log('2️⃣ result.data():', resultData);
+                console.log('3️⃣ typeof result.data():', typeof resultData);
+                console.log('4️⃣ JSON.stringify(result.data()):', JSON.stringify(resultData));
+                console.log('5️⃣ Object.keys(result.data()):', Object.keys(resultData || {}));
+
+                if (typeof resultData === 'object') {
+                    console.log('6️⃣ resultData.task:', resultData.task);
+                    console.log('7️⃣ resultData.ID:', resultData.ID);
+                    console.log('8️⃣ resultData.id:', resultData.id);
+                    console.log('9️⃣ Все свойства:');
+                    for (let key in resultData) {
+                        console.log('   • ' + key + ':', resultData[key], '(type: ' + typeof resultData[key] + ')');
+                    }
+                }
+
+                console.log('%c═════════════════════════════════════════', 'color: #ff0000; font-size: 16px; font-weight: bold;');
+
+                // Пробуем разные варианты извлечения ID
+                let newTaskId = null;
+
+                if (typeof resultData === 'number') {
+                    newTaskId = resultData;
+                    console.log('✅ ID получен как число напрямую:', newTaskId);
+                } else if (typeof resultData === 'string') {
+                    newTaskId = parseInt(resultData);
+                    console.log('✅ ID получен как строка, конвертируем:', newTaskId);
+                } else if (typeof resultData === 'object') {
+                    // Пробуем разные варианты
+                    newTaskId = resultData.task || resultData.ID || resultData.id || resultData.TASK_ID || resultData.taskId;
+                    console.log('✅ ID извлечён из объекта:', newTaskId);
+
+                    if (!newTaskId) {
+                        // Если не нашли, берём первое числовое свойство
+                        for (let key in resultData) {
+                            if (typeof resultData[key] === 'number' || !isNaN(parseInt(resultData[key]))) {
+                                newTaskId = parseInt(resultData[key]);
+                                console.log('✅ ID найден в свойстве "' + key + '":', newTaskId);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                console.log('%c🎯 ФИНАЛЬНЫЙ ID:', 'color: #00ff00; font-size: 20px; font-weight: bold;', newTaskId, 'type:', typeof newTaskId);
+
+                // Детальный alert
+                let alertText = '═══ ЗАДАЧА СОЗДАНА ═══\n\n';
+                alertText += 'Финальный ID: ' + newTaskId + '\n';
+                alertText += 'Тип: ' + typeof newTaskId + '\n\n';
+                alertText += '--- result.data() ---\n';
+                alertText += 'Тип: ' + typeof resultData + '\n';
+                if (typeof resultData === 'object') {
+                    alertText += 'Ключи: ' + Object.keys(resultData).join(', ') + '\n';
+                    alertText += '\nСвойства:\n';
+                    for (let key in resultData) {
+                        alertText += key + ': ' + resultData[key] + '\n';
+                    }
+                } else {
+                    alertText += 'Значение: ' + resultData + '\n';
+                }
+                alert(alertText);
 
                 // 1. Обновляем предзадачу в Entity
                 console.log('%c  📝 Шаг 1: Помечаем предзадачу как созданную (isCreated=true, realTaskId=' + newTaskId + ')', 'color: #2196f3;');
