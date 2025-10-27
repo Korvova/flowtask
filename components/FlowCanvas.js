@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761572852 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761573046 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -1246,10 +1246,13 @@ window.FlowCanvas = {
 
                 // Очистка при размонтировании
                 return () => {
-                    window.PullSubscription.unsubscribe(task.id);
-                    console.log('🧹 Очистка подписок');
+                    // Отписываемся от всех задач
+                    allTaskIds.forEach(taskId => {
+                        window.PullSubscription.unsubscribe(taskId);
+                    });
+                    console.log('🧹 Очистка подписок для ' + allTaskIds.length + ' задач');
                 };
-            }, [task.id, setNodes]);
+            }, [nodes, task.id]);
 
             // Типы узлов (обёрнуты в useMemo для предотвращения бесконечного цикла)
             const nodeTypes = useMemo(() => ({
