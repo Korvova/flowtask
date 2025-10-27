@@ -109,12 +109,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761564081"></script>
-    <script src="components/PullSubscription.js?v=1761564081"></script>
-    <script src="components/TaskCreator.js?v=1761564081"></script>
-    <script src="components/TaskNode.js?v=1761564081"></script>
-    <script src="components/TaskModal.js?v=1761564081"></script>
-    <script src="components/FlowCanvas.js?v=1761564081"></script>
+    <script src="components/StatusColors.js?v=1761564465"></script>
+    <script src="components/PullSubscription.js?v=1761564465"></script>
+    <script src="components/TaskCreator.js?v=1761564465"></script>
+    <script src="components/TaskNode.js?v=1761564465"></script>
+    <script src="components/TaskModal.js?v=1761564465"></script>
+    <script src="components/FlowCanvas.js?v=1761564465"></script>
 
     <script>
         // Debug functions
@@ -327,13 +327,8 @@
             });
         }
         // Main app initialization
-        function showInstallPage() {
-            document.getElementById("root").innerHTML = `
-                <div style="max-width: 800px; margin: 50px auto; padding: 40px; background: white; border-radius: 15px;">
-
-        
-    // Проверка предзадач для текущей задачи
-    function checkFutureTasksDebug() {
+        // Глобальные debug функции (должны быть вне showInstallPage)
+        function checkFutureTasksDebug() {
         const output = document.getElementById('debugOutput');
         output.innerHTML = '<div class="loading">Загрузка предзадач...</div>';
 
@@ -447,7 +442,7 @@
         });
     }
 
-    function showEntityDetails() {
+        function showEntityDetails() {
             clearDebugLog();
             debugLog("🔍 Детали Entity tflow_task_pos...\n");
 
@@ -463,6 +458,10 @@
                 }
             });
         }
+
+        function showInstallPage() {
+            document.getElementById("root").innerHTML = `
+                <div style="max-width: 800px; margin: 50px auto; padding: 40px; background: white; border-radius: 15px;">
                     <h1>🚀 Telegsarflow</h1>
                     <p>Приложение установлено!</p>
                 </div>
@@ -472,7 +471,7 @@
 
         BX24.init(function() {
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761564081', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761564465', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const placement = BX24.placement.info();
@@ -522,23 +521,3 @@
     </script>
 </body>
 </html>
-<?php
-\CMain::FinalActions();
-?>
-
-        function checkEntityProperties() {
-            clearDebugLog();
-            debugLog("🔍 Проверяем свойства Entity tflow_task_pos...\n");
-
-            BX24.callMethod("entity.item.property.get", {
-                ENTITY: "tflow_task_pos"
-            }, function(result) {
-                if (result.error()) {
-                    debugLog("❌ ОШИБКА: " + result.error());
-                } else {
-                    const props = result.data();
-                    debugLog("✅ Найдено свойств: " + props.length + "\n");
-                    debugLog(JSON.stringify(props, null, 2));
-                }
-            });
-        }
