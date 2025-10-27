@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761569484 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761570687 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -327,22 +327,40 @@ window.FlowCanvas = {
                         if (!futureTask) continue;
 
                         // ВАЖНО: Проверяем, есть ли сохранённая позиция в tflow_pos
-                        addDebugLog('🔍 Проверяем позицию для task-' + taskId, '#9c27b0');
+                        addDebugLog('🔍 Загружаем позицию для task-' + taskId, '#9c27b0');
                         const savedPosition = await new Promise((resolve) => {
                             BX24.callMethod('entity.item.get', {
-                                ENTITY: 'tflow_pos',
-                                FILTER: {
-                                    PROPERTY_taskId: taskId.toString()
-                                }
+                                ENTITY: 'tflow_pos'
                             }, (posResult) => {
-                                if (posResult.error() || !posResult.data().length) {
+                                if (posResult.error()) {
+                                    console.log('❌ Ошибка загрузки позиций:', posResult.error());
+                                    addDebugLog('❌ Ошибка загрузки позиций', '#f44336');
+                                    resolve(null);
+                                    return;
+                                }
+
+                                const allItems = posResult.data();
+                                addDebugLog('📊 Всего позиций при загрузке: ' + allItems.length, '#2196f3');
+
+                                // Фильтруем вручную по DETAIL_TEXT
+                                const matchingItem = allItems.find(item => {
+                                    if (!item.DETAIL_TEXT) return false;
+                                    try {
+                                        const data = JSON.parse(item.DETAIL_TEXT);
+                                        return data.taskId == taskId;
+                                    } catch (e) {
+                                        return false;
+                                    }
+                                });
+
+                                if (!matchingItem) {
                                     console.log('📍 Для задачи', taskId, 'нет сохранённой позиции, используем из предзадачи');
                                     addDebugLog('⚠️ Нет сохранённой позиции для task-' + taskId + ', используем из предзадачи', '#ff9800');
                                     resolve(null);
                                 } else {
-                                    const posData = JSON.parse(posResult.data()[0].DETAIL_TEXT);
+                                    const posData = JSON.parse(matchingItem.DETAIL_TEXT);
                                     console.log('📍 Найдена сохранённая позиция для задачи', taskId, ':', posData);
-                                    addDebugLog('✅ Найдена позиция task-' + taskId + ': (' + Math.round(posData.positionX) + ', ' + Math.round(posData.positionY) + ')', '#4caf50');
+                                    addDebugLog('✅ Найдена позиция task-' + taskId + ': (' + Math.round(posData.positionX) + ', ' + Math.round(posData.positionY) + ') ID=' + matchingItem.ID, '#4caf50');
                                     resolve({ x: parseFloat(posData.positionX), y: parseFloat(posData.positionY) });
                                 }
                             });
@@ -438,20 +456,31 @@ window.FlowCanvas = {
                 // Если это основная задача (начинается с 'task-')
                 if (nodeId.startsWith('task-')) {
                     const taskId = nodeId.replace('task-', '');
+                    addDebugLog('🔎 Ищем существующую позицию для task-' + taskId, '#9c27b0');
 
-                    // Проверяем, есть ли уже запись
+                    // Проверяем, есть ли уже запись (БЕЗ FILTER - фильтруем вручную)
                     BX24.callMethod('entity.item.get', {
-                        ENTITY: 'tflow_pos',
-                        FILTER: {
-                            PROPERTY_taskId: taskId
-                        }
+                        ENTITY: 'tflow_pos'
                     }, (getResult) => {
                         if (getResult.error()) {
                             console.error('Ошибка проверки позиции:', getResult.error());
+                            addDebugLog('❌ Ошибка проверки позиции: ' + getResult.error(), '#f44336');
                             return;
                         }
 
-                        const items = getResult.data();
+                        const allItems = getResult.data();
+                        addDebugLog('📊 Всего позиций в Entity: ' + allItems.length, '#2196f3');
+
+                        // Фильтруем вручную по DETAIL_TEXT
+                        const items = allItems.filter(item => {
+                            if (!item.DETAIL_TEXT) return false;
+                            try {
+                                const data = JSON.parse(item.DETAIL_TEXT);
+                                return data.taskId == taskId;
+                            } catch (e) {
+                                return false;
+                            }
+                        });
 
                         if (items.length > 0) {
                             // Обновляем существующую
