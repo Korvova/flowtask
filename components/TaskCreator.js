@@ -224,7 +224,7 @@ window.TaskCreator = {
             }, (result) => {
                 if (result.error()) {
                     console.error('%c❌ tasks.task.add ERROR:', 'color: #f44336; font-weight: bold;', result.error());
-                    alert('ОШИБКА tasks.task.add:\n' + JSON.stringify(result.error(), null, 2));
+                    // alert убран - была ошибка tasks.task.add
                     resolve(null);
                     return;
                 }
@@ -320,7 +320,7 @@ window.TaskCreator = {
                 } else {
                     alertText += 'Значение: ' + resultData + '\n';
                 }
-                alert(alertText);
+                // alert убран - задача создана
 
                 // 1. Обновляем предзадачу в Entity
                 console.log('%c  📝 Шаг 1: Помечаем предзадачу как созданную (isCreated=true, realTaskId=' + newTaskId + ')', 'color: #2196f3;');
@@ -468,10 +468,10 @@ window.TaskCreator = {
                                 });
 
                                 // DEBUG: Показываем alert с результатом
-                                alert('ПРОВЕРКА ENTITY:\n\nisCreated: ' + savedData.isCreated + '\nrealTaskId: ' + savedData.realTaskId + '\nТип: ' + typeof savedData.realTaskId);
+                                // alert убран - проверка Entity
                             } else {
                                 console.error('%c    ❌ Не удалось перезагрузить Entity для проверки', 'color: #f44336;');
-                                alert('ОШИБКА: Не удалось перезагрузить Entity для проверки!');
+                                // alert убран - ошибка проверки
                             }
                         });
                     }, 500);
