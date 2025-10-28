@@ -11,13 +11,23 @@ if (isset($_REQUEST['event']) && $_REQUEST['event'] === 'ONAPPINSTALL') {
     exit;
 }
 
-// Если это обычное открытие страницы установки
+// Включаем пролог Bitrix для доступа к BX24 API
+define("NO_KEEP_STATISTIC", true);
+define("NO_AGENT_STATISTIC", true);
+define("NOT_CHECK_PERMISSIONS", true);
+define('PUBLIC_AJAX_MODE', true);
+
+require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/modules/main/include/prolog_before.php");
+
+// Подключаем необходимые расширения
+CJSCore::Init();
 ?>
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>Установка Telegsarflow</title>
+    <?php $APPLICATION->ShowHead(); ?>
     <script src="//api.bitrix24.com/api/v1/"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
