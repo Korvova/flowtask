@@ -28,13 +28,54 @@
 window.EntityManagerV2 = {
 
     /**
+     * Создать хранилище tflow_nodes если оно не существует
+     */
+    ensureEntityExists: function() {
+        return new Promise((resolve, reject) => {
+            console.log('🔍 Проверяем существование хранилища tflow_nodes...');
+
+            BX24.callMethod('entity.add', {
+                ENTITY: 'tflow_nodes',
+                NAME: 'Flowtask Nodes Storage',
+                ACCESS: {
+                    'AU': 'W'  // Все авторизованные пользователи могут записывать
+                }
+            }, (result) => {
+                if (result.error()) {
+                    const error = result.error();
+                    // Если хранилище уже существует - это нормально
+                    if (error.ex && error.ex.error_description && error.ex.error_description.includes('already exists')) {
+                        console.log('✅ Хранилище tflow_nodes уже существует');
+                        resolve(true);
+                    } else {
+                        console.error('❌ Ошибка создания хранилища:', error);
+                        reject(error);
+                    }
+                } else {
+                    console.log('✅ Хранилище tflow_nodes создано успешно');
+                    resolve(true);
+                }
+            });
+        });
+    },
+
+    /**
      * Загрузить ВСЕ узлы процесса
      *
      * ВАЖНО: entity.item.get НЕ ПОДДЕРЖИВАЕТ FILTER!
      * Получаем все записи и фильтруем на стороне клиента
      */
     loadProcess: function(processId) {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
+            // Сначала убедимся что хранилище существует
+            try {
+                await this.ensureEntityExists();
+            } catch (error) {
+                console.error('❌ Не удалось создать хранилище:', error);
+                reject(error);
+                return;
+            }
+
             console.log('📥 EntityManagerV2: Загружаем процесс', processId);
 
             const processName = 'process_' + processId;
