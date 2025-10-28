@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761634139 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761634451 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -247,6 +247,12 @@ window.FlowCanvas = {
 
                     addDebugLog('🔗 Загружаем связи для task-' + task.id + ' и ' + parentTaskIds.length + ' родителей', '#673ab7');
                     const connections = await loadConnections(task.id, parentTaskIds);
+
+                    addDebugLog('📊 Найдено связей из Entity: ' + connections.length, '#2196f3');
+                    connections.forEach((conn, idx) => {
+                        addDebugLog('  ' + (idx+1) + '. ' + conn.sourceId + ' → ' + conn.targetId + ' (type: ' + conn.connectionType + ')', '#9c27b0');
+                    });
+
                     const loadedEdges = connections.map(conn => {
                         console.log('📊 Создаём edge:', conn.sourceId, '→', conn.targetId);
                         return {
@@ -254,10 +260,12 @@ window.FlowCanvas = {
                             source: conn.sourceId,
                             target: conn.targetId,
                             type: conn.connectionType === 'future' ? 'default' : 'default',
-                            className: conn.connectionType === 'future' ? 'future-edge' : ''
+                            className: conn.connectionType === 'future' ? 'future-edge' : '',
+                            animated: true
                         };
                     });
-                    
+
+                    addDebugLog('📊 Создано edges для отображения: ' + loadedEdges.length, '#00ff00');
                     console.log('📊 Всего загружено edges:', loadedEdges.length);
                     loadedEdges.forEach(edge => {
                         console.log('  ↳', edge.source, '→', edge.target);
