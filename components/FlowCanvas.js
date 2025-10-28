@@ -1809,35 +1809,6 @@ window.FlowCanvas = {
                     position: 'relative'
                 }
             },
-                // Debug panel
-                React.createElement('div', {
-                    style: {
-                        position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        width: '400px',
-                        maxHeight: '300px',
-                        overflow: 'auto',
-                        background: 'rgba(0, 0, 0, 0.9)',
-                        color: '#00ff00',
-                        padding: '10px',
-                        borderRadius: '8px',
-                        zIndex: 1000,
-                        fontFamily: 'monospace',
-                        fontSize: '11px',
-                        lineHeight: '1.4'
-                    }
-                },
-                    React.createElement('div', {
-                        style: { fontWeight: 'bold', marginBottom: '5px', borderBottom: '1px solid #00ff00', paddingBottom: '5px' }
-                    }, '🔍 DEBUG LOG (последние 20)'),
-                    debugLog.map((log, i) =>
-                        React.createElement('div', {
-                            key: i,
-                            style: { color: log.color, marginBottom: '2px' }
-                        }, log.message)
-                    )
-                ),
                 React.createElement(ReactFlow, {
                     nodes: nodes,
                     edges: edges,
