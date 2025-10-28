@@ -356,13 +356,51 @@ CJSCore::Init();
                 } else {
                     console.log('✅ Entity tflow_tmpl создан');
                 }
-                installStep3_RegisterPlacement();
+                installStep3_CreateCustomField();
             });
         }
 
-        // Шаг 3: Регистрация Placement
-        function installStep3_RegisterPlacement() {
-            showProgress('Шаг 3/7: Регистрация вкладки "Процессы"...');
+        // Шаг 3: Создание пользовательского поля для ProcessId
+        function installStep3_CreateCustomField() {
+            showProgress('Шаг 3/7: Создание пользовательского поля ProcessId...');
+
+            BX24.callMethod('task.item.userfield.add', {
+                fields: {
+                    FIELD_NAME: 'UF_FLOWTASK_PROCESS_ID',
+                    USER_TYPE_ID: 'string',
+                    EDIT_FORM_LABEL: {
+                        'ru': 'ID процесса Flowtask',
+                        'en': 'Flowtask Process ID'
+                    },
+                    LIST_COLUMN_LABEL: {
+                        'ru': 'Process ID',
+                        'en': 'Process ID'
+                    },
+                    MANDATORY: 'N',
+                    SHOW_FILTER: 'N',
+                    SHOW_IN_LIST: 'N',
+                    EDIT_IN_LIST: 'N',
+                    IS_SEARCHABLE: 'N'
+                }
+            }, function(fieldResult) {
+                if (fieldResult.error()) {
+                    const errorCode = fieldResult.error().ex.error;
+                    // Если поле уже существует (ERROR_FIELD_EXISTS) - это не ошибка
+                    if (errorCode === 'ERROR_FIELD_EXISTS' || errorCode === 'ERROR_ALREADY_EXISTS') {
+                        console.log('✅ Поле UF_FLOWTASK_PROCESS_ID уже существует');
+                    } else {
+                        console.warn('⚠️ Ошибка создания поля:', fieldResult.error());
+                    }
+                } else {
+                    console.log('✅ Пользовательское поле UF_FLOWTASK_PROCESS_ID создано');
+                }
+                installStep4_RegisterPlacement();
+            });
+        }
+
+        // Шаг 4: Регистрация Placement
+        function installStep4_RegisterPlacement() {
+            showProgress('Шаг 4/7: Регистрация вкладки "Процессы"...');
             
             BX24.callMethod('placement.bind', {
                 PLACEMENT: 'TASK_VIEW_TAB',
@@ -380,13 +418,13 @@ CJSCore::Init();
                 }
 
                 console.log('✅ Placement зарегистрирован');
-                installStep4_RegisterWebhook();
+                installStep5_RegisterWebhook();
             });
         }
 
-        // Шаг 4: Регистрация Webhook
-        function installStep4_RegisterWebhook() {
-            showProgress('Шаг 4/7: Регистрация webhook для real-time обновлений...');
+        // Шаг 5: Регистрация Webhook
+        function installStep5_RegisterWebhook() {
+            showProgress('Шаг 5/7: Регистрация webhook для real-time обновлений...');
 
             // Регистрируем webhook для ONTASKUPDATE
             BX24.callMethod('event.bind', {
@@ -399,13 +437,13 @@ CJSCore::Init();
                     console.log('✅ Webhook ONTASKUPDATE зарегистрирован');
                 }
 
-                installStep5_Finish();
+                installStep6_Finish();
             });
         }
 
-        // Шаг 5: Завершение
-        function installStep5_Finish() {
-            showProgress('Шаг 5/7: Завершение установки...');
+        // Шаг 6: Завершение
+        function installStep6_Finish() {
+            showProgress('Шаг 6/7: Завершение установки...');
             
             console.log('✅ Установка завершена');
             showStatus('✅ Приложение успешно установлено!<br><br>Откройте любую задачу и найдите вкладку "Процессы".', true);
