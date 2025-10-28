@@ -284,6 +284,9 @@ window.EntityManager = {
             // Поэтому загружаем ВСЕ и фильтруем вручную
 
             const allItems = [];
+            const seenIds = new Set(); // Для отслеживания дубликатов
+            let duplicateCount = 0;
+
             const loadBatch = (start) => {
                 console.log(`  🔄 Запрос порции start=${start}...`);
 
@@ -302,13 +305,43 @@ window.EntityManager = {
                     console.log(`  ✅ Получено записей (start=${start}):`, batch.length);
 
                     if (batch.length > 0) {
-                        allItems.push(...batch);
-                        console.log(`  📊 Всего накоплено:`, allItems.length);
+                        // Проверяем на дубликаты
+                        let newItems = 0;
+                        batch.forEach(item => {
+                            if (!seenIds.has(item.ID)) {
+                                seenIds.add(item.ID);
+                                allItems.push(item);
+                                newItems++;
+                            }
+                        });
 
-                        // Если получили 50 записей, значит может быть еще
+                        console.log(`  📊 Новых записей: ${newItems}, всего накоплено: ${allItems.length}`);
+
+                        // Если все записи были дубликатами - останавливаемся
+                        if (newItems === 0) {
+                            console.log('⚠️ Все записи дубликаты - достигнут конец данных');
+                            console.log('✅ Загружено всего связей:', allItems.length);
+                            processAllItems(allItems);
+                            return;
+                        }
+
+                        // Если получили 50 записей, может быть еще
                         if (batch.length === 50) {
-                            console.log(`  ⏩ Запрашиваем следующую порцию...`);
-                            setTimeout(() => loadBatch(start + 50), 100); // Небольшая задержка
+                            // Защита от бесконечного цикла
+                            if (duplicateCount > 3) {
+                                console.warn('⚠️ Слишком много дубликатов подряд - останавливаем загрузку');
+                                console.log('✅ Загружено всего связей:', allItems.length);
+                                processAllItems(allItems);
+                                return;
+                            }
+
+                            if (newItems < batch.length) {
+                                duplicateCount++;
+                            } else {
+                                duplicateCount = 0;
+                            }
+
+                            setTimeout(() => loadBatch(start + 50), 100);
                         } else {
                             // Последняя порция
                             console.log('✅ Загружено всего связей:', allItems.length);
