@@ -291,11 +291,11 @@ window.EntityManager = {
 
                 BX24.callMethod('entity.item.get', {
                     ENTITY: 'tflow_conn',
-                    filter: {
+                    FILTER: {
                         '>=ID': minId,
                         '<=ID': maxId
                     },
-                    sort: { ID: 'ASC' }
+                    SORT: { ID: 'ASC' }
                 }, (result) => {
                     if (result.error()) {
                         console.warn('⚠️ Ошибка загрузки:', result.error());
