@@ -12,6 +12,50 @@ window.EntityManager = {
 
     /**
      * ═══════════════════════════════════════════════════════════
+     * ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+     * ═══════════════════════════════════════════════════════════
+     */
+
+    /**
+     * Загрузить ВСЕ элементы Entity с пагинацией
+     * @param {string} entityName - Название Entity
+     * @returns {Promise<Array>}
+     */
+    _loadAllEntityItems: function(entityName) {
+        return new Promise((resolve) => {
+            const allItems = [];
+            const loadBatch = (start) => {
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: entityName,
+                    SORT: { ID: 'ASC' },
+                    start: start
+                }, (result) => {
+                    if (result.error()) {
+                        console.warn(`⚠️ Ошибка загрузки ${entityName}:`, result.error());
+                        resolve([]);
+                        return;
+                    }
+
+                    const batch = result.data();
+
+                    if (batch.length > 0) {
+                        allItems.push(...batch);
+                        if (batch.length === 50) {
+                            loadBatch(start + 50);
+                        } else {
+                            resolve(allItems);
+                        }
+                    } else {
+                        resolve(allItems);
+                    }
+                });
+            };
+            loadBatch(0);
+        });
+    },
+
+    /**
+     * ═══════════════════════════════════════════════════════════
      * ПОЗИЦИИ (tflow_pos)
      * ═══════════════════════════════════════════════════════════
      */
@@ -124,16 +168,7 @@ window.EntityManager = {
         return new Promise((resolve) => {
             console.log('📥 EntityManager: Загружаем предзадачи для процесса', processId);
 
-            BX24.callMethod('entity.item.get', {
-                ENTITY: 'tflow_future'
-            }, (result) => {
-                if (result.error()) {
-                    console.warn('⚠️ Ошибка загрузки предзадач:', result.error());
-                    resolve([]);
-                    return;
-                }
-
-                const items = result.data();
+            this._loadAllEntityItems('tflow_future').then(items => {
                 const futureTasks = items
                     .filter(item => {
                         if (!item.DETAIL_TEXT) return false;
@@ -245,18 +280,47 @@ window.EntityManager = {
         return new Promise((resolve) => {
             console.log('📥 EntityManager: Загружаем связи для процесса', processId);
 
-            BX24.callMethod('entity.item.get', {
-                ENTITY: 'tflow_conn'
-            }, (result) => {
-                if (result.error()) {
-                    console.warn('⚠️ Ошибка загрузки связей:', result.error());
-                    resolve([]);
-                    return;
-                }
+            // ⚠️ ПРОБЛЕМА: Entity не поддерживает фильтрацию по DETAIL_TEXT
+            // Поэтому загружаем ВСЕ и фильтруем вручную
 
-                const items = result.data();
-                console.log('📦 Всего связей в Entity:', items.length);
-                console.log('🔍 Ищем связи с processId =', processId, '(type:', typeof processId + ')');
+            const allItems = [];
+            const loadBatch = (start) => {
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_conn',
+                    SORT: { ID: 'ASC' },
+                    start: start
+                }, (result) => {
+                    if (result.error()) {
+                        console.warn('⚠️ Ошибка загрузки связей:', result.error());
+                        resolve([]);
+                        return;
+                    }
+
+                    const batch = result.data();
+                    if (start === 0) {
+                        console.log('  📦 Первая порция:', batch.length);
+                    }
+
+                    if (batch.length > 0) {
+                        allItems.push(...batch);
+
+                        // Если получили 50 записей, значит может быть еще
+                        if (batch.length === 50) {
+                            loadBatch(start + 50);
+                        } else {
+                            // Последняя порция
+                            console.log('✅ Загружено всего связей:', allItems.length);
+                            processAllItems(allItems);
+                        }
+                    } else {
+                        console.log('✅ Загружено всего связей:', allItems.length);
+                        processAllItems(allItems);
+                    }
+                });
+            };
+
+            const processAllItems = (items) => {
+                console.log('🔍 Фильтруем связи с processId =', processId);
 
                 // Показываем ID диапазон
                 const allIds = items.map(i => parseInt(i.ID)).sort((a, b) => a - b);
@@ -318,9 +382,12 @@ window.EntityManager = {
                         };
                     });
 
-                console.log('✅ Загружено связей для processId=' + processId + ':', connections.length);
+                console.log('✅ Найдено связей для processId=' + processId + ':', connections.length);
                 resolve(connections);
-            });
+            };
+
+            // Начинаем загрузку с первой порции
+            loadBatch(0);
         });
     },
 
