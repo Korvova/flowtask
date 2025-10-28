@@ -366,7 +366,7 @@ CJSCore::Init();
             
             BX24.callMethod('placement.bind', {
                 PLACEMENT: 'TASK_VIEW_TAB',
-                HANDLER: 'https://rms-bot.com/flowtask/handler.php',
+                HANDLER: 'https://test.test-rms.ru/flowtask/handler.php',
                 LANG_ALL: {
                     ru: { TITLE: 'Процессы' },
                     en: { TITLE: 'Processes' }
