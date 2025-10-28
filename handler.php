@@ -115,12 +115,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761661000000"></script>
-    <script src="components/PullSubscription.js?v=1761661000000"></script>
-    <script src="components/TaskCreator.js?v=1761661000000"></script>
-    <script src="components/TaskNode.js?v=1761661000000"></script>
-    <script src="components/TaskModal.js?v=1761661000000"></script>
-    <script src="components/FlowCanvas.js?v=1761661000000"></script>
+    <script src="components/StatusColors.js?v=1761662000000"></script>
+    <script src="components/PullSubscription.js?v=1761662000000"></script>
+    <script src="components/TaskCreator.js?v=1761662000000"></script>
+    <script src="components/TaskNode.js?v=1761662000000"></script>
+    <script src="components/TaskModal.js?v=1761662000000"></script>
+    <script src="components/FlowCanvas.js?v=1761662000000"></script>
 
     <script>
         // Debug functions
@@ -617,13 +617,20 @@
         }
 
         BX24.init(function() {
+            console.clear(); // Очищаем консоль для чистоты
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK v=1761661000000 (DEBUG LOGS)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK v=1761662000000 (CONSOLE CLEAR)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const auth = BX24.getAuth();
             const bitrixDomain = auth.domain;
             console.log('🌐 Домен портала Bitrix24:', bitrixDomain);
+
+            console.log('%c🔍 ДИАГНОСТИКА ОКРУЖЕНИЯ:', 'color: #ff9800; font-weight: bold; font-size: 14px;');
+            console.log('  window.BX:', typeof window.BX);
+            console.log('  window.BX.PULL:', typeof window.BX !== 'undefined' ? typeof window.BX.PULL : 'BX undefined');
+            console.log('  BX:', typeof BX);
+            console.log('  BX.PULL:', typeof BX !== 'undefined' ? typeof BX.PULL : 'BX undefined');
 
             const placement = BX24.placement.info();
             console.log('%c📍 Placement Info:', 'color: #2196f3; font-weight: bold;', placement);
