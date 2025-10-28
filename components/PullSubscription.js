@@ -151,23 +151,23 @@ window.PullSubscription = {
      */
     unsubscribe: function(taskId) {
         const subscription = this.subscriptions[taskId];
-        
+
         if (!subscription) {
             console.warn('⚠️  Подписка не найдена для задачи:', taskId);
             return;
         }
-        
+
         if (subscription.type === 'pull') {
-            // Отписываемся от BX.PULL
-            BX.PULL.unsubscribe('tasks', subscription.handler);
-            console.log('🔕 Отписались от BX.PULL для задачи:', taskId);
-            
+            // BX.PULL не имеет метода unsubscribe
+            // Просто удаляем из нашего списка, обработчик станет неактивным
+            console.log('🔕 Удаляем подписку BX.PULL для задачи:', taskId);
+
         } else if (subscription.type === 'polling') {
             // Останавливаем polling
             clearInterval(subscription.interval);
             console.log('🔕 Остановлен polling для задачи:', taskId);
         }
-        
+
         delete this.subscriptions[taskId];
     },
     

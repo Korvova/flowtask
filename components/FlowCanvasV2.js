@@ -308,47 +308,43 @@ window.FlowCanvasV2 = {
             useEffect(() => {
                 if (nodes.length === 0) return; // Ждём загрузки узлов
 
-                console.log('%c📞 Подписываемся на ВСЕ задачи на полотне', 'color: #9c27b0; font-weight: bold;');
-
                 if (window.PullSubscription) {
                     // Собираем все task узлы
-                    const taskNodes = nodes.filter(node => node.type === 'task');
-                    console.log('  • Найдено задач для подписки:', taskNodes.length);
+                    const taskNodes = nodes.filter(node => node.type === 'task' && node.data.realTaskId);
 
-                    taskNodes.forEach(node => {
-                        const taskId = node.id.replace('task-', '');
-
-                        // Правильные параметры для PullSubscription.subscribe:
-                        // subscribe(taskId, onStatusChange, onTaskComplete)
-                        window.PullSubscription.subscribe(
-                            taskId,
-                            (newStatus, task) => {
-                                console.log('%c🔄 Статус изменён через PULL:', 'color: #ff9800; font-weight: bold;', taskId, '→', newStatus);
-                                handleStatusChange(taskId, newStatus);
-                            },
-                            (completedTaskId) => {
-                                console.log('%c✅ Задача завершена через PULL:', 'color: #00ff00; font-weight: bold;', completedTaskId);
-                                handleStatusChange(completedTaskId, 5);
-                            }
-                        );
-                        console.log('  ✅ Подписка на task-' + taskId);
+                    // Подписываемся только на новые задачи (которые еще не в subscriptions)
+                    const newTasks = taskNodes.filter(node => {
+                        const taskId = node.data.realTaskId;
+                        return !window.PullSubscription.subscriptions[taskId];
                     });
 
-                    console.log('%c✅ Подписка завершена на ' + taskNodes.length + ' задач!', 'color: #4caf50; font-weight: bold;');
+                    if (newTasks.length > 0) {
+                        console.log('%c📞 Подписываемся на новые задачи:', 'color: #9c27b0; font-weight: bold;', newTasks.length);
+
+                        newTasks.forEach(node => {
+                            const taskId = node.data.realTaskId;
+
+                            // Правильные параметры для PullSubscription.subscribe:
+                            // subscribe(taskId, onStatusChange, onTaskComplete)
+                            window.PullSubscription.subscribe(
+                                taskId,
+                                (newStatus, task) => {
+                                    console.log('%c🔄 Статус изменён через PULL:', 'color: #ff9800; font-weight: bold;', taskId, '→', newStatus);
+                                    handleStatusChange(taskId, newStatus);
+                                },
+                                (completedTaskId) => {
+                                    console.log('%c✅ Задача завершена через PULL:', 'color: #00ff00; font-weight: bold;', completedTaskId);
+                                    handleStatusChange(completedTaskId, 5);
+                                }
+                            );
+                            console.log('  ✅ Подписка на task-' + taskId);
+                        });
+
+                        console.log('%c✅ Подписка завершена!', 'color: #4caf50; font-weight: bold;');
+                    }
                 }
 
-                // Cleanup: отписка при размонтировании или изменении nodes
-                return () => {
-                    if (window.PullSubscription) {
-                        nodes.forEach(node => {
-                            if (node.type === 'task') {
-                                const taskId = node.id.replace('task-', '');
-                                console.log('🔕 Отписка от task-' + taskId);
-                                window.PullSubscription.unsubscribe(taskId);
-                            }
-                        });
-                    }
-                };
+                // НЕ отписываемся - подписки работают глобально на всю сессию
             }, [nodes.length]); // Подписываемся при изменении количества узлов!
 
             // Render
