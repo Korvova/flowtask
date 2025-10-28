@@ -279,81 +279,71 @@ window.EntityManager = {
     loadConnections: function(processId) {
         return new Promise((resolve) => {
             console.log('📥 EntityManager: Загружаем связи для процесса', processId);
-
-            // Пробуем использовать entity.item.list вместо entity.item.get
-            // Это позволяет использовать FILTER
-            console.log('  🔧 Используем entity.item.list для обхода лимита 50');
+            console.log('  ⚠️ entity.item.get лимит 50, пагинация НЕ работает');
+            console.log('  🔧 Стратегия: SORT DESC для последних 50 + SORT ASC для первых 50');
 
             const allItems = [];
             const seenIds = new Set();
-            let duplicateCount = 0;
 
-            const loadBatch = (start) => {
-                console.log(`  🔄 Запрос entity.item.list start=${start}...`);
+            // Шаг 1: Загружаем последние 50 (SORT DESC)
+            console.log('  🔄 Шаг 1: Загружаем ПОСЛЕДНИЕ 50 записей (SORT DESC)...');
+            BX24.callMethod('entity.item.get', {
+                ENTITY: 'tflow_conn',
+                SORT: { ID: 'DESC' }
+            }, (resultDesc) => {
+                if (resultDesc.error()) {
+                    console.warn('⚠️ Ошибка загрузки (DESC):', resultDesc.error());
+                    resolve([]);
+                    return;
+                }
 
-                BX24.callMethod('entity.item.list', {
+                const descItems = resultDesc.data();
+                console.log(`  ✅ SORT DESC: получено ${descItems.length} записей`);
+
+                // Добавляем в коллекцию
+                descItems.forEach(item => {
+                    if (!seenIds.has(item.ID)) {
+                        seenIds.add(item.ID);
+                        allItems.push(item);
+                    }
+                });
+
+                // Шаг 2: Загружаем первые 50 (SORT ASC)
+                console.log('  🔄 Шаг 2: Загружаем ПЕРВЫЕ 50 записей (SORT ASC)...');
+                BX24.callMethod('entity.item.get', {
                     ENTITY: 'tflow_conn',
-                    SORT: { ID: 'ASC' },
-                    start: start
-                }, (result) => {
-                    if (result.error()) {
-                        console.warn('⚠️ Ошибка загрузки связей:', result.error());
-                        resolve([]);
+                    SORT: { ID: 'ASC' }
+                }, (resultAsc) => {
+                    if (resultAsc.error()) {
+                        console.warn('⚠️ Ошибка загрузки (ASC):', resultAsc.error());
+                        // Используем то что есть из DESC
+                        processAllItems(allItems);
                         return;
                     }
 
-                    const batch = result.data();
-                    console.log(`  ✅ Получено записей (start=${start}):`, batch.length);
+                    const ascItems = resultAsc.data();
+                    console.log(`  ✅ SORT ASC: получено ${ascItems.length} записей`);
 
-                    if (batch.length > 0) {
-                        // Проверяем на дубликаты
-                        let newItems = 0;
-                        batch.forEach(item => {
-                            if (!seenIds.has(item.ID)) {
-                                seenIds.add(item.ID);
-                                allItems.push(item);
-                                newItems++;
-                            }
-                        });
-
-                        console.log(`  📊 Новых записей: ${newItems}, всего накоплено: ${allItems.length}`);
-
-                        // Если все записи были дубликатами - останавливаемся
-                        if (newItems === 0) {
-                            console.log('⚠️ Все записи дубликаты - достигнут конец данных');
-                            console.log('✅ Загружено всего связей:', allItems.length);
-                            processAllItems(allItems);
-                            return;
+                    // Добавляем без дубликатов
+                    let newCount = 0;
+                    ascItems.forEach(item => {
+                        if (!seenIds.has(item.ID)) {
+                            seenIds.add(item.ID);
+                            allItems.push(item);
+                            newCount++;
                         }
+                    });
 
-                        // Если получили 50 записей, может быть еще
-                        if (batch.length === 50) {
-                            // Защита от бесконечного цикла
-                            if (duplicateCount > 3) {
-                                console.warn('⚠️ Слишком много дубликатов подряд - останавливаем загрузку');
-                                console.log('✅ Загружено всего связей:', allItems.length);
-                                processAllItems(allItems);
-                                return;
-                            }
+                    console.log(`  📊 Новых из ASC: ${newCount}`);
+                    console.log(`✅ Всего загружено уникальных связей: ${allItems.length}`);
 
-                            if (newItems < batch.length) {
-                                duplicateCount++;
-                            } else {
-                                duplicateCount = 0;
-                            }
+                    const allIds = Array.from(seenIds).map(id => parseInt(id)).sort((a,b) => a-b);
+                    console.log(`  📊 ID диапазон: ${allIds[0]} - ${allIds[allIds.length-1]}`);
 
-                            setTimeout(() => loadBatch(start + 50), 100);
-                        } else {
-                            // Последняя порция
-                            console.log('✅ Загружено всего связей:', allItems.length);
-                            processAllItems(allItems);
-                        }
-                    } else {
-                        console.log('✅ Загружено всего связей:', allItems.length);
-                        processAllItems(allItems);
-                    }
+                    // Обрабатываем результат
+                    processAllItems(allItems);
                 });
-            };
+            });
 
             const processAllItems = (items) => {
                 console.log('🔍 Фильтруем связи с processId =', processId);
