@@ -62,6 +62,60 @@ window.FlowCanvas = {
                 loadProcessData();
             }, [task.id]);
 
+            // Миграция старых связей без processId
+            const migrateOldConnections = (taskId, processId) => {
+                addDebugLog('🔄 Миграция старых связей...', '#ff9800');
+
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_conn'
+                }, (result) => {
+                    if (result.error()) {
+                        addDebugLog('⚠️ Ошибка загрузки связей для миграции', '#ff9800');
+                        return;
+                    }
+
+                    const connections = result.data();
+                    let migratedCount = 0;
+
+                    connections.forEach(conn => {
+                        if (!conn.DETAIL_TEXT) return;
+
+                        try {
+                            const data = JSON.parse(conn.DETAIL_TEXT);
+
+                            // Проверяем, относится ли связь к текущему процессу
+                            const isRelated = data.parentTaskId == taskId ||
+                                             data.processId == processId ||
+                                             (!data.processId && data.parentTaskId == taskId);
+
+                            // Если processId отсутствует и связь относится к текущему процессу
+                            if (!data.processId && isRelated) {
+                                data.processId = processId;
+
+                                BX24.callMethod('entity.item.update', {
+                                    ENTITY: 'tflow_conn',
+                                    ID: conn.ID,
+                                    DETAIL_TEXT: JSON.stringify(data)
+                                }, (updateResult) => {
+                                    if (!updateResult.error()) {
+                                        migratedCount++;
+                                        addDebugLog('✅ Мигрирована связь ID=' + conn.ID, '#00ff00');
+                                    }
+                                });
+                            }
+                        } catch (e) {
+                            // Игнорируем битые данные
+                        }
+                    });
+
+                    if (migratedCount > 0) {
+                        addDebugLog('✅ Мигрировано связей: ' + migratedCount, '#00ff00');
+                    } else {
+                        addDebugLog('ℹ️ Связи для миграции не найдены', '#2196f3');
+                    }
+                });
+            };
+
             // Загрузка всех данных процесса
             const loadProcessData = async () => {
                 addDebugLog('📥 ЗАГРУЗКА ДАННЫХ ПРОЦЕССА', '#2196f3');
@@ -114,6 +168,9 @@ window.FlowCanvas = {
 
                     // Сохраняем processId для использования в компоненте
                     window.currentProcessId = processId;
+
+                    // МИГРАЦИЯ: Обновляем старые связи без processId
+                    migrateOldConnections(task.id, processId);
 
                     // 3. Создаём узел текущей задачи с актуальным статусом
                     const mainNode = {

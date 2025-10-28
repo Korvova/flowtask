@@ -518,11 +518,11 @@ window.TaskCreator = {
     },
 
     /**
-     * Создание связи для реальной задачи
+     * Создание связи для реальной задачи + обновление связей из future-узла
      */
     createConnectionForRealTask: function(parentTaskId, newTaskId, futureId) {
         return new Promise((resolve, reject) => {
-            console.log('🔗 Создаём связь для задачи:', newTaskId, 'от предзадачи:', futureId);
+            console.log('🔗 Обновляем связи для задачи:', newTaskId, 'от предзадачи:', futureId);
 
             BX24.callMethod('entity.item.get', {
                 ENTITY: 'tflow_conn'
@@ -534,7 +534,9 @@ window.TaskCreator = {
                 }
 
                 const connections = result.data();
-                const futureConnections = connections.filter(conn => {
+
+                // Находим связи ГДЕ targetId = futureId (входящие в future-узел)
+                const incomingConnections = connections.filter(conn => {
                     if (!conn.DETAIL_TEXT) return false;
                     try {
                         const data = JSON.parse(conn.DETAIL_TEXT);
@@ -544,40 +546,75 @@ window.TaskCreator = {
                     }
                 });
 
-                console.log('📊 Найдено связей с предзадачей:', futureConnections.length);
+                // Находим связи ГДЕ sourceId = futureId (исходящие из future-узла)
+                const outgoingConnections = connections.filter(conn => {
+                    if (!conn.DETAIL_TEXT) return false;
+                    try {
+                        const data = JSON.parse(conn.DETAIL_TEXT);
+                        return data.sourceId === futureId;
+                    } catch (e) {
+                        return false;
+                    }
+                });
 
-                if (futureConnections.length === 0) {
-                    console.log('ℹ️  Нет связей для копирования');
+                console.log('📊 Найдено входящих связей:', incomingConnections.length);
+                console.log('📊 Найдено исходящих связей:', outgoingConnections.length);
+
+                const promises = [];
+
+                // 1. Обновляем входящие связи (targetId: future-XXX → task-YYY)
+                incomingConnections.forEach(conn => {
+                    const connData = JSON.parse(conn.DETAIL_TEXT);
+                    connData.targetId = 'task-' + newTaskId;
+                    connData.connectionType = 'task';
+
+                    promises.push(new Promise((res) => {
+                        BX24.callMethod('entity.item.update', {
+                            ENTITY: 'tflow_conn',
+                            ID: conn.ID,
+                            DETAIL_TEXT: JSON.stringify(connData)
+                        }, (updateResult) => {
+                            if (updateResult.error()) {
+                                console.error('❌ Ошибка обновления входящей связи:', updateResult.error());
+                            } else {
+                                console.log('✅ Обновлена входящая связь ID=' + conn.ID + ':', connData.sourceId, '→', connData.targetId);
+                            }
+                            res();
+                        });
+                    }));
+                });
+
+                // 2. Обновляем исходящие связи (sourceId: future-XXX → task-YYY)
+                outgoingConnections.forEach(conn => {
+                    const connData = JSON.parse(conn.DETAIL_TEXT);
+                    connData.sourceId = 'task-' + newTaskId;
+
+                    promises.push(new Promise((res) => {
+                        BX24.callMethod('entity.item.update', {
+                            ENTITY: 'tflow_conn',
+                            ID: conn.ID,
+                            DETAIL_TEXT: JSON.stringify(connData)
+                        }, (updateResult) => {
+                            if (updateResult.error()) {
+                                console.error('❌ Ошибка обновления исходящей связи:', updateResult.error());
+                            } else {
+                                console.log('✅ Обновлена исходящая связь ID=' + conn.ID + ':', connData.sourceId, '→', connData.targetId);
+                            }
+                            res();
+                        });
+                    }));
+                });
+
+                if (promises.length === 0) {
+                    console.log('ℹ️  Нет связей для обновления');
                     resolve();
                     return;
                 }
 
-                const promises = futureConnections.map(conn => {
-                    const connData = JSON.parse(conn.DETAIL_TEXT);
-
-                    const newConnectionData = {
-                        sourceId: connData.sourceId,
-                        targetId: 'task-' + newTaskId,
-                        connectionType: 'task'
-                    };
-
-                    return new Promise((res) => {
-                        BX24.callMethod('entity.item.add', {
-                            ENTITY: 'tflow_conn',
-                            NAME: 'conn_' + connData.sourceId.replace(/[^a-zA-Z0-9]/g, '_') + '_task' + newTaskId,
-                            DETAIL_TEXT: JSON.stringify(newConnectionData)
-                        }, (addResult) => {
-                            if (addResult.error()) {
-                                console.error('❌ Ошибка создания связи:', addResult.error());
-                            } else {
-                                console.log('✅ Создана связь:', connData.sourceId, '→', 'task-' + newTaskId);
-                            }
-                            res();
-                        });
-                    });
-                });
-
-                Promise.all(promises).then(() => resolve()).catch(() => resolve());
+                Promise.all(promises).then(() => {
+                    console.log('✅ Все связи обновлены в Entity!');
+                    resolve();
+                }).catch(() => resolve());
             });
         });
     },
