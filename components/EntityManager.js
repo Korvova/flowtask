@@ -406,6 +406,148 @@ window.EntityManager = {
 
     /**
      * ═══════════════════════════════════════════════════════════
+     * УДАЛЕНИЕ ДАННЫХ ПРОЦЕССА
+     * ═══════════════════════════════════════════════════════════
+     */
+
+    /**
+     * Удалить ВСЕ данные процесса (связи, предзадачи, позиции)
+     * @param {string} processId - ID процесса
+     * @returns {Promise<{connections: number, futures: number, positions: number}>}
+     */
+    deleteAllProcessData: function(processId) {
+        return new Promise((resolve, reject) => {
+            console.log('🗑️ EntityManager: Удаляем все данные процесса', processId);
+
+            let stats = {
+                connections: 0,
+                futures: 0,
+                positions: 0
+            };
+
+            // Удаляем связи
+            BX24.callMethod('entity.item.get', {
+                ENTITY: 'tflow_conn'
+            }, (connResult) => {
+                if (connResult.error()) {
+                    console.error('❌ Ошибка загрузки связей:', connResult.error());
+                    reject(connResult.error());
+                    return;
+                }
+
+                const connections = connResult.data().filter(item => {
+                    if (!item.DETAIL_TEXT) return false;
+                    try {
+                        const data = JSON.parse(item.DETAIL_TEXT);
+                        return data.processId == processId;
+                    } catch (e) {
+                        return false;
+                    }
+                });
+
+                console.log('  Найдено связей:', connections.length);
+
+                // Удаляем предзадачи
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_future'
+                }, (futureResult) => {
+                    if (futureResult.error()) {
+                        console.error('❌ Ошибка загрузки предзадач:', futureResult.error());
+                        reject(futureResult.error());
+                        return;
+                    }
+
+                    const futures = futureResult.data().filter(item => {
+                        if (!item.DETAIL_TEXT) return false;
+                        try {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            return data.processId == processId;
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+
+                    console.log('  Найдено предзадач:', futures.length);
+
+                    // Удаляем позиции
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_pos'
+                    }, (posResult) => {
+                        if (posResult.error()) {
+                            console.error('❌ Ошибка загрузки позиций:', posResult.error());
+                            reject(posResult.error());
+                            return;
+                        }
+
+                        const positions = posResult.data().filter(item => {
+                            if (!item.DETAIL_TEXT) return false;
+                            try {
+                                const data = JSON.parse(item.DETAIL_TEXT);
+                                return data.processId == processId;
+                            } catch (e) {
+                                return false;
+                            }
+                        });
+
+                        console.log('  Найдено позиций:', positions.length);
+
+                        // Удаляем все найденные записи
+                        const deletePromises = [];
+
+                        connections.forEach(item => {
+                            deletePromises.push(
+                                new Promise((res) => {
+                                    BX24.callMethod('entity.item.delete', {
+                                        ENTITY: 'tflow_conn',
+                                        ID: item.ID
+                                    }, () => {
+                                        stats.connections++;
+                                        res();
+                                    });
+                                })
+                            );
+                        });
+
+                        futures.forEach(item => {
+                            deletePromises.push(
+                                new Promise((res) => {
+                                    BX24.callMethod('entity.item.delete', {
+                                        ENTITY: 'tflow_future',
+                                        ID: item.ID
+                                    }, () => {
+                                        stats.futures++;
+                                        res();
+                                    });
+                                })
+                            );
+                        });
+
+                        positions.forEach(item => {
+                            deletePromises.push(
+                                new Promise((res) => {
+                                    BX24.callMethod('entity.item.delete', {
+                                        ENTITY: 'tflow_pos',
+                                        ID: item.ID
+                                    }, () => {
+                                        stats.positions++;
+                                        res();
+                                    });
+                                })
+                            );
+                        });
+
+                        Promise.all(deletePromises).then(() => {
+                            console.log('✅ Удаление завершено:', stats);
+                            resolve(stats);
+                        });
+                    });
+                });
+            });
+        });
+    },
+
+    /**
+     * ═══════════════════════════════════════════════════════════
      * МИГРАЦИЯ
      * ═══════════════════════════════════════════════════════════
      */

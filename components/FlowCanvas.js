@@ -1309,6 +1309,25 @@ window.FlowCanvas = {
                     .then((entityId) => {
                         addDebugLog('✅✅ Связь сохранена в Entity через EntityManager!', '#00ff00');
                         addDebugLog('Entity ID: ' + entityId, '#00ff00');
+
+                        // НЕМЕДЛЕННАЯ ВЕРИФИКАЦИЯ после создания
+                        console.log('🔍 Проверяем существование связи ID=' + entityId + ' сразу после создания...');
+                        BX24.callMethod('entity.item.get', {
+                            ENTITY: 'tflow_conn',
+                            FILTER: { ID: entityId }
+                        }, (verifyResult) => {
+                            if (verifyResult.error()) {
+                                console.error('❌ Ошибка верификации:', verifyResult.error());
+                            } else {
+                                const found = verifyResult.data();
+                                console.log('🔍 Верификация ID=' + entityId + ':', found.length > 0 ? '✅ НАЙДЕНО' : '❌ НЕ НАЙДЕНО');
+                                if (found.length > 0) {
+                                    console.log('📄 Данные связи:', JSON.parse(found[0].DETAIL_TEXT));
+                                } else {
+                                    console.error('❌❌❌ КРИТИЧНО: Связь исчезла сразу после создания!');
+                                }
+                            }
+                        });
                     })
                     .catch((error) => {
                         addDebugLog('❌ ОШИБКА при сохранении связи!', '#f44336');
@@ -1374,7 +1393,26 @@ window.FlowCanvas = {
                         .then((entityId) => {
                             console.log('✅ Связь создана через EntityManager, ID:', entityId);
                             addDebugLog('✅ Связь для предзадачи создана (ID: ' + entityId + ')', '#00ff00');
-                            
+
+                            // НЕМЕДЛЕННАЯ ВЕРИФИКАЦИЯ после создания
+                            console.log('🔍 Проверяем существование связи ID=' + entityId + ' сразу после создания...');
+                            BX24.callMethod('entity.item.get', {
+                                ENTITY: 'tflow_conn',
+                                FILTER: { ID: entityId }
+                            }, (verifyResult) => {
+                                if (verifyResult.error()) {
+                                    console.error('❌ Ошибка верификации:', verifyResult.error());
+                                } else {
+                                    const found = verifyResult.data();
+                                    console.log('🔍 Верификация ID=' + entityId + ':', found.length > 0 ? '✅ НАЙДЕНО' : '❌ НЕ НАЙДЕНО');
+                                    if (found.length > 0) {
+                                        console.log('📄 Данные связи:', JSON.parse(found[0].DETAIL_TEXT));
+                                    } else {
+                                        console.error('❌❌❌ КРИТИЧНО: Связь исчезла сразу после создания!');
+                                    }
+                                }
+                            });
+
                             // Вместо полной перезагрузки добавляем только новые узлы и edges
                             // Это предотвращает мигание основной задачи
                             
@@ -1804,6 +1842,125 @@ window.FlowCanvas = {
                 }, '⏳ Загрузка...');
             }
 
+            // Показать модалку управления связями
+            const showConnectionsModal = () => {
+                console.log('🔧 Открываем модалку управления связями');
+
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_conn'
+                }, (result) => {
+                    if (result.error()) {
+                        alert('Ошибка загрузки связей: ' + JSON.stringify(result.error()));
+                        return;
+                    }
+
+                    const allConnections = result.data();
+                    const processConnections = allConnections.filter(item => {
+                        if (!item.DETAIL_TEXT) return false;
+                        try {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            return data.processId == processId;
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+
+                    console.log('📊 Всего связей в Entity:', allConnections.length);
+                    console.log('📊 Связей в процессе', processId + ':', processConnections.length);
+
+                    let html = '<div style="padding: 20px; max-width: 800px;">';
+                    html += '<h2>🔗 Связи процесса ' + processId + '</h2>';
+                    html += '<p>Всего связей: <b>' + processConnections.length + '</b></p>';
+                    html += '<p>Всего в Entity: ' + allConnections.length + '</p>';
+                    html += '<hr style="margin: 20px 0;">';
+
+                    if (processConnections.length === 0) {
+                        html += '<p>❌ Связи не найдены</p>';
+                    } else {
+                        html += '<table style="width: 100%; border-collapse: collapse;">';
+                        html += '<tr style="background: #f0f0f0;">';
+                        html += '<th style="padding: 10px; border: 1px solid #ddd;">ID</th>';
+                        html += '<th style="padding: 10px; border: 1px solid #ddd;">Source</th>';
+                        html += '<th style="padding: 10px; border: 1px solid #ddd;">Target</th>';
+                        html += '<th style="padding: 10px; border: 1px solid #ddd;">Type</th>';
+                        html += '<th style="padding: 10px; border: 1px solid #ddd;">Действие</th>';
+                        html += '</tr>';
+
+                        processConnections.forEach(item => {
+                            try {
+                                const data = JSON.parse(item.DETAIL_TEXT);
+                                html += '<tr>';
+                                html += '<td style="padding: 8px; border: 1px solid #ddd;">' + item.ID + '</td>';
+                                html += '<td style="padding: 8px; border: 1px solid #ddd;">' + data.sourceId + '</td>';
+                                html += '<td style="padding: 8px; border: 1px solid #ddd;">' + data.targetId + '</td>';
+                                html += '<td style="padding: 8px; border: 1px solid #ddd;">' + data.connectionType + '</td>';
+                                html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">';
+                                html += '<button onclick="window.deleteConnection(' + item.ID + ')" style="background: #f44336; color: white; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer;">Удалить</button>';
+                                html += '</td>';
+                                html += '</tr>';
+                            } catch (e) {}
+                        });
+
+                        html += '</table>';
+                        html += '<hr style="margin: 20px 0;">';
+                        html += '<button onclick="window.deleteAllProcessData(\'' + processId + '\')" style="background: #f44336; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;">🗑️ Удалить ВСЕ данные процесса</button>';
+                    }
+
+                    html += '<br><br><button onclick="window.closeModal()" style="background: #2196f3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Закрыть</button>';
+                    html += '</div>';
+
+                    // Создаем модалку
+                    const modal = document.createElement('div');
+                    modal.id = 'connectionsModal';
+                    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+                    modal.innerHTML = '<div style="background: white; border-radius: 8px; max-height: 80vh; overflow-y: auto;">' + html + '</div>';
+                    document.body.appendChild(modal);
+
+                    // Функции для кнопок
+                    window.closeModal = () => {
+                        const modal = document.getElementById('connectionsModal');
+                        if (modal) modal.remove();
+                    };
+
+                    window.deleteConnection = (connectionId) => {
+                        if (!confirm('Удалить связь ID=' + connectionId + '?')) return;
+
+                        BX24.callMethod('entity.item.delete', {
+                            ENTITY: 'tflow_conn',
+                            ID: connectionId
+                        }, (deleteResult) => {
+                            if (deleteResult.error()) {
+                                alert('Ошибка удаления: ' + JSON.stringify(deleteResult.error()));
+                            } else {
+                                console.log('✅ Связь удалена:', connectionId);
+                                alert('Связь удалена! Перезагрузите страницу.');
+                                window.closeModal();
+                            }
+                        });
+                    };
+
+                    window.deleteAllProcessData = (procId) => {
+                        if (!confirm('⚠️ ВНИМАНИЕ!\n\nЭто удалит ВСЕ данные процесса ' + procId + ':\n- Все связи\n- Все предзадачи\n- Все позиции\n\nПродолжить?')) {
+                            return;
+                        }
+
+                        console.log('🗑️ Удаляем все данные процесса', procId);
+
+                        window.EntityManager.deleteAllProcessData(procId)
+                            .then((stats) => {
+                                console.log('✅ Удаление завершено:', stats);
+                                alert('Удалено:\n- Связей: ' + stats.connections + '\n- Предзадач: ' + stats.futures + '\n- Позиций: ' + stats.positions);
+                                window.closeModal();
+                                window.location.reload();
+                            })
+                            .catch((error) => {
+                                console.error('❌ Ошибка удаления:', error);
+                                alert('Ошибка удаления: ' + JSON.stringify(error));
+                            });
+                    };
+                });
+            };
+
             return React.createElement('div', {
                 style: {
                     width: '100%',
@@ -1812,6 +1969,25 @@ window.FlowCanvas = {
                     position: 'relative'
                 }
             },
+                // Кнопка управления связями
+                React.createElement('button', {
+                    onClick: showConnectionsModal,
+                    style: {
+                        position: 'absolute',
+                        top: '20px',
+                        right: '20px',
+                        zIndex: 1000,
+                        background: '#2196f3',
+                        color: 'white',
+                        border: 'none',
+                        padding: '12px 20px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                    }
+                }, '🔗 Управление связями'),
                 React.createElement(ReactFlow, {
                     nodes: nodes,
                     edges: edges,
