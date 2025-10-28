@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761578475 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761634139 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -236,6 +236,10 @@ window.FlowCanvas = {
 
                     addDebugLog('📊 Всего узлов подзадач: ' + subtaskNodes.length, '#673ab7');
 
+                    // 3.7. Загружаем ВСЕ задачи процесса по processId
+                    const processTaskNodes = await loadAllProcessTasks(processId);
+                    addDebugLog('📊 Всего узлов процесса: ' + processTaskNodes.length, '#673ab7');
+
                     // 4. Загружаем связи (connections) - для текущей задачи и ВСЕХ родителей
                     const parentTaskIds = parentNodes
                         .filter(node => node.data.isRealTask)
@@ -259,11 +263,11 @@ window.FlowCanvas = {
                         console.log('  ↳', edge.source, '→', edge.target);
                     });
 
-                    setNodes([mainNode, ...parentNodes, ...futureNodes, ...createdTaskNodes, ...subtaskNodes]);
+                    setNodes([mainNode, ...parentNodes, ...futureNodes, ...createdTaskNodes, ...subtaskNodes, ...processTaskNodes]);
                     setEdges(loadedEdges);
                     setIsLoading(false);
 
-                    const totalNodes = [mainNode, ...parentNodes, ...futureNodes, ...createdTaskNodes, ...subtaskNodes].length;
+                    const totalNodes = [mainNode, ...parentNodes, ...futureNodes, ...createdTaskNodes, ...subtaskNodes, ...processTaskNodes].length;
                     console.log('✅ Данные процесса загружены:', {
                         nodes: totalNodes,
                         edges: loadedEdges.length
@@ -684,6 +688,79 @@ window.FlowCanvas = {
                 }
 
                 return createdNodes;
+            };
+
+            // Загрузка ВСЕХ реальных задач процесса по processId
+            const loadAllProcessTasks = async (processId) => {
+                addDebugLog('🔍 Загружаем ВСЕ задачи процесса ' + processId, '#9c27b0');
+
+                return new Promise((resolve) => {
+                    BX24.callMethod('tasks.task.list', {
+                        filter: {
+                            'UF_FLOWTASK_PROCESS_ID': processId
+                        },
+                        select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID', 'UF_FLOWTASK_PROCESS_ID']
+                    }, async (result) => {
+                        if (result.error()) {
+                            addDebugLog('⚠️ Ошибка загрузки задач процесса: ' + JSON.stringify(result.error()), '#ff9800');
+                            resolve([]);
+                            return;
+                        }
+
+                        const tasks = result.data().tasks || [];
+                        addDebugLog('📊 Найдено задач процесса: ' + tasks.length, '#2196f3');
+
+                        const processNodes = [];
+
+                        for (const taskData of tasks) {
+                            // Пропускаем текущую задачу - она уже загружена
+                            if (taskData.id == task.id) {
+                                continue;
+                            }
+
+                            // Загружаем позицию для каждой задачи
+                            const position = await loadTaskPosition(taskData.id);
+
+                            if (!position) {
+                                // Если нет позиции - размещаем справа от текущей
+                                addDebugLog('⚠️ Нет позиции для task-' + taskData.id + ', размещаем справа', '#ff9800');
+                                processNodes.push({
+                                    id: 'task-' + taskData.id,
+                                    type: 'taskNode',
+                                    position: { x: 500 + (processNodes.length * 150), y: 100 },
+                                    draggable: true,
+                                    data: {
+                                        id: taskData.id,
+                                        title: taskData.title,
+                                        statusCode: taskData.status,
+                                        responsibleId: taskData.responsibleId,
+                                        isFuture: false,
+                                        isRealTask: true
+                                    }
+                                });
+                            } else {
+                                addDebugLog('✅ task-' + taskData.id + ' позиция: (' + Math.round(position.x) + ', ' + Math.round(position.y) + ')', '#00bcd4');
+                                processNodes.push({
+                                    id: 'task-' + taskData.id,
+                                    type: 'taskNode',
+                                    position: position,
+                                    draggable: true,
+                                    data: {
+                                        id: taskData.id,
+                                        title: taskData.title,
+                                        statusCode: taskData.status,
+                                        responsibleId: taskData.responsibleId,
+                                        isFuture: false,
+                                        isRealTask: true
+                                    }
+                                });
+                            }
+                        }
+
+                        addDebugLog('✅ Загружено узлов процесса: ' + processNodes.length, '#00ff00');
+                        resolve(processNodes);
+                    });
+                });
             };
 
             // Загрузка связей из entity (по processId!)
