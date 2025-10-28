@@ -1298,25 +1298,24 @@ window.FlowCanvas = {
 
                 addDebugLog('STEP 3: Сохраняем в Entity...', '#2196f3');
                 addDebugLog('  • parentTaskId: ' + connectionData.parentTaskId, '#9c27b0');
+                addDebugLog('  • processId: ' + connectionData.processId + ' (type: ' + typeof connectionData.processId + ')', '#ff0000');
                 addDebugLog('  • sourceId: ' + connectionData.sourceId, '#9c27b0');
                 addDebugLog('  • targetId: ' + connectionData.targetId, '#9c27b0');
                 addDebugLog('  • connectionType: ' + connectionData.connectionType, '#9c27b0');
+                console.log('🔍 connectionData для сохранения:', connectionData);
 
-                BX24.callMethod('entity.item.add', {
-                    ENTITY: 'tflow_conn',
-                    NAME: params.source + '->' + params.target,  // УПРОЩЕНО как в saveFutureTask!
-                    DETAIL_TEXT: JSON.stringify(connectionData)
-                }, (result) => {
-                    if (result.error()) {
+                // Используем EntityManager вместо прямого вызова BX24
+                window.EntityManager.createConnection(connectionData)
+                    .then((entityId) => {
+                        addDebugLog('✅✅ Связь сохранена в Entity через EntityManager!', '#00ff00');
+                        addDebugLog('Entity ID: ' + entityId, '#00ff00');
+                    })
+                    .catch((error) => {
                         addDebugLog('❌ ОШИБКА при сохранении связи!', '#f44336');
-                        addDebugLog('Ошибка: ' + JSON.stringify(result.error()), '#f44336');
-                    } else {
-                        addDebugLog('✅✅ Связь сохранена в Entity!', '#00ff00');
-                        addDebugLog('Entity ID: ' + result.data(), '#00ff00');
-                    }
-                });
+                        addDebugLog('Ошибка: ' + JSON.stringify(error), '#f44336');
+                    });
 
-                addDebugLog('STEP 4: BX24.callMethod вызван (ждём ответ)', '#2196f3');
+                addDebugLog('STEP 4: EntityManager.createConnection вызван', '#2196f3');
             }, [setEdges, task.id]);
 
             // Сохранение предзадачи
