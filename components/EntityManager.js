@@ -316,8 +316,8 @@ window.EntityManager = {
 
                     console.log(`  📊 Всего накоплено: ${allItems.length}`);
 
-                    // Если получили записи - продолжаем
-                    if (batch.length > 0 && allItems.length < 1000) {
+                    // Продолжаем загрузку до maxId=1000, даже если batch пустой
+                    if (maxId < 1000 && allItems.length < 1000) {
                         // Следующий диапазон
                         setTimeout(() => loadRange(minId + step), 100);
                     } else {

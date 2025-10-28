@@ -334,8 +334,8 @@ window.TaskCreator = {
                         }
                     });
 
-                    // Продолжаем если получили записи
-                    if (batch.length > 0 && allItems.length < 1000) {
+                    // Продолжаем загрузку до maxId=1000, даже если batch пустой
+                    if (maxId < 1000 && allItems.length < 1000) {
                         setTimeout(() => loadRange(minId + step), 50);
                     } else {
                         resolve(allItems);
