@@ -304,45 +304,52 @@ window.FlowCanvasV2 = {
                 }
             }, []);
 
-            // Подписка на BX.PULL (только один раз)
+            // Подписка на BX.PULL при загрузке узлов
             useEffect(() => {
                 if (nodes.length === 0) return; // Ждём загрузки узлов
 
-                if (window.PullSubscription) {
-                    // Найти все task узлы
-                    nodes.forEach(node => {
-                        if (node.type === 'task') {
-                            const taskId = node.id.replace('task-', '');
+                console.log('%c📞 Подписываемся на ВСЕ задачи на полотне', 'color: #9c27b0; font-weight: bold;');
 
-                            // Правильные параметры для PullSubscription.subscribe:
-                            // subscribe(taskId, onStatusChange, onTaskComplete)
-                            window.PullSubscription.subscribe(
-                                taskId,
-                                (newStatus, task) => {
-                                    console.log('🔄 Статус изменён через PULL:', taskId, '→', newStatus);
-                                    handleStatusChange(taskId, newStatus);
-                                },
-                                (completedTaskId) => {
-                                    console.log('✅ Задача завершена через PULL:', completedTaskId);
-                                    handleStatusChange(completedTaskId, 5);
-                                }
-                            );
-                        }
+                if (window.PullSubscription) {
+                    // Собираем все task узлы
+                    const taskNodes = nodes.filter(node => node.type === 'task');
+                    console.log('  • Найдено задач для подписки:', taskNodes.length);
+
+                    taskNodes.forEach(node => {
+                        const taskId = node.id.replace('task-', '');
+
+                        // Правильные параметры для PullSubscription.subscribe:
+                        // subscribe(taskId, onStatusChange, onTaskComplete)
+                        window.PullSubscription.subscribe(
+                            taskId,
+                            (newStatus, task) => {
+                                console.log('%c🔄 Статус изменён через PULL:', 'color: #ff9800; font-weight: bold;', taskId, '→', newStatus);
+                                handleStatusChange(taskId, newStatus);
+                            },
+                            (completedTaskId) => {
+                                console.log('%c✅ Задача завершена через PULL:', 'color: #00ff00; font-weight: bold;', completedTaskId);
+                                handleStatusChange(completedTaskId, 5);
+                            }
+                        );
+                        console.log('  ✅ Подписка на task-' + taskId);
                     });
+
+                    console.log('%c✅ Подписка завершена на ' + taskNodes.length + ' задач!', 'color: #4caf50; font-weight: bold;');
                 }
 
-                // Cleanup: отписка при размонтировании
+                // Cleanup: отписка при размонтировании или изменении nodes
                 return () => {
                     if (window.PullSubscription) {
                         nodes.forEach(node => {
                             if (node.type === 'task') {
                                 const taskId = node.id.replace('task-', '');
+                                console.log('🔕 Отписка от task-' + taskId);
                                 window.PullSubscription.unsubscribe(taskId);
                             }
                         });
                     }
                 };
-            }, []); // Пустой массив - подписка только один раз!
+            }, [nodes.length]); // Подписываемся при изменении количества узлов!
 
             // Render
             if (loading) {
