@@ -1619,21 +1619,29 @@ window.FlowCanvas = {
                 addDebugLog('🔄 Статус изменён у task-' + changedTaskId + ': ' + newStatus, '#ff9800');
 
                 setNodes((currentNodes) => {
-                    return currentNodes.map(node => {
+                    const updatedNodes = currentNodes.map(node => {
                         // Обновляем ЛЮБУЮ задачу на canvas, не только текущую!
                         if (node.id === 'task-' + changedTaskId && node.data.isRealTask) {
                             console.log('%c  → Обновляем узел task-' + changedTaskId + ' со статусом ' + newStatus, 'color: #ff9800;');
+                            console.log('%c  → Старый statusCode:', 'color: #666;', node.data.statusCode);
+                            console.log('%c  → Новый statusCode:', 'color: #00ff00;', newStatus);
+
                             return {
                                 ...node,
                                 data: {
                                     ...node.data,
                                     statusCode: newStatus,
-                                    title: taskData.title || node.data.title
+                                    title: taskData.title || node.data.title,
+                                    // Добавляем timestamp для принудительной перерисовки React
+                                    _updateTime: Date.now()
                                 }
                             };
                         }
                         return node;
                     });
+
+                    console.log('%c  ✅ setNodes() вызван с обновлёнными узлами', 'color: #00ff00; font-weight: bold;');
+                    return updatedNodes;
                 });
             }, [setNodes]);
 
@@ -1874,7 +1882,8 @@ window.FlowCanvas = {
                                 const batch = result.data();
                                 allItems.push(...batch);
 
-                                if (batch.length > 0 && allItems.length < 2000) {
+                                // Продолжаем загрузку даже если batch пустой, до maxId=1000
+                                if (maxId < 1000 && allItems.length < 2000) {
                                     setTimeout(() => loadRange(minId + step), 50);
                                 } else {
                                     resolve(allItems);
@@ -1882,7 +1891,7 @@ window.FlowCanvas = {
                             });
                         };
 
-                        loadRange(1);
+                        loadRange(1); // Начинаем с 1, чтобы захватить ВСЕ данные
                     });
                 };
 
