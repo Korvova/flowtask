@@ -28,6 +28,41 @@ window.FlowCanvasV2 = {
         const { useState, useCallback, useEffect, useRef } = React;
         const { ReactFlow, Controls, Background, addEdge: rfAddEdge } = RF;
 
+        // Простой компонент узла задачи
+        function TaskNodeComponent({ data }) {
+            const statusColor = window.StatusColors ? window.StatusColors.getColor(data.status) : '#0066cc';
+
+            return React.createElement('div', {
+                style: {
+                    padding: '15px 20px',
+                    background: 'white',
+                    border: `3px solid ${statusColor}`,
+                    borderRadius: '8px',
+                    minWidth: '200px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    cursor: 'pointer'
+                }
+            }, [
+                React.createElement('div', {
+                    key: 'title',
+                    style: {
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        color: '#333',
+                        marginBottom: '5px'
+                    }
+                }, data.title || 'Задача'),
+                data.status ? React.createElement('div', {
+                    key: 'status',
+                    style: {
+                        fontSize: '12px',
+                        color: '#666',
+                        marginTop: '5px'
+                    }
+                }, `Статус: ${data.status}`) : null
+            ]);
+        }
+
         function FlowApp() {
             const [nodes, setNodes] = useState([]);
             const [edges, setEdges] = useState([]);
@@ -351,8 +386,8 @@ window.FlowCanvasV2 = {
                         console.log('✅ ReactFlow готов');
                     },
                     nodeTypes: {
-                        task: window.TaskNode,
-                        future: window.TaskNode
+                        task: TaskNodeComponent,
+                        future: TaskNodeComponent
                     },
                     fitView: true,
                     minZoom: 0.5,
