@@ -279,19 +279,24 @@ window.EntityManager = {
     loadConnections: function(processId) {
         return new Promise((resolve) => {
             console.log('📥 EntityManager: Загружаем связи для процесса', processId);
-            console.log('  ✅ entity.item.get поддерживает FILTER!');
-            console.log('  🔧 Стратегия: Загружаем с пагинацией через start');
+            console.log('  ✅ Используем FILTER для загрузки диапазонов ID!');
 
             const allItems = [];
             const seenIds = new Set();
+            let currentMinId = 1;
+            const step = 50;
 
-            const loadBatch = (start) => {
-                console.log(`  🔄 Запрос порции start=${start}...`);
+            const loadRange = (minId) => {
+                const maxId = minId + step - 1;
+                console.log(`  🔄 Загружаем диапазон ID: ${minId} - ${maxId}`);
 
                 BX24.callMethod('entity.item.get', {
                     ENTITY: 'tflow_conn',
-                    SORT: { ID: 'ASC' },
-                    start: start
+                    FILTER: {
+                        '>=ID': minId,
+                        '<=ID': maxId
+                    },
+                    SORT: { ID: 'ASC' }
                 }, (result) => {
                     if (result.error()) {
                         console.warn('⚠️ Ошибка загрузки:', result.error());
@@ -300,39 +305,37 @@ window.EntityManager = {
                     }
 
                     const batch = result.data();
-                    console.log(`  ✅ Получено записей: ${batch.length}`);
+                    console.log(`  ✅ Получено: ${batch.length} записей`);
 
-                    // Проверяем на дубликаты
-                    let newCount = 0;
+                    // Добавляем записи
                     batch.forEach(item => {
                         if (!seenIds.has(item.ID)) {
                             seenIds.add(item.ID);
                             allItems.push(item);
-                            newCount++;
                         }
                     });
 
-                    console.log(`  📊 Новых: ${newCount}, всего: ${allItems.length}`);
+                    console.log(`  📊 Всего накоплено: ${allItems.length}`);
 
-                    // Если все дубликаты - останавливаемся
-                    if (newCount === 0 && batch.length > 0) {
-                        console.log('⚠️ Все дубликаты - достигнут конец');
-                        processAllItems(allItems);
-                        return;
-                    }
-
-                    // Если получили 50 - пробуем загрузить еще
-                    if (batch.length === 50 && allItems.length < 500) {
-                        setTimeout(() => loadBatch(start + 50), 100);
+                    // Если получили записи - продолжаем
+                    if (batch.length > 0 && allItems.length < 1000) {
+                        // Следующий диапазон
+                        setTimeout(() => loadRange(minId + step), 100);
                     } else {
                         console.log('✅ Загрузка завершена, всего:', allItems.length);
+
+                        const allIds = Array.from(seenIds).map(id => parseInt(id)).sort((a,b) => a-b);
+                        if (allIds.length > 0) {
+                            console.log(`  📊 ID диапазон: ${allIds[0]} - ${allIds[allIds.length-1]}`);
+                        }
+
                         processAllItems(allItems);
                     }
                 });
             };
 
-            // Начинаем загрузку
-            loadBatch(0);
+            // Начинаем с ID=1
+            loadRange(1);
 
             const processAllItems = (items) => {
                 console.log('🔍 Фильтруем связи с processId =', processId);
