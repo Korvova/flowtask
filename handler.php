@@ -134,12 +134,12 @@ CJSCore::Init();
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761664000000"></script>
-    <script src="components/PullSubscription.js?v=1761664000000"></script>
-    <script src="components/TaskCreator.js?v=1761664000000"></script>
-    <script src="components/TaskNode.js?v=1761664000000"></script>
-    <script src="components/TaskModal.js?v=1761664000000"></script>
-    <script src="components/FlowCanvas.js?v=1761664000000"></script>
+    <script src="components/StatusColors.js?v=1761665000000"></script>
+    <script src="components/PullSubscription.js?v=1761665000000"></script>
+    <script src="components/TaskCreator.js?v=1761665000000"></script>
+    <script src="components/TaskNode.js?v=1761665000000"></script>
+    <script src="components/TaskModal.js?v=1761665000000"></script>
+    <script src="components/FlowCanvas.js?v=1761665000000"></script>
 
     <script>
         // Debug functions
@@ -563,7 +563,7 @@ CJSCore::Init();
         BX24.init(function() {
             console.clear(); // Очищаем консоль для чистоты
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK v=1761664000000 (PROLOG)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK v=1761665000000 (PROLOG)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const auth = BX24.getAuth();

@@ -99,6 +99,48 @@ window.TaskCreator = {
                         futureId: targetId,
                         taskId: newTaskId
                     });
+
+                    // РЕКУРСИЯ: Ищем связи от future-узла и создаём следующие задачи
+                    this.log('  🔄 РЕКУРСИЯ: Ищем связи от ' + targetId + ' (не от созданной задачи!)', '#9c27b0');
+
+                    // Получаем связи где source = этот future-узел
+                    const nextConnections = await this.getConnectionsFromFutureNode(targetId);
+
+                    if (nextConnections.length > 0) {
+                        this.log('  📋 Найдено связей от ' + targetId + ': ' + nextConnections.length, '#2196f3');
+
+                        // Обрабатываем каждую связь рекурсивно
+                        for (let j = 0; j < nextConnections.length; j++) {
+                            const nextConn = nextConnections[j];
+                            const nextConnData = JSON.parse(nextConn.DETAIL_TEXT);
+                            const nextTargetId = nextConnData.targetId;
+
+                            this.log('    → Связь: ' + targetId + ' → ' + nextTargetId, '#9c27b0');
+
+                            // Если это предзадача - создаём рекурсивно
+                            if (nextTargetId.startsWith('future-')) {
+                                const nextFutureTask = await this.getFutureTask(nextTargetId);
+
+                                if (nextFutureTask && !nextFutureTask.data.isCreated) {
+                                    this.log('    🚀 Создаём следующую задачу: ' + nextTargetId, '#00ff00');
+                                    const nextTaskId = await this.createTaskIfConditionMet(nextFutureTask);
+
+                                    if (nextTaskId) {
+                                        this.log('    ✅ Создана задача ID: ' + nextTaskId, '#00ff00');
+                                        createdTasks.push({
+                                            futureId: nextTargetId,
+                                            taskId: nextTaskId
+                                        });
+
+                                        // Продолжаем рекурсию дальше...
+                                        // TODO: можно сделать глубже если нужно
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        this.log('  ℹ️ Нет связей от ' + targetId + ' - это конечная задача', '#9c27b0');
+                    }
                 } else {
                     this.log('  ⚠️ Задача НЕ создана (условие не выполнено или ошибка)', '#ff9800');
                 }
@@ -130,6 +172,41 @@ window.TaskCreator = {
         }
     },
     
+    /**
+     * Получение связей от future-узла
+     */
+    getConnectionsFromFutureNode: function(futureId) {
+        return new Promise((resolve) => {
+            this.log('    🔍 getConnectionsFromFutureNode: Ищем связи для ' + futureId, '#9c27b0');
+
+            BX24.callMethod('entity.item.get', {
+                ENTITY: 'tflow_conn'
+            }, (result) => {
+                if (result.error()) {
+                    this.log('    ❌ Ошибка загрузки связей: ' + JSON.stringify(result.error()), '#f44336');
+                    resolve([]);
+                    return;
+                }
+
+                const items = result.data();
+
+                // Фильтруем связи где source = futureId
+                const connections = items.filter(item => {
+                    if (!item.DETAIL_TEXT) return false;
+                    try {
+                        const data = JSON.parse(item.DETAIL_TEXT);
+                        return data.sourceId === futureId;
+                    } catch (e) {
+                        return false;
+                    }
+                });
+
+                this.log('    ✅ Найдено связей для ' + futureId + ': ' + connections.length, '#2196f3');
+                resolve(connections);
+            });
+        });
+    },
+
     /**
      * Получение связей от задачи
      */
