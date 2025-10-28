@@ -39,11 +39,15 @@ CJSCore::Init();
     <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
     <script src="components/EntityManagerV2.js?v=<?= time() ?>"></script>
     <script src="components/TaskHandler.js?v=<?= time() ?>"></script>
+    <script src="components/TaskModalV2.js?v=<?= time() ?>"></script>
+    <script src="components/FlowCanvasV2.js?v=<?= time() ?>"></script>
+
+    <!-- Компоненты, используемые обеими версиями -->
+    <script src="components/StatusColors.js?v=<?= time() ?>"></script>
+    <script src="components/PullSubscription.js?v=<?= time() ?>"></script>
 
     <!-- Старая архитектура (временно, для совместимости) -->
     <script src="components/EntityManager.js?v=<?= time() ?>"></script>
-    <script src="components/StatusColors.js?v=<?= time() ?>"></script>
-    <script src="components/PullSubscription.js?v=<?= time() ?>"></script>
     <script src="components/TaskCreator.js?v=<?= time() ?>"></script>
     <script src="components/TaskNode.js?v=<?= time() ?>"></script>
     <script src="components/TaskModal.js?v=<?= time() ?>"></script>
@@ -95,10 +99,21 @@ CJSCore::Init();
                 const task = result.data().task;
                 console.log('✅ Задача загружена:', task.id, task.title);
 
-                if (typeof window.FlowCanvas !== "undefined") {
+                const processId = task.ufFlowtaskProcessId || task.id;
+                console.log('📋 Process ID:', processId);
+
+                // Используем НОВУЮ АРХИТЕКТУРУ V2
+                if (typeof window.FlowCanvasV2 !== "undefined") {
+                    window.currentProcessId = processId;
+                    window.currentTaskId = task.id;
+                    window.FlowCanvasV2.render();
+                    console.log('✅ Используем FlowCanvasV2 (новая архитектура)');
+                } else if (typeof window.FlowCanvas !== "undefined") {
+                    // Fallback на старую версию
                     window.FlowCanvas.render(task);
+                    console.log('⚠️ Используем FlowCanvas (старая архитектура)');
                 } else {
-                    console.error("FlowCanvas not loaded");
+                    console.error("❌ FlowCanvas not loaded");
                 }
             });
 

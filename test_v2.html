@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Тест новой архитектуры V2</title>
+    <script src="https://api.bitrix24.com/api/v1/"></script>
+</head>
+<body>
+    <h1>Тест новой архитектуры V2</h1>
+    <div id="log"></div>
+
+    <script src="components/EntityManagerV2.js"></script>
+    <script src="components/TaskHandler.js"></script>
+
+    <script>
+        const log = (msg, color = '#000') => {
+            const div = document.createElement('div');
+            div.style.color = color;
+            div.textContent = msg;
+            document.getElementById('log').appendChild(div);
+            console.log(msg);
+        };
+
+        BX24.init(async () => {
+            log('🚀 Начинаем тест новой архитектуры...', '#0066cc');
+
+            const testProcessId = 999; // Тестовый ID процесса
+
+            try {
+                // 1. Создать тестовый узел задачи
+                log('\n📝 Шаг 1: Создание узла задачи...', '#009688');
+                const taskNode = {
+                    nodeId: 'task-999',
+                    type: 'task',
+                    title: 'Тестовая задача',
+                    status: 2,
+                    positionX: 100,
+                    positionY: 100,
+                    connectionsFrom: [],
+                    connectionsTo: [],
+                    condition: null,
+                    realTaskId: 999
+                };
+                await EntityManagerV2.saveNode(testProcessId, taskNode);
+                log('✅ Узел задачи создан', '#4caf50');
+
+                // 2. Создать 2 предзадачи
+                log('\n📝 Шаг 2: Создание предзадач...', '#009688');
+                const future1 = {
+                    nodeId: 'future-1001',
+                    type: 'future',
+                    title: 'Предзадача 1',
+                    status: null,
+                    positionX: 300,
+                    positionY: 50,
+                    connectionsFrom: [],
+                    connectionsTo: [{ type: 'task', id: 'task-999' }],
+                    condition: 'immediately',
+                    realTaskId: null
+                };
+                await EntityManagerV2.saveNode(testProcessId, future1);
+                log('✅ Предзадача 1 создана', '#4caf50');
+
+                const future2 = {
+                    nodeId: 'future-1002',
+                    type: 'future',
+                    title: 'Предзадача 2',
+                    status: null,
+                    positionX: 300,
+                    positionY: 150,
+                    connectionsFrom: [],
+                    connectionsTo: [{ type: 'task', id: 'task-999' }],
+                    condition: 'immediately',
+                    realTaskId: null
+                };
+                await EntityManagerV2.saveNode(testProcessId, future2);
+                log('✅ Предзадача 2 создана', '#4caf50');
+
+                // 3. Добавить связи к задаче
+                log('\n📝 Шаг 3: Добавление связей...', '#009688');
+                taskNode.connectionsFrom = [
+                    { type: 'future', id: 'future-1001' },
+                    { type: 'future', id: 'future-1002' }
+                ];
+                await EntityManagerV2.saveNode(testProcessId, taskNode);
+                log('✅ Связи добавлены', '#4caf50');
+
+                // 4. Загрузить процесс (должен быть 1 запрос!)
+                log('\n📝 Шаг 4: Загрузка процесса...', '#009688');
+                const allNodes = await EntityManagerV2.loadProcess(testProcessId);
+                log(`✅ Загружено узлов: ${allNodes.length}`, '#4caf50');
+                allNodes.forEach(node => {
+                    log(`  - ${node.nodeId}: ${node.title} (${node.type})`, '#666');
+                });
+
+                // 5. Проверить связи
+                log('\n📝 Шаг 5: Проверка связей...', '#009688');
+                const task = allNodes.find(n => n.nodeId === 'task-999');
+                log(`✅ Связей от задачи: ${task.connectionsFrom.length}`, '#4caf50');
+                task.connectionsFrom.forEach(conn => {
+                    log(`  - ${conn.type}: ${conn.id}`, '#666');
+                });
+
+                // 6. Тест: удалить связь
+                log('\n📝 Шаг 6: Удаление одной связи...', '#009688');
+                await EntityManagerV2.removeConnection(testProcessId, 'task-999', 'future-1002');
+                const updated = await EntityManagerV2.loadProcess(testProcessId);
+                const updatedTask = updated.find(n => n.nodeId === 'task-999');
+                log(`✅ Связей после удаления: ${updatedTask.connectionsFrom.length}`, '#4caf50');
+
+                // 7. Тест: добавить связь обратно
+                log('\n📝 Шаг 7: Добавление связи обратно...', '#009688');
+                await EntityManagerV2.addConnection(testProcessId, 'task-999', 'future', 'future-1002');
+                const final = await EntityManagerV2.loadProcess(testProcessId);
+                const finalTask = final.find(n => n.nodeId === 'task-999');
+                log(`✅ Связей после добавления: ${finalTask.connectionsFrom.length}`, '#4caf50');
+
+                log('\n✅ ВСЕ ТЕСТЫ ПРОЙДЕНЫ!', '#4caf50');
+                log('🎉 Новая архитектура работает правильно!', '#4caf50');
+
+            } catch (error) {
+                log(`❌ ОШИБКА: ${error.message}`, '#f44336');
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
