@@ -18,6 +18,13 @@ window.FlowCanvasV2 = {
     reactFlowInstance: null,
 
     render: function() {
+        const RF = window.ReactFlow || window.reactflow;
+
+        if (!React || !RF) {
+            console.error('React или ReactFlow не загружены');
+            return;
+        }
+
         const { useState, useCallback, useEffect, useRef } = React;
         const { ReactFlow, Controls, Background, addEdge: rfAddEdge } = RF;
 
