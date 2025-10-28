@@ -36,6 +36,7 @@ CJSCore::Init();
         <div class="loading">⏳ Загрузка...</div>
     </div>
 
+    <script src="components/EntityManager.js?v=<?= time() ?>"></script>
     <script src="components/StatusColors.js?v=<?= time() ?>"></script>
     <script src="components/PullSubscription.js?v=<?= time() ?>"></script>
     <script src="components/TaskCreator.js?v=<?= time() ?>"></script>
