@@ -279,54 +279,32 @@ window.EntityManager = {
     loadConnections: function(processId) {
         return new Promise((resolve) => {
             console.log('📥 EntityManager: Загружаем связи для процесса', processId);
-            console.log('  ⚠️ entity.item.get лимит 50, пагинация НЕ работает');
-            console.log('  🔧 Стратегия: SORT DESC для последних 50 + SORT ASC для первых 50');
+            console.log('  ✅ entity.item.get поддерживает FILTER!');
+            console.log('  🔧 Стратегия: Загружаем с пагинацией через start');
 
             const allItems = [];
             const seenIds = new Set();
 
-            // Шаг 1: Загружаем последние 50 (SORT DESC)
-            console.log('  🔄 Шаг 1: Загружаем ПОСЛЕДНИЕ 50 записей (SORT DESC)...');
-            BX24.callMethod('entity.item.get', {
-                ENTITY: 'tflow_conn',
-                SORT: { ID: 'DESC' }
-            }, (resultDesc) => {
-                if (resultDesc.error()) {
-                    console.warn('⚠️ Ошибка загрузки (DESC):', resultDesc.error());
-                    resolve([]);
-                    return;
-                }
+            const loadBatch = (start) => {
+                console.log(`  🔄 Запрос порции start=${start}...`);
 
-                const descItems = resultDesc.data();
-                console.log(`  ✅ SORT DESC: получено ${descItems.length} записей`);
-
-                // Добавляем в коллекцию
-                descItems.forEach(item => {
-                    if (!seenIds.has(item.ID)) {
-                        seenIds.add(item.ID);
-                        allItems.push(item);
-                    }
-                });
-
-                // Шаг 2: Загружаем первые 50 (SORT ASC)
-                console.log('  🔄 Шаг 2: Загружаем ПЕРВЫЕ 50 записей (SORT ASC)...');
                 BX24.callMethod('entity.item.get', {
                     ENTITY: 'tflow_conn',
-                    SORT: { ID: 'ASC' }
-                }, (resultAsc) => {
-                    if (resultAsc.error()) {
-                        console.warn('⚠️ Ошибка загрузки (ASC):', resultAsc.error());
-                        // Используем то что есть из DESC
-                        processAllItems(allItems);
+                    SORT: { ID: 'ASC' },
+                    start: start
+                }, (result) => {
+                    if (result.error()) {
+                        console.warn('⚠️ Ошибка загрузки:', result.error());
+                        resolve([]);
                         return;
                     }
 
-                    const ascItems = resultAsc.data();
-                    console.log(`  ✅ SORT ASC: получено ${ascItems.length} записей`);
+                    const batch = result.data();
+                    console.log(`  ✅ Получено записей: ${batch.length}`);
 
-                    // Добавляем без дубликатов
+                    // Проверяем на дубликаты
                     let newCount = 0;
-                    ascItems.forEach(item => {
+                    batch.forEach(item => {
                         if (!seenIds.has(item.ID)) {
                             seenIds.add(item.ID);
                             allItems.push(item);
@@ -334,16 +312,27 @@ window.EntityManager = {
                         }
                     });
 
-                    console.log(`  📊 Новых из ASC: ${newCount}`);
-                    console.log(`✅ Всего загружено уникальных связей: ${allItems.length}`);
+                    console.log(`  📊 Новых: ${newCount}, всего: ${allItems.length}`);
 
-                    const allIds = Array.from(seenIds).map(id => parseInt(id)).sort((a,b) => a-b);
-                    console.log(`  📊 ID диапазон: ${allIds[0]} - ${allIds[allIds.length-1]}`);
+                    // Если все дубликаты - останавливаемся
+                    if (newCount === 0 && batch.length > 0) {
+                        console.log('⚠️ Все дубликаты - достигнут конец');
+                        processAllItems(allItems);
+                        return;
+                    }
 
-                    // Обрабатываем результат
-                    processAllItems(allItems);
+                    // Если получили 50 - пробуем загрузить еще
+                    if (batch.length === 50 && allItems.length < 500) {
+                        setTimeout(() => loadBatch(start + 50), 100);
+                    } else {
+                        console.log('✅ Загрузка завершена, всего:', allItems.length);
+                        processAllItems(allItems);
+                    }
                 });
-            });
+            };
+
+            // Начинаем загрузку
+            loadBatch(0);
 
             const processAllItems = (items) => {
                 console.log('🔍 Фильтруем связи с processId =', processId);
