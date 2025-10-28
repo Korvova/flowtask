@@ -115,12 +115,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761662000000"></script>
-    <script src="components/PullSubscription.js?v=1761662000000"></script>
-    <script src="components/TaskCreator.js?v=1761662000000"></script>
-    <script src="components/TaskNode.js?v=1761662000000"></script>
-    <script src="components/TaskModal.js?v=1761662000000"></script>
-    <script src="components/FlowCanvas.js?v=1761662000000"></script>
+    <script src="components/StatusColors.js?v=1761663000000"></script>
+    <script src="components/PullSubscription.js?v=1761663000000"></script>
+    <script src="components/TaskCreator.js?v=1761663000000"></script>
+    <script src="components/TaskNode.js?v=1761663000000"></script>
+    <script src="components/TaskModal.js?v=1761663000000"></script>
+    <script src="components/FlowCanvas.js?v=1761663000000"></script>
 
     <script>
         // Debug functions
@@ -619,7 +619,7 @@
         BX24.init(function() {
             console.clear(); // Очищаем консоль для чистоты
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK v=1761662000000 (CONSOLE CLEAR)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK v=1761663000000 (LOAD LIBS)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const auth = BX24.getAuth();
@@ -648,18 +648,36 @@
                 return;
             }
 
-            // === REAL-TIME UPDATES: Проверяем BX.PULL ===
+            // === REAL-TIME UPDATES: Загружаем BX.PULL библиотеки ===
             console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #2196f3; font-size: 14px;');
             console.log('%c📡 REAL-TIME СИСТЕМА:', 'color: #2196f3; font-weight: bold; font-size: 16px;');
             console.log('  - typeof BX:', typeof BX);
             console.log('  - typeof BX.PULL:', typeof BX !== 'undefined' ? typeof BX.PULL : 'BX undefined');
 
             if (typeof BX !== 'undefined' && typeof BX.PULL !== 'undefined') {
-                console.log('%c✅ BX.PULL ДОСТУПЕН! Используем Push & Pull', 'color: #00ff00; font-weight: bold; font-size: 14px;');
-                console.log('%c  → События придут мгновенно при изменении задачи', 'color: #00ff00;');
+                console.log('%c✅ BX.PULL УЖЕ ДОСТУПЕН! Используем Push & Pull', 'color: #00ff00; font-weight: bold; font-size: 14px;');
             } else {
-                console.log('%c⚠️ BX.PULL НЕДОСТУПЕН! Будем использовать polling', 'color: #ff9800; font-weight: bold; font-size: 14px;');
-                console.log('%c  → Проверка каждые 5 секунд', 'color: #ff9800;');
+                console.log('%c⚠️ BX объект недоступен, загружаем библиотеки...', 'color: #ff9800; font-weight: bold; font-size: 14px;');
+
+                // Загружаем Bitrix core и Pull библиотеки
+                loadBitrixCore(bitrixDomain)
+                    .then(() => {
+                        console.log('%c✅ Core загружен!', 'color: #00ff00; font-weight: bold;');
+                        return loadPullLibrary(bitrixDomain);
+                    })
+                    .then(() => {
+                        console.log('%c✅ Pull библиотека загружена!', 'color: #00ff00; font-weight: bold;');
+                        console.log('  - typeof BX:', typeof BX);
+                        console.log('  - typeof BX.PULL:', typeof BX !== 'undefined' ? typeof BX.PULL : 'BX undefined');
+
+                        if (typeof BX !== 'undefined' && typeof BX.PULL !== 'undefined') {
+                            console.log('%c🎉 BX.PULL ГОТОВ! Push & Pull активирован', 'color: #00ff00; font-weight: bold; font-size: 16px;');
+                        }
+                    })
+                    .catch((err) => {
+                        console.log('%c⚠️ Не удалось загрузить библиотеки, используем polling', 'color: #ff9800; font-weight: bold;');
+                        console.error(err);
+                    });
             }
             console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #2196f3; font-size: 14px;');
 
