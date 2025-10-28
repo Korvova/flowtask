@@ -256,13 +256,28 @@ window.EntityManager = {
 
                 const items = result.data();
                 console.log('📦 Всего связей в Entity:', items.length);
+                console.log('🔍 Ищем связи с processId =', processId, '(type:', typeof processId + ')');
+
+                // Показываем первые 5 связей для отладки
+                items.slice(0, 5).forEach((item, idx) => {
+                    if (item.DETAIL_TEXT) {
+                        try {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            console.log(`  ${idx+1}. ID=${item.ID}: processId="${data.processId}" (${typeof data.processId}), source=${data.sourceId}, target=${data.targetId}`);
+                        } catch (e) {}
+                    }
+                });
 
                 const connections = items
                     .filter(item => {
                         if (!item.DETAIL_TEXT) return false;
                         try {
                             const data = JSON.parse(item.DETAIL_TEXT);
-                            return data.processId == processId;
+                            const matches = data.processId == processId;
+                            if (!matches && data.sourceId && data.sourceId.includes('task-115')) {
+                                console.log('  ⚠️ Связь task-115 НЕ прошла фильтр! processId в данных:', data.processId, 'ищем:', processId);
+                            }
+                            return matches;
                         } catch (e) {
                             return false;
                         }
