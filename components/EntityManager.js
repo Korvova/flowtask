@@ -280,17 +280,18 @@ window.EntityManager = {
         return new Promise((resolve) => {
             console.log('📥 EntityManager: Загружаем связи для процесса', processId);
 
-            // ⚠️ ПРОБЛЕМА: Entity не поддерживает фильтрацию по DETAIL_TEXT
-            // Поэтому загружаем ВСЕ и фильтруем вручную
+            // Пробуем использовать entity.item.list вместо entity.item.get
+            // Это позволяет использовать FILTER
+            console.log('  🔧 Используем entity.item.list для обхода лимита 50');
 
             const allItems = [];
-            const seenIds = new Set(); // Для отслеживания дубликатов
+            const seenIds = new Set();
             let duplicateCount = 0;
 
             const loadBatch = (start) => {
-                console.log(`  🔄 Запрос порции start=${start}...`);
+                console.log(`  🔄 Запрос entity.item.list start=${start}...`);
 
-                BX24.callMethod('entity.item.get', {
+                BX24.callMethod('entity.item.list', {
                     ENTITY: 'tflow_conn',
                     SORT: { ID: 'ASC' },
                     start: start

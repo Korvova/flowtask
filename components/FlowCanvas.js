@@ -1846,6 +1846,33 @@ window.FlowCanvas = {
             const testEntityAPI = () => {
                 console.log('🔬 Тестируем Entity API и FILTER...');
 
+                // ТЕСТ -1: entity.item.list с FILTER
+                console.log('\n📝 ТЕСТ -1: entity.item.list с FILTER >ID=400');
+                BX24.callMethod('entity.item.list', {
+                    ENTITY: 'tflow_conn',
+                    FILTER: { '>ID': '400' }
+                }, (resList) => {
+                    if (resList.error()) {
+                        console.error('❌ Ошибка entity.item.list:', resList.error());
+                    } else {
+                        const items = resList.data();
+                        console.log('  ✅ entity.item.list вернул:', items.length, 'записей');
+                        if (items.length > 0) {
+                            const ids = items.map(i => i.ID);
+                            console.log('  📋 ID:', ids.join(', '));
+
+                            const has402 = items.find(i => i.ID === '402');
+                            const has404 = items.find(i => i.ID === '404');
+                            console.log('  🔍 ID=402:', has402 ? '✅ ЕСТЬ' : '❌ НЕТ');
+                            console.log('  🔍 ID=404:', has404 ? '✅ ЕСТЬ' : '❌ НЕТ');
+
+                            if (has402) {
+                                console.log('  📄 Данные 402:', JSON.parse(has402.DETAIL_TEXT));
+                            }
+                        }
+                    }
+                });
+
                 // ТЕСТ 0: SORT DESC (последние 50)
                 console.log('\n📝 ТЕСТ 0: SORT DESC - получаем последние 50');
                 BX24.callMethod('entity.item.get', {
