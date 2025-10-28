@@ -59,8 +59,8 @@ window.FlowCanvasV2 = {
                             type: 'task',
                             title: 'Задача #' + window.currentTaskId,
                             status: 2, // В работе
-                            positionX: 400,
-                            positionY: 300,
+                            positionX: 250,
+                            positionY: 150,
                             connectionsFrom: [],
                             connectionsTo: [],
                             realTaskId: window.currentTaskId
