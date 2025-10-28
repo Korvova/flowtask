@@ -90,6 +90,11 @@ window.TaskCreator = {
 
                 this.log('  🚀 Задача НЕ создана, начинаем создание...', '#00ff00');
 
+                // КРИТИЧНО: Ищем связи ДО создания задачи, иначе после createConnectionForRealTask sourceId изменится!
+                this.log('  🔍 Предзагружаем связи от ' + targetId + ' ДО создания задачи', '#ff9800');
+                const nextConnections = await this.getConnectionsFromFutureNode(targetId);
+                this.log('  📊 Предзагружено связей: ' + nextConnections.length, '#ff9800');
+
                 // Проверяем условие и создаём задачу
                 const newTaskId = await this.createTaskIfConditionMet(futureTask);
 
@@ -100,11 +105,8 @@ window.TaskCreator = {
                         taskId: newTaskId
                     });
 
-                    // РЕКУРСИЯ: Ищем связи от future-узла и создаём следующие задачи
-                    this.log('  🔄 РЕКУРСИЯ: Ищем связи от ' + targetId + ' (не от созданной задачи!)', '#9c27b0');
-
-                    // Получаем связи где source = этот future-узел
-                    const nextConnections = await this.getConnectionsFromFutureNode(targetId);
+                    // РЕКУРСИЯ: Обрабатываем предзагруженные связи
+                    this.log('  🔄 РЕКУРСИЯ: Обрабатываем ' + nextConnections.length + ' предзагруженных связей', '#9c27b0');
 
                     if (nextConnections.length > 0) {
                         this.log('  📋 Найдено связей от ' + targetId + ': ' + nextConnections.length, '#2196f3');
