@@ -43,7 +43,6 @@ window.EntityManagerV2 = {
             const loadBatch = (start = 0) => {
                 BX24.callMethod('entity.item.get', {
                     ENTITY: 'tflow_nodes',
-                    SORT: { ID: 'ASC' },
                     start: start
                 }, (result) => {
                     if (result.error()) {
