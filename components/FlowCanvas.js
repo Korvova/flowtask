@@ -18,17 +18,7 @@ window.FlowCanvas = {
 
         // Главный компонент
         function FlowApp() {
-            console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 20px; font-weight: bold;');
-            console.log('%c🚀 FlowApp ИНИЦИАЛИЗИРОВАН!', 'color: #00ff00; font-size: 20px; font-weight: bold;');
-            console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 20px; font-weight: bold;');
-
-            // Добавляем видимый индикатор на страницу
-            const debugDiv = document.createElement('div');
-            debugDiv.id = 'flowtask-debug-indicator';
-            debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761645295 - Смотрите консоль';
-            document.body.appendChild(debugDiv);
-            setTimeout(() => debugDiv.remove(), 5000);
+            // Debug логи перенесены в useEffect чтобы не спамить при каждом рендере
 
             const [nodes, setNodes, onNodesChange] = useNodesState([]);
             const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -46,21 +36,25 @@ window.FlowCanvas = {
                 setDebugLog(prev => [...prev, { message: logEntry, color }].slice(-20)); // Последние 20 записей
             };
 
-            // Экспортируем addDebugLog глобально для TaskCreator
+            // Экспортируем addDebugLog и reloadTaskNode глобально
             React.useEffect(() => {
+                console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
+                console.log('%c🚀 FlowApp смонтирован (React компонент)', 'color: #00ff00; font-size: 14px; font-weight: bold;');
+                console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
+
                 window.FlowCanvas.addDebugLog = addDebugLog;
                 addDebugLog('FlowApp смонтирован', '#00ff00');
                 addDebugLog('✅ addDebugLog экспортирован в window.FlowCanvas', '#00ff00');
             }, []);
 
-            // Диагностика edges state
-            useEffect(() => {
-                console.log('%c🔍 EDGES STATE ИЗМЕНИЛСЯ!', 'color: #ff0000; font-weight: bold; font-size: 14px;');
-                console.log('Edges count:', edges.length);
-                edges.forEach((e, idx) => {
-                    console.log(`  ${idx+1}. ${e.id}: ${e.source} → ${e.target}`);
-                });
-            }, [edges]);
+            // Диагностика edges state (закомментировано для уменьшения шума в консоли)
+            // useEffect(() => {
+            //     console.log('%c🔍 EDGES STATE ИЗМЕНИЛСЯ!', 'color: #ff0000; font-weight: bold; font-size: 14px;');
+            //     console.log('Edges count:', edges.length);
+            //     edges.forEach((e, idx) => {
+            //         console.log(`  ${idx+1}. ${e.id}: ${e.source} → ${e.target}`);
+            //     });
+            // }, [edges]);
 
             // Загрузка данных процесса при монтировании
             useEffect(() => {
@@ -787,6 +781,29 @@ window.FlowCanvas = {
                                     }
                                 });
                             }
+
+                            // 🔔 Подписываемся на события задачи через PullSubscription
+                            if (window.PullSubscription && window.PullSubscription.subscribe) {
+                                window.PullSubscription.subscribe(
+                                    taskData.id,
+                                    // onStatusChange callback
+                                    (newStatus, taskDataUpdated) => {
+                                        console.log('🔄 Статус задачи #' + taskData.id + ' изменился на:', newStatus);
+                                        addDebugLog('🔄 Статус #' + taskData.id + ' → ' + newStatus, '#4caf50');
+
+                                        // Перезагружаем узел задачи
+                                        reloadTaskNode(taskData.id);
+                                    },
+                                    // onTaskComplete callback
+                                    (completedTaskId, completedTaskData) => {
+                                        console.log('✅ Задача #' + completedTaskId + ' завершена!');
+                                        addDebugLog('✅ Задача #' + completedTaskId + ' завершена', '#00ff00');
+
+                                        // Перезагружаем узел задачи
+                                        reloadTaskNode(completedTaskId);
+                                    }
+                                );
+                            }
                         }
 
                         addDebugLog('✅ Загружено узлов процесса: ' + processNodes.length, '#00ff00');
@@ -1139,6 +1156,51 @@ window.FlowCanvas = {
                     connectingNodeId.current = null;
                 }
             }, [task.id]);
+
+            // Перезагрузка узла задачи при изменении статуса
+            const reloadTaskNode = useCallback((taskId) => {
+                console.log('🔄 reloadTaskNode вызван для задачи #' + taskId);
+
+                // Загружаем актуальные данные задачи
+                BX24.callMethod('tasks.task.get', {
+                    taskId: taskId,
+                    select: ['ID', 'TITLE', 'STATUS', 'RESPONSIBLE_ID']
+                }, (result) => {
+                    if (result.error()) {
+                        console.error('❌ Ошибка загрузки задачи #' + taskId + ':', result.error());
+                        return;
+                    }
+
+                    const updatedTask = result.data().task;
+                    console.log('✅ Задача #' + taskId + ' перезагружена, новый статус:', updatedTask.status);
+
+                    // Обновляем узел на канвасе
+                    setNodes((nds) =>
+                        nds.map((node) => {
+                            if (node.id === 'task-' + taskId) {
+                                return {
+                                    ...node,
+                                    data: {
+                                        ...node.data,
+                                        statusCode: updatedTask.status,
+                                        title: updatedTask.title,
+                                        responsibleId: updatedTask.responsibleId
+                                    }
+                                };
+                            }
+                            return node;
+                        })
+                    );
+
+                    addDebugLog('✅ Узел задачи #' + taskId + ' обновлён', '#00ff00');
+                });
+            }, [setNodes]);
+
+            // Экспортируем reloadTaskNode для внешнего использования
+            React.useEffect(() => {
+                window.FlowCanvas.reloadTaskNode = reloadTaskNode;
+                console.log('✅ reloadTaskNode экспортирован в window.FlowCanvas');
+            }, [reloadTaskNode]);
 
             // Соединение узел -> узел (когда тянут от одного узла к другому)
             const onConnect = useCallback((params) => {
@@ -1654,10 +1716,14 @@ window.FlowCanvas = {
                 // Очистка при размонтировании
                 return () => {
                     // Отписываемся от всех задач
-                    allTaskIds.forEach(taskId => {
-                        window.PullSubscription.unsubscribe(taskId);
-                    });
-                    console.log('🧹 Очистка подписок для ' + allTaskIds.length + ' задач');
+                    if (window.PullSubscription && typeof window.PullSubscription.unsubscribe === 'function') {
+                        allTaskIds.forEach(taskId => {
+                            window.PullSubscription.unsubscribe(taskId);
+                        });
+                        console.log('🧹 Очистка подписок для ' + allTaskIds.length + ' задач');
+                    } else {
+                        console.warn('⚠️ PullSubscription не загружен, пропускаем очистку');
+                    }
                 };
             }, [isLoading, task.id]); // Подписываемся только когда загрузка завершена!
 

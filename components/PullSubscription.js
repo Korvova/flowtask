@@ -1,11 +1,143 @@
 /**
- * PullSubscription - Компонент для подписки на события BX.PULL
- * Отслеживает изменения статуса задачи в реальном времени
+ * PullSubscription - Компонент для подписки на события через BX.PullClient
+ * Отслеживает изменения задач в реальном времени через Push & Pull
  */
 window.PullSubscription = {
     subscriptions: {},
     lastStatuses: {}, // Кэш последних статусов для проверки изменений
-    
+    pullClient: null, // Глобальный клиент BX.PullClient
+    isInitialized: false,
+
+    /**
+     * Инициализация BX.PullClient (один раз при загрузке)
+     */
+    initPullClient: function() {
+        if (this.isInitialized) {
+            console.log('✅ BX.PullClient уже инициализирован');
+            return Promise.resolve();
+        }
+
+        return new Promise((resolve, reject) => {
+            console.log('🔧 Инициализация BX.PullClient...');
+
+            // Проверяем доступность BX.PullClient
+            if (typeof BX === 'undefined' || typeof BX.PullClient === 'undefined') {
+                console.error('❌ BX.PullClient недоступен! Проверьте подключение библиотеки.');
+                reject(new Error('BX.PullClient not available'));
+                return;
+            }
+
+            // Получаем данные авторизации
+            BX24.callMethod('app.info', {}, (result) => {
+                if (result.error()) {
+                    console.error('❌ Ошибка получения app.info:', result.error());
+                    reject(result.error());
+                    return;
+                }
+
+                const appInfo = result.data();
+                console.log('📱 App Info получен:', appInfo);
+
+                // Получаем auth данные
+                BX24.getAuth((auth) => {
+                    console.log('🔐 Auth данные:', auth);
+
+                    const bitrixDomain = auth.domain; // test.test-rms.ru
+                    console.log('🌐 Домен портала Bitrix24:', bitrixDomain);
+
+                    try {
+                        // Создаём клиент BX.PullClient с явным указанием сервера портала
+                        this.pullClient = new BX.PullClient({
+                            restClient: BX24,
+                            userId: auth.user_id || auth.USER_ID,
+                            siteId: 's1',
+                            enabled: true,
+                            restApplication: 'telegsarflow.' + bitrixDomain,
+                            server: {
+                                // Long Polling endpoint на портале Bitrix24 (НЕ на rms-bot.com!)
+                                path: 'https://' + bitrixDomain + '/bitrix/sub/'
+                            }
+                        });
+
+                        console.log('✅ BX.PullClient создан для домена:', bitrixDomain);
+
+                        // Подписываемся на модуль tasks
+                        this.pullClient.subscribe({
+                            moduleId: 'tasks',
+                            callback: this.handlePullEvent.bind(this)
+                        });
+
+                        console.log('✅ Подписка на модуль tasks установлена');
+
+                        // Запускаем клиент
+                        this.pullClient.start();
+                        console.log('✅ BX.PullClient запущен');
+
+                        // Добавляем в DEBUG LOG
+                        if (window.FlowCanvas && window.FlowCanvas.addDebugLog) {
+                            window.FlowCanvas.addDebugLog('📡 Pull & Push ПОДКЛЮЧЕН', '#00ff00');
+                        }
+
+                        this.isInitialized = true;
+                        resolve();
+
+                    } catch (error) {
+                        console.error('❌ Ошибка инициализации BX.PullClient:', error);
+                        reject(error);
+                    }
+                });
+            });
+        });
+    },
+
+    /**
+     * Обработчик Pull событий
+     */
+    handlePullEvent: function(data) {
+        console.log('%c📨 PULL событие получено!', 'color: #00ff00; font-weight: bold; font-size: 14px;', data);
+
+        // Добавляем в DEBUG LOG
+        if (window.FlowCanvas && window.FlowCanvas.addDebugLog) {
+            window.FlowCanvas.addDebugLog('📨 PULL событие: ' + (data.command || 'unknown'), '#00bcd4');
+        }
+
+        // Извлекаем ID задачи из разных возможных мест
+        const eventTaskId =
+            data.params?.FIELDS_AFTER?.ID ||
+            data.params?.ID ||
+            data.params?.TASK_ID ||
+            data.params?.taskId;
+
+        if (!eventTaskId) {
+            console.warn('⚠️ Не удалось извлечь ID задачи из события:', data);
+            return;
+        }
+
+        console.log('📋 Событие для задачи #' + eventTaskId + ', команда:', data.command);
+
+        // Проверяем, подписаны ли мы на эту задачу
+        const subscription = this.subscriptions[eventTaskId];
+        if (!subscription) {
+            console.log('⏭️ Не подписаны на задачу #' + eventTaskId + ', пропускаем');
+            return;
+        }
+
+        console.log('%c✅ Это наша задача! Загружаем данные...', 'color: #00ff00; font-weight: bold;');
+
+        // Добавляем в DEBUG LOG
+        if (window.FlowCanvas && window.FlowCanvas.addDebugLog) {
+            window.FlowCanvas.addDebugLog('🔄 Обновление задачи #' + eventTaskId, '#4caf50');
+        }
+
+        // Загружаем актуальные данные задачи
+        this.fetchTaskData(
+            eventTaskId,
+            subscription.onStatusChange,
+            subscription.onTaskComplete,
+            false
+        );
+    },
+
     /**
      * Подписка на изменения задачи
      * @param {number} taskId - ID задачи
@@ -21,90 +153,65 @@ window.PullSubscription = {
             return;
         }
 
-        // Проверяем доступность BX.PULL
-        console.log('🔍 Проверка BX:', typeof BX !== 'undefined' ? 'OK' : 'FAIL');
-        console.log('🔍 Проверка BX.PULL:', typeof BX !== 'undefined' && typeof BX.PULL !== 'undefined' ? 'OK' : 'FAIL');
-
-        if (typeof BX === 'undefined' || typeof BX.PULL === 'undefined') {
-            console.warn('⚠️  BX.PULL недоступен, используем fallback polling');
-            return this.startPolling(taskId, onStatusChange, onTaskComplete);
-        }
-
-        console.log('✅ BX.PULL доступен, используем PULL подписку');
-
-        // ВАЖНО: Создаём замыкание для сохранения taskId, onStatusChange, onTaskComplete
-        const createHandler = (tid, onStatus, onComplete) => {
-            return (data) => {
-                console.log('📨 PULL событие получено:', {
-                    command: data.command,
-                    taskId: data.params?.TASK_ID || data.params?.ID,
-                    watchingFor: tid,
-                    fullData: data
-                });
-
-                // Обрабатываем события задач
-                if (data.command === 'task_update' ||
-                    data.command === 'comment_add' ||
-                    data.command === 'task_add') {
-
-                    // Проверяем что это наша задача
-                    const eventTaskId = data.params?.TASK_ID || data.params?.ID;
-
-                    console.log('🔍 Сравнение: событие=' + eventTaskId + ' ожидаем=' + tid + ' совпадает=' + (eventTaskId == tid));
-
-                    if (eventTaskId == tid) {
-                        console.log('✅ Событие PULL для задачи:', tid, 'команда:', data.command);
-
-                        // Загружаем актуальные данные задачи
-                        this.fetchTaskData(tid, onStatus, onComplete);
-                    }
-                }
-            };
-        };
-
-        const pullHandler = createHandler(taskId, onStatusChange, onTaskComplete);
-
-        // Подписываемся на модуль tasks
-        BX.PULL.subscribe({
-            moduleId: 'tasks',
-            callback: pullHandler
-        });
-
-        // Сохраняем подписку для отписки
+        // Сохраняем подписку
         this.subscriptions[taskId] = {
-            handler: pullHandler,
+            type: 'pending',
             onStatusChange: onStatusChange,
-            onTaskComplete: onTaskComplete,
-            type: 'pull'
+            onTaskComplete: onTaskComplete
         };
 
-        console.log('✅ Подписка на BX.PULL установлена для задачи:', taskId);
+        // Инициализируем PullClient если доступен
+        if (!this.isInitialized) {
+            this.initPullClient()
+                .then(() => {
+                    console.log('✅ Подписка на задачу #' + taskId + ' через BX.PullClient');
+                    this.fetchTaskData(taskId, onStatusChange, onTaskComplete, true);
+                })
+                .catch((error) => {
+                    console.warn('⚠️ BX.PullClient недоступен для задачи #' + taskId + ', используем polling');
+                    delete this.subscriptions[taskId];
+                    this.startPolling(taskId, onStatusChange, onTaskComplete);
+                });
+        } else {
+            // PullClient уже инициализирован
+            console.log('✅ Подписка на задачу #' + taskId + ' через уже запущенный BX.PullClient');
+            this.fetchTaskData(taskId, onStatusChange, onTaskComplete, true);
+        }
     },
-    
+
     /**
-     * Fallback: polling для случаев когда BX.PULL недоступен
+     * Fallback: polling для случаев когда BX.PullClient недоступен
      */
-    startPolling: function(taskId, onStatusChange, onTaskComplete) {
-        console.log('⏱️  Запускаем polling для задачи:', taskId);
-        
+    startPolling: function(taskId, onStatusChange, onTaskComplete, interval = 3000) {
+        console.log('⏱️ Запускаем fallback polling для задачи:', taskId, 'интервал:', interval + 'мс');
+
+        // Получаем начальный статус
+        this.fetchTaskData(taskId, onStatusChange, onTaskComplete, true);
+
+        // Затем проверяем с заданным интервалом
         const pollInterval = setInterval(() => {
-            this.fetchTaskData(taskId, onStatusChange, onTaskComplete);
-        }, 5000); // Каждые 5 секунд
-        
+            this.fetchTaskData(taskId, onStatusChange, onTaskComplete, false);
+        }, interval);
+
         // Сохраняем подписку
         this.subscriptions[taskId] = {
             interval: pollInterval,
+            onStatusChange: onStatusChange,
+            onTaskComplete: onTaskComplete,
             type: 'polling'
         };
-        
-        return pollInterval;
+
+        console.log('✅ Polling запущен для задачи:', taskId);
     },
-    
+
     /**
      * Загрузка актуальных данных задачи
+     * @param {boolean} initial - Первый вызов (не логировать изменения)
      */
-    fetchTaskData: function(taskId, onStatusChange, onTaskComplete) {
-        console.log('%c🔄 fetchTaskData вызван для задачи:', 'color: #2196f3; font-weight: bold;', taskId);
+    fetchTaskData: function(taskId, onStatusChange, onTaskComplete, initial = false) {
+        if (!initial) {
+            console.log('%c🔄 fetchTaskData вызван для задачи:', 'color: #2196f3; font-weight: bold;', taskId);
+        }
 
         BX24.callMethod('tasks.task.get', {
             taskId: taskId,
@@ -121,10 +228,19 @@ window.PullSubscription = {
                 const realStatus = taskData.task.real_status;
                 const lastStatus = this.lastStatuses[taskId];
 
-                console.log('%c📊 Текущий статус задачи #' + taskId + ':', 'color: #2196f3; font-weight: bold;', newStatus, '(real:', realStatus, ') предыдущий:', lastStatus);
+                if (!initial) {
+                    console.log('%c📊 Текущий статус задачи #' + taskId + ':', 'color: #2196f3; font-weight: bold;', newStatus, '(real:', realStatus, ') предыдущий:', lastStatus);
+                }
+
+                // Для initial вызова просто сохраняем статус без callbacks
+                if (initial) {
+                    this.lastStatuses[taskId] = newStatus;
+                    console.log('✅ Начальный статус задачи #' + taskId + ' сохранён:', newStatus);
+                    return;
+                }
 
                 // Проверяем, изменился ли статус
-                const statusChanged = lastStatus !== newStatus;
+                const statusChanged = lastStatus !== undefined && lastStatus !== newStatus;
 
                 if (!statusChanged) {
                     console.log('%c  ⏭️ Статус не изменился, пропускаем callbacks', 'color: #9e9e9e;');
@@ -157,41 +273,53 @@ window.PullSubscription = {
             }
         });
     },
-    
+
     /**
      * Отписка от событий
      */
     unsubscribe: function(taskId) {
         const subscription = this.subscriptions[taskId];
-        
+
         if (!subscription) {
-            console.warn('⚠️  Подписка не найдена для задачи:', taskId);
+            console.warn('⚠️ Подписка не найдена для задачи:', taskId);
             return;
         }
-        
+
         if (subscription.type === 'pull') {
-            // Отписываемся от BX.PULL
-            BX.PULL.unsubscribe('tasks', subscription.handler);
-            console.log('🔕 Отписались от BX.PULL для задачи:', taskId);
-            
+            // Для pull просто удаляем из subscriptions
+            // Глобальная подписка на tasks остаётся активной
+            console.log('🔕 Удаляем подписку на задачу #' + taskId + ' (PULL)');
+
         } else if (subscription.type === 'polling') {
             // Останавливаем polling
             clearInterval(subscription.interval);
             console.log('🔕 Остановлен polling для задачи:', taskId);
         }
-        
+
         delete this.subscriptions[taskId];
+        delete this.lastStatuses[taskId];
     },
-    
+
     /**
      * Отписка от всех событий
      */
     unsubscribeAll: function() {
         console.log('🧹 Очистка всех подписок...');
-        
+
         Object.keys(this.subscriptions).forEach(taskId => {
             this.unsubscribe(taskId);
         });
+
+        // Останавливаем PullClient если был запущен
+        if (this.pullClient && this.isInitialized) {
+            try {
+                this.pullClient.stop();
+                console.log('🔴 BX.PullClient остановлен');
+            } catch (error) {
+                console.error('❌ Ошибка остановки BX.PullClient:', error);
+            }
+            this.isInitialized = false;
+        }
     }
 };
 
