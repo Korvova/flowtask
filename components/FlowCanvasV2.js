@@ -28,75 +28,7 @@ window.FlowCanvasV2 = {
         const { useState, useCallback, useEffect, useRef } = React;
         const { ReactFlow, Controls, Background, addEdge: rfAddEdge } = RF;
 
-        // Простой компонент узла задачи
-        function TaskNodeComponent({ data, id }) {
-            const statusColor = window.StatusColors ? window.StatusColors.getColor(data.status) : '#0066cc';
-
-            const handleAddFuture = (e) => {
-                e.stopPropagation();
-                console.log('➕ Создание предзадачи для узла:', id);
-
-                // Открываем модальное окно для создания предзадачи
-                if (window.TaskModalV2) {
-                    window.TaskModalV2.open({
-                        sourceNodeId: id,
-                        processId: window.currentProcessId,
-                        onSave: () => {
-                            console.log('✅ Предзадача создана, перезагружаем canvas');
-                            // Перезагрузить canvas
-                            window.location.reload();
-                        }
-                    });
-                }
-            };
-
-            return React.createElement('div', {
-                style: {
-                    padding: '15px 20px',
-                    background: 'white',
-                    border: `3px solid ${statusColor}`,
-                    borderRadius: '8px',
-                    minWidth: '200px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    cursor: 'pointer',
-                    position: 'relative'
-                }
-            }, [
-                React.createElement('div', {
-                    key: 'title',
-                    style: {
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        color: '#333',
-                        marginBottom: '5px'
-                    }
-                }, data.title || 'Задача'),
-                data.status ? React.createElement('div', {
-                    key: 'status',
-                    style: {
-                        fontSize: '12px',
-                        color: '#666',
-                        marginTop: '5px'
-                    }
-                }, `Статус: ${data.status}`) : null,
-                // Кнопка добавления предзадачи (только для task узлов)
-                data.isRealTask ? React.createElement('button', {
-                    key: 'add-btn',
-                    onClick: handleAddFuture,
-                    style: {
-                        marginTop: '10px',
-                        padding: '5px 10px',
-                        background: '#0066cc',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        width: '100%'
-                    }
-                }, '➕ Добавить предзадачу') : null
-            ]);
-        }
+        // Используем стандартный TaskNode с React Flow handles
 
         function FlowApp() {
             const [nodes, setNodes] = useState([]);
@@ -151,11 +83,12 @@ window.FlowCanvasV2 = {
                             y: node.positionY || 0
                         },
                         data: {
+                            id: node.nodeId,
                             title: node.title,
-                            status: node.status,
-                            isRealTask: node.type === 'task',
+                            statusCode: node.status,  // TaskNode использует statusCode
                             isFuture: node.type === 'future',
-                            condition: node.condition,
+                            conditionType: node.condition,  // TaskNode использует conditionType
+                            delayMinutes: node.delayMinutes,
                             realTaskId: node.realTaskId,
                             _node: node  // Сохраняем весь узел
                         }
@@ -421,8 +354,8 @@ window.FlowCanvasV2 = {
                         console.log('✅ ReactFlow готов');
                     },
                     nodeTypes: {
-                        task: TaskNodeComponent,
-                        future: TaskNodeComponent
+                        task: window.TaskNode,
+                        future: window.TaskNode
                     },
                     fitView: true,
                     minZoom: 0.5,
