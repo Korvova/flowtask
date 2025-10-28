@@ -306,7 +306,13 @@ window.FlowCanvas = {
                         .map(node => node.data.id);
 
                     addDebugLog('🔗 Загружаем связи для task-' + task.id + ' и ' + parentTaskIds.length + ' родителей', '#673ab7');
+                    console.log('%c🚨🚨🚨 ПЕРЕД ВЫЗОВОМ loadConnections', 'color: red; font-size: 20px; font-weight: bold;');
+                    console.log('  taskId:', task.id);
+                    console.log('  parentTaskIds:', parentTaskIds);
+                    console.log('  window.currentProcessId:', window.currentProcessId);
                     const connections = await loadConnections(task.id, parentTaskIds);
+                    console.log('%c🚨🚨🚨 ПОСЛЕ ВЫЗОВА loadConnections', 'color: green; font-size: 20px; font-weight: bold;');
+                    console.log('  connections:', connections);
 
                     addDebugLog('📊 Найдено связей из Entity: ' + connections.length, '#2196f3');
                     connections.forEach((conn, idx) => {
