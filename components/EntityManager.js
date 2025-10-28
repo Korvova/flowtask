@@ -283,8 +283,7 @@ window.EntityManager = {
 
             const allItems = [];
             const seenIds = new Set();
-            let currentMinId = 1;
-            const step = 50;
+            const step = 100; // Увеличил шаг для быстрой загрузки
 
             const loadRange = (minId) => {
                 const maxId = minId + step - 1;
@@ -334,8 +333,8 @@ window.EntityManager = {
                 });
             };
 
-            // Начинаем с ID=1
-            loadRange(1);
+            // Начинаем с ID=200 (из логов первый ID=256)
+            loadRange(200);
 
             const processAllItems = (items) => {
                 console.log('🔍 Фильтруем связи с processId =', processId);
@@ -403,9 +402,6 @@ window.EntityManager = {
                 console.log('✅ Найдено связей для processId=' + processId + ':', connections.length);
                 resolve(connections);
             };
-
-            // Начинаем загрузку с первой порции
-            loadBatch(0);
         });
     },
 
