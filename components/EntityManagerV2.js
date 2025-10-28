@@ -28,36 +28,61 @@
 window.EntityManagerV2 = {
 
     /**
-     * Загрузить ВСЕ узлы процесса (1 запрос!)
+     * Загрузить ВСЕ узлы процесса
+     *
+     * ВАЖНО: entity.item.get НЕ ПОДДЕРЖИВАЕТ FILTER!
+     * Получаем все записи и фильтруем на стороне клиента
      */
     loadProcess: function(processId) {
         return new Promise((resolve, reject) => {
             console.log('📥 EntityManagerV2: Загружаем процесс', processId);
 
-            BX24.callMethod('entity.item.get', {
-                ENTITY: 'tflow_nodes',
-                FILTER: {
-                    NAME: 'process_' + processId
-                }
-            }, (result) => {
-                if (result.error()) {
-                    console.error('❌ Ошибка загрузки:', result.error());
-                    reject(result.error());
-                    return;
-                }
+            const processName = 'process_' + processId;
+            const allItems = [];
 
-                const items = result.data();
-                console.log('✅ Загружено узлов:', items.length);
+            const loadBatch = (start = 0) => {
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_nodes',
+                    SORT: { ID: 'ASC' },
+                    start: start
+                }, (result) => {
+                    if (result.error()) {
+                        console.error('❌ Ошибка загрузки:', result.error());
+                        reject(result.error());
+                        return;
+                    }
 
-                // Парсим JSON
-                const nodes = items.map(item => {
-                    const data = JSON.parse(item.DETAIL_TEXT);
-                    data._entityId = item.ID; // Сохраняем Entity ID для обновления
-                    return data;
+                    const items = result.data();
+                    console.log(`📦 Загружено ${items.length} записей (start=${start})`);
+
+                    // Добавляем только записи нашего процесса
+                    items.forEach(item => {
+                        if (item.NAME === processName) {
+                            allItems.push(item);
+                        }
+                    });
+
+                    // Если получили 50 записей, значит есть еще
+                    if (items.length === 50) {
+                        setTimeout(() => loadBatch(start + 50), 100);
+                    } else {
+                        // Все загружено
+                        console.log(`✅ Найдено узлов процесса ${processId}: ${allItems.length}`);
+
+                        // Парсим JSON
+                        const nodes = allItems.map(item => {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            data._entityId = item.ID; // Сохраняем Entity ID для обновления
+                            return data;
+                        });
+
+                        resolve(nodes);
+                    }
                 });
+            };
 
-                resolve(nodes);
-            });
+            // Запускаем загрузку
+            loadBatch(0);
         });
     },
 
