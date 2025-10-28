@@ -1,10 +1,29 @@
+<?php
+// Включаем пролог Bitrix
+define("NO_KEEP_STATISTIC", true);
+define("NO_AGENT_STATISTIC", true);
+define("NOT_CHECK_PERMISSIONS", true);
+define('PUBLIC_AJAX_MODE', true);
+
+require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/modules/main/include/prolog_before.php");
+
+// Проверяем подключение модуля Push & Pull
+if (!\Bitrix\Main\Loader::includeModule('pull')) {
+    die('{"status":"error", "message":"Модуль Push & Pull не установлен."}');
+}
+
+// Подключаем необходимые расширения для работы Pull
+\Bitrix\Main\UI\Extension::load('pull.client');
+CJSCore::Init();
+?>
+
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>Процессы - Telegsarflow</title>
+    <?php $APPLICATION->ShowHead(); ?> <!-- Подключаем Bitrix заголовки с Pull -->
     <script src="//api.bitrix24.com/api/v1/"></script>
-    <!-- Pull библиотека загружается динамически после получения домена портала -->
 
     <script src="assets/js/react.min.js"></script>
     <script src="assets/js/react-dom.min.js"></script>
@@ -115,12 +134,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761663000000"></script>
-    <script src="components/PullSubscription.js?v=1761663000000"></script>
-    <script src="components/TaskCreator.js?v=1761663000000"></script>
-    <script src="components/TaskNode.js?v=1761663000000"></script>
-    <script src="components/TaskModal.js?v=1761663000000"></script>
-    <script src="components/FlowCanvas.js?v=1761663000000"></script>
+    <script src="components/StatusColors.js?v=1761664000000"></script>
+    <script src="components/PullSubscription.js?v=1761664000000"></script>
+    <script src="components/TaskCreator.js?v=1761664000000"></script>
+    <script src="components/TaskNode.js?v=1761664000000"></script>
+    <script src="components/TaskModal.js?v=1761664000000"></script>
+    <script src="components/FlowCanvas.js?v=1761664000000"></script>
 
     <script>
         // Debug functions
@@ -528,82 +547,7 @@
             });
         }
 
-        // === ДИНАМИЧЕСКАЯ ЗАГРУЗКА BITRIX CORE ===
-        function loadBitrixCore(domain) {
-            return new Promise((resolve, reject) => {
-                const corePaths = [
-                    `/bitrix/js/main/core/core.min.js`,
-                    `/bitrix/js/main/core/core.js`
-                ];
-
-                let loaded = false;
-                let index = 0;
-
-                function tryLoadCore() {
-                    if (loaded || index >= corePaths.length) {
-                        if (!loaded) reject(new Error('Bitrix core not found'));
-                        return;
-                    }
-
-                    const script = document.createElement('script');
-                    script.src = 'https://' + domain + corePaths[index];
-                    console.log('⏳ Попытка загрузить core:', script.src);
-                    script.onload = () => {
-                        loaded = true;
-                        console.log('✅ Bitrix core загружен:', corePaths[index]);
-                        resolve();
-                    };
-                    script.onerror = (err) => {
-                        console.warn('⚠️ Не удалось загрузить core:', corePaths[index], err);
-                        index++;
-                        tryLoadCore();
-                    };
-                    document.head.appendChild(script);
-                }
-
-                tryLoadCore();
-            });
-        }
-
-        // === ДИНАМИЧЕСКАЯ ЗАГРУЗКА PULL БИБЛИОТЕКИ ===
-        function loadPullLibrary(domain) {
-            return new Promise((resolve, reject) => {
-                const paths = [
-                    `/bitrix/js/pull/client/pull.client.min.js`,  // ✅ ПРАВИЛЬНЫЙ ПУТЬ!
-                    `/bitrix/js/pull/client/pull.client.js`,
-                    `/bitrix/js/pull/pull.min.js`,
-                    `/bitrix/js/pull/pull.bundle.js`,
-                    `/bitrix/js/pull/pull.js`
-                ];
-
-                let loaded = false;
-                let index = 0;
-
-                function tryLoad() {
-                    if (loaded || index >= paths.length) {
-                        if (!loaded) reject(new Error('Pull library not found'));
-                        return;
-                    }
-
-                    const script = document.createElement('script');
-                    script.src = 'https://' + domain + paths[index];
-                    console.log('⏳ Попытка загрузить:', script.src);
-                    script.onload = () => {
-                        loaded = true;
-                        console.log('✅ Pull библиотека загружена:', paths[index]);
-                        resolve();
-                    };
-                    script.onerror = (err) => {
-                        console.warn('⚠️ Не удалось загрузить:', paths[index], err);
-                        index++;
-                        tryLoad();
-                    };
-                    document.head.appendChild(script);
-                }
-
-                tryLoad();
-            });
-        }
+        // Функции загрузки библиотек больше не нужны - используем прологи Bitrix!
 
         // Main app initialization
         function showInstallPage() {
@@ -619,7 +563,7 @@
         BX24.init(function() {
             console.clear(); // Очищаем консоль для чистоты
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK v=1761663000000 (LOAD LIBS)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK v=1761664000000 (PROLOG)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const auth = BX24.getAuth();
@@ -648,36 +592,22 @@
                 return;
             }
 
-            // === REAL-TIME UPDATES: Загружаем BX.PULL библиотеки ===
+            // === REAL-TIME UPDATES: Проверяем BX.PULL (загружен через пролог) ===
             console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #2196f3; font-size: 14px;');
-            console.log('%c📡 REAL-TIME СИСТЕМА:', 'color: #2196f3; font-weight: bold; font-size: 16px;');
+            console.log('%c📡 REAL-TIME СИСТЕМА (Через пролог Bitrix):', 'color: #2196f3; font-weight: bold; font-size: 16px;');
             console.log('  - typeof BX:', typeof BX);
             console.log('  - typeof BX.PULL:', typeof BX !== 'undefined' ? typeof BX.PULL : 'BX undefined');
 
             if (typeof BX !== 'undefined' && typeof BX.PULL !== 'undefined') {
-                console.log('%c✅ BX.PULL УЖЕ ДОСТУПЕН! Используем Push & Pull', 'color: #00ff00; font-weight: bold; font-size: 14px;');
+                console.log('%c✅ BX.PULL ДОСТУПЕН через пролог! Push & Pull активирован', 'color: #00ff00; font-weight: bold; font-size: 14px;');
+                console.log('%c  → События придут мгновенно при изменении задачи', 'color: #00ff00;');
+
+                // Инициализируем PULL
+                BX.PULL.start();
+                console.log('%c✅ BX.PULL.start() вызван', 'color: #00ff00; font-weight: bold;');
             } else {
-                console.log('%c⚠️ BX объект недоступен, загружаем библиотеки...', 'color: #ff9800; font-weight: bold; font-size: 14px;');
-
-                // Загружаем Bitrix core и Pull библиотеки
-                loadBitrixCore(bitrixDomain)
-                    .then(() => {
-                        console.log('%c✅ Core загружен!', 'color: #00ff00; font-weight: bold;');
-                        return loadPullLibrary(bitrixDomain);
-                    })
-                    .then(() => {
-                        console.log('%c✅ Pull библиотека загружена!', 'color: #00ff00; font-weight: bold;');
-                        console.log('  - typeof BX:', typeof BX);
-                        console.log('  - typeof BX.PULL:', typeof BX !== 'undefined' ? typeof BX.PULL : 'BX undefined');
-
-                        if (typeof BX !== 'undefined' && typeof BX.PULL !== 'undefined') {
-                            console.log('%c🎉 BX.PULL ГОТОВ! Push & Pull активирован', 'color: #00ff00; font-weight: bold; font-size: 16px;');
-                        }
-                    })
-                    .catch((err) => {
-                        console.log('%c⚠️ Не удалось загрузить библиотеки, используем polling', 'color: #ff9800; font-weight: bold;');
-                        console.error(err);
-                    });
+                console.log('%c⚠️ BX.PULL недоступен! Используем polling fallback', 'color: #ff9800; font-weight: bold; font-size: 14px;');
+                console.log('%c  → Проверка каждые 5 секунд', 'color: #ff9800;');
             }
             console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #2196f3; font-size: 14px;');
 
