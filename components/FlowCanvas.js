@@ -1844,9 +1844,46 @@ window.FlowCanvas = {
 
             // Тест Entity API - поиск конкретных ID
             const testEntityAPI = () => {
-                console.log('🔬 Тестируем Entity API...');
+                console.log('🔬 Тестируем Entity API и FILTER...');
 
-                // 1. Получаем ВСЕ связи
+                // ТЕСТ 0: SORT DESC (последние 50)
+                console.log('\n📝 ТЕСТ 0: SORT DESC - получаем последние 50');
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_conn',
+                    SORT: { ID: 'DESC' }
+                }, (res0) => {
+                    if (res0.error()) {
+                        console.error('❌ Ошибка:', res0.error());
+                        return;
+                    }
+                    const items = res0.data();
+                    console.log('  📦 Получено:', items.length);
+                    const ids = items.map(i => parseInt(i.ID)).sort((a,b) => b-a);
+                    console.log('  📊 ID диапазон:', ids.length > 0 ? `${ids[0]} - ${ids[ids.length-1]}` : 'пусто');
+                    console.log('  📋 Последние 10 ID:', ids.slice(0, 10).join(', '));
+
+                    const has402 = items.find(i => i.ID === '402');
+                    const has404 = items.find(i => i.ID === '404');
+                    console.log('  🔍 ID=402:', has402 ? '✅ ЕСТЬ' : '❌ НЕТ');
+                    console.log('  🔍 ID=404:', has404 ? '✅ ЕСТЬ' : '❌ НЕТ');
+                });
+
+                // ТЕСТ 1: FILTER >=ID
+                console.log('\n📝 ТЕСТ 1: FILTER >=ID=400');
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_conn',
+                    FILTER: { '>=ID': '400' }
+                }, (res1) => {
+                    const items = res1.data();
+                    console.log('  📦 Получено:', items.length);
+                    if (items.length > 0) {
+                        const ids = items.map(i => i.ID);
+                        console.log('  📋 ID:', ids.join(', '));
+                    }
+                });
+
+                // 2. Получаем ВСЕ связи (SORT ASC)
+                console.log('\n📝 ТЕСТ 2: SORT ASC - первые 50');
                 BX24.callMethod('entity.item.get', {
                     ENTITY: 'tflow_conn'
                 }, (result) => {
@@ -1856,7 +1893,7 @@ window.FlowCanvas = {
                     }
 
                     const items = result.data();
-                    console.log('📦 Всего связей:', items.length);
+                    console.log('  📦 Всего связей:', items.length);
 
                     // Все ID
                     const allIds = items.map(i => i.ID);
