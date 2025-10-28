@@ -239,29 +239,25 @@ window.TaskCreator = {
                     }
                 }
 
-                // Теперь загружаем связи
-                BX24.callMethod('entity.item.get', {
-                    ENTITY: 'tflow_conn'
-                }, (result) => {
-                    if (result.error()) {
-                        this.log('    ❌ Ошибка загрузки связей: ' + JSON.stringify(result.error()), '#f44336');
-                        resolve([]);
-                        return;
-                    }
+                // Теперь загружаем связи через EntityManager (с FILTER!)
+                this.log('    🔧 Используем EntityManager для загрузки ВСЕХ связей', '#00bcd4');
 
-                    const items = result.data();
-                    this.log('    📊 Всего связей в Entity: ' + items.length, '#2196f3');
+                // Загружаем ВСЕ связи через EntityManager (с диапазонами FILTER)
+                this.loadAllConnectionsViaEntityManager().then(items => {
+                    this.log('    📊 Всего связей загружено: ' + items.length, '#2196f3');
 
                     // Логируем последние 5 связей для отладки
-                    this.log('    📋 Последние 5 связей в Entity:', '#2196f3');
-                    items.slice(-5).forEach((item, idx) => {
-                        try {
-                            const data = JSON.parse(item.DETAIL_TEXT);
-                            this.log('      ' + (items.length - 4 + idx) + '. ID=' + item.ID + ' source=' + data.sourceId + ' → target=' + data.targetId, '#9c27b0');
-                        } catch (e) {
-                            this.log('      ' + (items.length - 4 + idx) + '. ID=' + item.ID + ' (ошибка парсинга)', '#f44336');
-                        }
-                    });
+                    if (items.length > 0) {
+                        this.log('    📋 Последние 5 связей:', '#2196f3');
+                        items.slice(-5).forEach((item, idx) => {
+                            try {
+                                const data = JSON.parse(item.DETAIL_TEXT);
+                                this.log('      ' + (items.length - 4 + idx) + '. ID=' + item.ID + ' source=' + data.sourceId + ' → target=' + data.targetId, '#9c27b0');
+                            } catch (e) {
+                                this.log('      ' + (items.length - 4 + idx) + '. ID=' + item.ID + ' (ошибка парсинга)', '#f44336');
+                            }
+                        });
+                    }
 
                     // КРИТИЧНО: Ищем связи где sourceId = 'task-XXX' ИЛИ sourceId = 'future-XXX'
                     const filtered = items.filter(item => {
@@ -288,11 +284,61 @@ window.TaskCreator = {
                     }
 
                     resolve(filtered);
+                }).catch(error => {
+                    this.log('    ❌ Ошибка loadAllConnectionsViaEntityManager: ' + error, '#f44336');
+                    resolve([]);
                 });
             });
         });
     },
-    
+
+    /**
+     * Загрузка ВСЕХ связей через EntityManager (с FILTER диапазонами)
+     */
+    loadAllConnectionsViaEntityManager: function() {
+        return new Promise((resolve) => {
+            const allItems = [];
+            const seenIds = new Set();
+            const step = 100;
+
+            const loadRange = (minId) => {
+                const maxId = minId + step - 1;
+
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_conn',
+                    FILTER: {
+                        '>=ID': minId,
+                        '<=ID': maxId
+                    },
+                    SORT: { ID: 'ASC' }
+                }, (result) => {
+                    if (result.error()) {
+                        resolve(allItems);
+                        return;
+                    }
+
+                    const batch = result.data();
+
+                    batch.forEach(item => {
+                        if (!seenIds.has(item.ID)) {
+                            seenIds.add(item.ID);
+                            allItems.push(item);
+                        }
+                    });
+
+                    // Продолжаем если получили записи
+                    if (batch.length > 0 && allItems.length < 1000) {
+                        setTimeout(() => loadRange(minId + step), 50);
+                    } else {
+                        resolve(allItems);
+                    }
+                });
+            };
+
+            loadRange(200); // Начинаем с ID=200
+        });
+    },
+
     /**
      * Получение данных предзадачи
      */
