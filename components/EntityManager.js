@@ -285,6 +285,8 @@ window.EntityManager = {
 
             const allItems = [];
             const loadBatch = (start) => {
+                console.log(`  🔄 Запрос порции start=${start}...`);
+
                 BX24.callMethod('entity.item.get', {
                     ENTITY: 'tflow_conn',
                     SORT: { ID: 'ASC' },
@@ -297,16 +299,16 @@ window.EntityManager = {
                     }
 
                     const batch = result.data();
-                    if (start === 0) {
-                        console.log('  📦 Первая порция:', batch.length);
-                    }
+                    console.log(`  ✅ Получено записей (start=${start}):`, batch.length);
 
                     if (batch.length > 0) {
                         allItems.push(...batch);
+                        console.log(`  📊 Всего накоплено:`, allItems.length);
 
                         // Если получили 50 записей, значит может быть еще
                         if (batch.length === 50) {
-                            loadBatch(start + 50);
+                            console.log(`  ⏩ Запрашиваем следующую порцию...`);
+                            setTimeout(() => loadBatch(start + 50), 100); // Небольшая задержка
                         } else {
                             // Последняя порция
                             console.log('✅ Загружено всего связей:', allItems.length);
