@@ -45,8 +45,32 @@ window.FlowCanvasV2 = {
                     console.log('📥 Загружаем процесс:', window.currentProcessId);
 
                     // Загрузить все узлы за 1 запрос
-                    const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
+                    let allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
                     console.log('✅ Загружено узлов:', allNodes.length);
+
+                    // Если узлов нет - создаём узел для текущей задачи
+                    if (allNodes.length === 0 && window.currentTaskId) {
+                        console.log('📝 Создаём начальный узел для задачи', window.currentTaskId);
+
+                        const initialNode = {
+                            nodeId: 'task-' + window.currentTaskId,
+                            type: 'task',
+                            title: 'Задача #' + window.currentTaskId,
+                            status: 2, // В работе
+                            positionX: 400,
+                            positionY: 300,
+                            connectionsFrom: [],
+                            connectionsTo: [],
+                            realTaskId: window.currentTaskId
+                        };
+
+                        await EntityManagerV2.saveNode(window.currentProcessId, initialNode);
+                        console.log('✅ Начальный узел создан');
+
+                        // Перезагрузить узлы
+                        allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
+                        console.log('✅ Узлов после создания:', allNodes.length);
+                    }
 
                     // Построить nodes для ReactFlow
                     const rfNodes = allNodes.map(node => ({
