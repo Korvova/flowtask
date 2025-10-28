@@ -41,12 +41,18 @@ window.EntityManagerV2 = {
             const allItems = [];
 
             const loadBatch = (start = 0) => {
+                console.log(`🔍 Запрос к entity.item.get: ENTITY=tflow_nodes, start=${start}`);
+
                 BX24.callMethod('entity.item.get', {
                     ENTITY: 'tflow_nodes',
+                    SORT: { ID: 'ASC' },
                     start: start
                 }, (result) => {
+                    console.log('📬 Ответ от BX24:', result);
+
                     if (result.error()) {
                         console.error('❌ Ошибка загрузки:', result.error());
+                        console.error('❌ Детали ошибки:', result.error_description());
                         reject(result.error());
                         return;
                     }
