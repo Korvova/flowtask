@@ -277,44 +277,45 @@ window.FlowCanvasV2 = {
                 }
             }, []);
 
-            // Подписка на BX.PULL
+            // Подписка на BX.PULL (только один раз)
             useEffect(() => {
-                if (window.BX && window.BX.PULL) {
-                    const handler = (data) => {
-                        if (data.eventName === 'task_update') {
-                            const taskId = data.taskId;
+                if (nodes.length === 0) return; // Ждём загрузки узлов
 
-                            // Загрузить статус
-                            BX24.callMethod('tasks.task.get', {
-                                taskId: taskId
-                            }, (result) => {
-                                if (!result.error()) {
-                                    const task = result.data().task;
-                                    handleStatusChange(taskId, parseInt(task.status));
+                if (window.PullSubscription) {
+                    // Найти все task узлы
+                    nodes.forEach(node => {
+                        if (node.type === 'task') {
+                            const taskId = node.id.replace('task-', '');
+
+                            // Правильные параметры для PullSubscription.subscribe:
+                            // subscribe(taskId, onStatusChange, onTaskComplete)
+                            window.PullSubscription.subscribe(
+                                taskId,
+                                (newStatus, task) => {
+                                    console.log('🔄 Статус изменён через PULL:', taskId, '→', newStatus);
+                                    handleStatusChange(taskId, newStatus);
+                                },
+                                (completedTaskId) => {
+                                    console.log('✅ Задача завершена через PULL:', completedTaskId);
+                                    handleStatusChange(completedTaskId, 5);
                                 }
-                            });
+                            );
                         }
-                    };
+                    });
+                }
 
-                    // Подписка
+                // Cleanup: отписка при размонтировании
+                return () => {
                     if (window.PullSubscription) {
-                        // Найти все task узлы
                         nodes.forEach(node => {
                             if (node.type === 'task') {
                                 const taskId = node.id.replace('task-', '');
-
-                                // Правильные параметры для PullSubscription.subscribe:
-                                // subscribe(taskId, onStatusChange, onTaskComplete)
-                                window.PullSubscription.subscribe(
-                                    taskId,
-                                    (newStatus, task) => handleStatusChange(taskId, newStatus),
-                                    (taskId) => handleStatusChange(taskId, 5)
-                                );
+                                window.PullSubscription.unsubscribe(taskId);
                             }
                         });
                     }
-                }
-            }, [nodes, handleStatusChange]);
+                };
+            }, []); // Пустой массив - подписка только один раз!
 
             // Render
             if (loading) {
