@@ -36,6 +36,11 @@ CJSCore::Init();
         <div class="loading">⏳ Загрузка...</div>
     </div>
 
+    <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
+    <script src="components/EntityManagerV2.js?v=<?= time() ?>"></script>
+    <script src="components/TaskHandler.js?v=<?= time() ?>"></script>
+
+    <!-- Старая архитектура (временно, для совместимости) -->
     <script src="components/EntityManager.js?v=<?= time() ?>"></script>
     <script src="components/StatusColors.js?v=<?= time() ?>"></script>
     <script src="components/PullSubscription.js?v=<?= time() ?>"></script>
