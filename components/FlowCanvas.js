@@ -1364,22 +1364,16 @@ window.FlowCanvas = {
                         targetId: futureId,
                         connectionType: 'future'
                     };
-                    console.log('💾 Сохраняем связь в Entity:', connectionData);
-                    addDebugLog('💾 Сохраняем связь для новой предзадачи...', '#2196f3');
+                    console.log('💾 Сохраняем связь в Entity через EntityManager:', connectionData);
+                    addDebugLog('💾 Сохраняем связь для новой предзадачи через EntityManager...', '#2196f3');
+                    addDebugLog('  • processId: ' + connectionData.processId, '#ff0000');
                     addDebugLog('  • sourceId: ' + sourceId, '#9c27b0');
                     addDebugLog('  • targetId: ' + futureId, '#9c27b0');
 
-                    BX24.callMethod('entity.item.add', {
-                        ENTITY: 'tflow_conn',
-                        NAME: sourceId + '->' + futureId,
-                        DETAIL_TEXT: JSON.stringify(connectionData)
-                    }, (connResult) => {
-                        if (connResult.error()) {
-                            console.error('Ошибка создания связи:', connResult.error());
-                            addDebugLog('❌ Ошибка создания связи: ' + JSON.stringify(connResult.error()), '#f44336');
-                        } else {
-                            console.log('✅ Связь создана');
-                            addDebugLog('✅ Связь для предзадачи создана (ID: ' + connResult.data() + ')', '#00ff00');
+                    window.EntityManager.createConnection(connectionData)
+                        .then((entityId) => {
+                            console.log('✅ Связь создана через EntityManager, ID:', entityId);
+                            addDebugLog('✅ Связь для предзадачи создана (ID: ' + entityId + ')', '#00ff00');
                             
                             // Вместо полной перезагрузки добавляем только новые узлы и edges
                             // Это предотвращает мигание основной задачи
@@ -1434,8 +1428,11 @@ window.FlowCanvas = {
                             // Обновляем состояние напрямую (без полной перезагрузки)
                             setNodes(currentNodes => [...currentNodes, newFutureNode]);
                             setEdges(currentEdges => [...currentEdges, newEdge]);
-                        }
-                    });
+                        })
+                        .catch((error) => {
+                            console.error('❌ Ошибка создания связи:', error);
+                            addDebugLog('❌ Ошибка создания связи: ' + JSON.stringify(error), '#f44336');
+                        });
                 });
             };
 
