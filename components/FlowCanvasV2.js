@@ -26,13 +26,13 @@ window.FlowCanvasV2 = {
         }
 
         const { useState, useCallback, useEffect, useRef } = React;
-        const { ReactFlow, Controls, Background, addEdge: rfAddEdge } = RF;
+        const { ReactFlow, Controls, Background, addEdge: rfAddEdge, useNodesState, useEdgesState } = RF;
 
         // Используем стандартный TaskNode с React Flow handles
 
         function FlowApp() {
-            const [nodes, setNodes] = useState([]);
-            const [edges, setEdges] = useState([]);
+            const [nodes, setNodes, onNodesChange] = useNodesState([]);
+            const [edges, setEdges, onEdgesChange] = useEdgesState([]);
             const [loading, setLoading] = useState(true);
             const reactFlowInstanceRef = useRef(null);
 
@@ -69,9 +69,9 @@ window.FlowCanvasV2 = {
                         await EntityManagerV2.saveNode(window.currentProcessId, initialNode);
                         console.log('✅ Начальный узел создан');
 
-                        // Перезагрузить узлы
-                        allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
-                        console.log('✅ Узлов после создания:', allNodes.length);
+                        // Используем созданный узел напрямую без перезагрузки
+                        allNodes = [initialNode];
+                        console.log('✅ Узел добавлен в массив');
                     }
 
                     // Построить nodes для ReactFlow
@@ -122,34 +122,10 @@ window.FlowCanvasV2 = {
                 }
             };
 
-            // Обработка изменений nodes
-            const onNodesChange = useCallback((changes) => {
-                setNodes((nds) => {
-                    const updated = [...nds];
-                    changes.forEach(change => {
-                        if (change.type === 'position' && change.dragging === false) {
-                            // Сохранить позицию
-                            const node = updated.find(n => n.id === change.id);
-                            if (node && change.position) {
-                                saveNodePosition(node.id, change.position.x, change.position.y);
-                            }
-                        }
-                    });
-                    return updated.map(node => {
-                        const change = changes.find(c => c.id === node.id);
-                        if (change) {
-                            if (change.type === 'position') {
-                                return { ...node, position: change.position || node.position };
-                            }
-                        }
-                        return node;
-                    });
-                });
-            }, []);
-
-            // Обработка изменений edges
-            const onEdgesChange = useCallback((changes) => {
-                // Не удаляем edges через UI, только программно
+            // Обработчик завершения драга для сохранения позиции
+            const onNodeDragStop = useCallback((event, node) => {
+                console.log('💾 Узел перемещён:', node.id, 'в', node.position);
+                saveNodePosition(node.id, node.position.x, node.position.y);
             }, []);
 
             // Создание связи
@@ -346,6 +322,7 @@ window.FlowCanvasV2 = {
                     nodesDraggable: true,
                     onNodesChange: onNodesChange,
                     onEdgesChange: onEdgesChange,
+                    onNodeDragStop: onNodeDragStop,
                     onConnect: onConnect,
                     onConnectStart: onConnectStart,
                     onConnectEnd: onConnectEnd,
