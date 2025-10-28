@@ -26,7 +26,7 @@ window.FlowCanvas = {
             const debugDiv = document.createElement('div');
             debugDiv.id = 'flowtask-debug-indicator';
             debugDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #00ff00; color: #000; padding: 10px; z-index: 99999; font-weight: bold; text-align: center;';
-            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761634451 - Смотрите консоль';
+            debugDiv.textContent = '✅ FLOWTASK ЗАГРУЖЕН! Версия: v=1761645295 - Смотрите консоль';
             document.body.appendChild(debugDiv);
             setTimeout(() => debugDiv.remove(), 5000);
 
@@ -52,6 +52,15 @@ window.FlowCanvas = {
                 addDebugLog('FlowApp смонтирован', '#00ff00');
                 addDebugLog('✅ addDebugLog экспортирован в window.FlowCanvas', '#00ff00');
             }, []);
+
+            // Диагностика edges state
+            useEffect(() => {
+                console.log('%c🔍 EDGES STATE ИЗМЕНИЛСЯ!', 'color: #ff0000; font-weight: bold; font-size: 14px;');
+                console.log('Edges count:', edges.length);
+                edges.forEach((e, idx) => {
+                    console.log(`  ${idx+1}. ${e.id}: ${e.source} → ${e.target}`);
+                });
+            }, [edges]);
 
             // Загрузка данных процесса при монтировании
             useEffect(() => {
@@ -261,19 +270,34 @@ window.FlowCanvas = {
                             target: conn.targetId,
                             type: conn.connectionType === 'future' ? 'default' : 'default',
                             className: conn.connectionType === 'future' ? 'future-edge' : '',
-                            animated: true
+                            animated: true,
+                            style: { stroke: '#ff0000', strokeWidth: 3 }  // ЯРКО-КРАСНЫЙ для видимости!
                         };
                     });
 
                     addDebugLog('📊 Создано edges для отображения: ' + loadedEdges.length, '#00ff00');
-                    console.log('📊 Всего загружено edges:', loadedEdges.length);
-                    loadedEdges.forEach(edge => {
-                        console.log('  ↳', edge.source, '→', edge.target);
+                    console.log('%c═══════════════════════════════════════', 'color: #ff0000; font-weight: bold;');
+                    console.log('%c📊 EDGES ARRAY ДЛЯ setEdges():', 'color: #ff0000; font-weight: bold; font-size: 16px;');
+                    console.log('Всего edges:', loadedEdges.length);
+                    loadedEdges.forEach((edge, idx) => {
+                        console.log(`  ${idx+1}. id: ${edge.id}, source: ${edge.source}, target: ${edge.target}`);
                     });
+                    console.log('%c═══════════════════════════════════════', 'color: #ff0000; font-weight: bold;');
 
-                    setNodes([mainNode, ...parentNodes, ...futureNodes, ...createdTaskNodes, ...subtaskNodes, ...processTaskNodes]);
+                    const allNodes = [mainNode, ...parentNodes, ...futureNodes, ...createdTaskNodes, ...subtaskNodes, ...processTaskNodes];
+                    console.log('%c═══════════════════════════════════════', 'color: #00ff00; font-weight: bold;');
+                    console.log('%c📊 NODES ARRAY ДЛЯ setNodes():', 'color: #00ff00; font-weight: bold; font-size: 16px;');
+                    console.log('Всего nodes:', allNodes.length);
+                    allNodes.forEach((node, idx) => {
+                        console.log(`  ${idx+1}. id: ${node.id}, type: ${node.data.isFuture ? 'future' : 'task'}`);
+                    });
+                    console.log('%c═══════════════════════════════════════', 'color: #00ff00; font-weight: bold;');
+
+                    setNodes(allNodes);
                     setEdges(loadedEdges);
                     setIsLoading(false);
+
+                    console.log('%c✅✅✅ setNodes() и setEdges() ВЫЗВАНЫ!', 'color: #00ff00; font-weight: bold; font-size: 18px;');
 
                     const totalNodes = [mainNode, ...parentNodes, ...futureNodes, ...createdTaskNodes, ...subtaskNodes, ...processTaskNodes].length;
                     console.log('✅ Данные процесса загружены:', {
@@ -776,6 +800,10 @@ window.FlowCanvas = {
                 return new Promise((resolve) => {
                     const currentProcessId = window.currentProcessId || taskId.toString();
 
+                    console.log('%c═══════════════════════════════════════', 'color: #ff00ff; font-weight: bold;');
+                    console.log('%c🔗 loadConnections ВЫЗВАН', 'color: #ff00ff; font-weight: bold;');
+                    console.log('%cProcessId для фильтра:', currentProcessId, 'color: #00ffff;');
+
                     BX24.callMethod('entity.item.get', {
                         ENTITY: 'tflow_conn'
                     }, (result) => {
@@ -784,14 +812,24 @@ window.FlowCanvas = {
                             resolve([]);
                         } else {
                             const items = result.data();
-                            console.log("📥 Entity result:", items);
+                            console.log('%c📥 Получено items из Entity tflow_conn:', items.length, 'color: #00ff00; font-weight: bold;');
+                            console.log("📥 Entity items:", items);
 
                             // Фильтруем по processId (не по taskId!)
                             const connections = items
                                 .filter(item => {
-                                    if (!item.DETAIL_TEXT) return false;
+                                    if (!item.DETAIL_TEXT) {
+                                        console.log('  ⚠️ Item без DETAIL_TEXT:', item.ID);
+                                        return false;
+                                    }
                                     try {
                                         const data = JSON.parse(item.DETAIL_TEXT);
+                                        console.log('  🔍 Проверяем connection ID=' + item.ID + ':', {
+                                            processId: data.processId,
+                                            sourceId: data.sourceId,
+                                            targetId: data.targetId,
+                                            matches: data.processId == currentProcessId
+                                        });
                                         // Фильтруем ТОЛЬКО по processId
                                         return data.processId == currentProcessId;
                                     } catch (e) {
@@ -808,7 +846,73 @@ window.FlowCanvas = {
                                         connectionType: data.connectionType
                                     };
                                 });
-                            resolve(connections);
+
+                            console.log('%c✅ После фильтрации: ' + connections.length + ' connections', 'color: #00ff00; font-weight: bold;');
+                            console.log('Connections:', connections);
+
+                            // КРИТИЧНО: Заменяем future-XXX на task-YYY если предзадача уже создана!
+                            console.log('%c🔄 Проверяем future tasks и заменяем на real tasks...', 'color: #ffeb3b; font-weight: bold;');
+
+                            // Загружаем все future tasks для проверки
+                            BX24.callMethod('entity.item.get', {
+                                ENTITY: 'tflow_future'
+                            }, (futureResult) => {
+                                if (futureResult.error()) {
+                                    console.warn('Не удалось загрузить future tasks для проверки');
+                                    resolve(connections);
+                                    return;
+                                }
+
+                                const futureItems = futureResult.data();
+                                console.log('📦 Загружено future tasks для проверки:', futureItems.length);
+
+                                // Создаём map: futureId -> realTaskId (для тех что уже созданы)
+                                const futureToRealMap = {};
+                                futureItems.forEach(futureItem => {
+                                    if (!futureItem.DETAIL_TEXT) return;
+                                    try {
+                                        const futureData = JSON.parse(futureItem.DETAIL_TEXT);
+                                        if (futureData.isCreated && futureData.realTaskId) {
+                                            futureToRealMap[futureData.futureId] = 'task-' + futureData.realTaskId;
+                                            console.log('  ✓ Mapping: ' + futureData.futureId + ' → task-' + futureData.realTaskId);
+                                        }
+                                    } catch (e) {
+                                        // ignore
+                                    }
+                                });
+
+                                console.log('📊 Создана карта замен:', futureToRealMap);
+
+                                // Применяем замены к connections
+                                const fixedConnections = connections.map(conn => {
+                                    let sourceId = conn.sourceId;
+                                    let targetId = conn.targetId;
+
+                                    if (futureToRealMap[conn.sourceId]) {
+                                        console.log('  🔄 Заменяем source: ' + conn.sourceId + ' → ' + futureToRealMap[conn.sourceId]);
+                                        sourceId = futureToRealMap[conn.sourceId];
+                                    }
+
+                                    if (futureToRealMap[conn.targetId]) {
+                                        console.log('  🔄 Заменяем target: ' + conn.targetId + ' → ' + futureToRealMap[conn.targetId]);
+                                        targetId = futureToRealMap[conn.targetId];
+                                    }
+
+                                    return {
+                                        ...conn,
+                                        sourceId: sourceId,
+                                        targetId: targetId
+                                    };
+                                });
+
+                                console.log('%c✅ После замены future→task: ' + fixedConnections.length + ' connections', 'color: #00ff00; font-weight: bold;');
+                                fixedConnections.forEach((conn, idx) => {
+                                    console.log('  ' + (idx+1) + '. ' + conn.sourceId + ' → ' + conn.targetId);
+                                });
+                                console.log('%c═══════════════════════════════════════', 'color: #ff00ff; font-weight: bold;');
+
+                                resolve(fixedConnections);
+                            });
                         }
                     });
                 });
@@ -1393,14 +1497,78 @@ window.FlowCanvas = {
 
                     addDebugLog('✅ TaskCreator найден, вызываем...', '#00ff00');
 
-                    window.TaskCreator.processCompletedTask(taskId, (createdTasks) => {
-                        addDebugLog('✅ СОЗДАНО ЗАДАЧ: ' + createdTasks.length, '#00ff00');
+                    window.TaskCreator.processCompletedTask(taskId, (createdTasksData) => {
+                        addDebugLog('✅ СОЗДАНО ЗАДАЧ: ' + createdTasksData.length, '#00ff00');
 
-                        // Даём время на сохранение связей в Entity, затем перезагружаем
-                        setTimeout(() => {
-                            addDebugLog('🔄 ПЕРЕЗАГРУЗКА ПОЛОТНА...', '#2196f3');
-                            loadProcessData();
-                        }, 1500);
+                        if (createdTasksData.length === 0) {
+                            addDebugLog('ℹ️ Нет задач для обновления', '#9c27b0');
+                            return;
+                        }
+
+                        // Создаём map: futureId -> newTaskId
+                        const futureToTaskMap = {};
+                        createdTasksData.forEach(taskData => {
+                            futureToTaskMap[taskData.futureId] = taskData.taskId;
+                            addDebugLog('  • ' + taskData.futureId + ' → task-' + taskData.taskId, '#2196f3');
+                        });
+
+                        addDebugLog('🔄 Обновляем узлы на полотне (без перезагрузки)...', '#2196f3');
+
+                        // КРИТИЧНО: Обновляем узлы БЕЗ перезагрузки canvas!
+                        setNodes((currentNodes) => {
+                            return currentNodes.map(node => {
+                                // Если это future узел, который был создан как задача
+                                if (futureToTaskMap[node.id]) {
+                                    const newTaskId = futureToTaskMap[node.id];
+                                    addDebugLog('  ✓ Преобразуем ' + node.id + ' → task-' + newTaskId, '#00ff00');
+
+                                    return {
+                                        ...node,
+                                        id: 'task-' + newTaskId,  // Меняем ID!
+                                        type: 'taskNode',  // Меняем тип на task
+                                        data: {
+                                            ...node.data,
+                                            id: newTaskId,
+                                            isFuture: false,  // Больше не future!
+                                            isRealTask: true,  // Теперь реальная задача!
+                                            statusCode: 2  // Статус "Ждёт выполнения"
+                                        }
+                                    };
+                                }
+                                return node;
+                            });
+                        });
+
+                        // Обновляем edges: заменяем future-XXX на task-YYY
+                        setEdges((currentEdges) => {
+                            return currentEdges.map(edge => {
+                                let newSource = edge.source;
+                                let newTarget = edge.target;
+
+                                if (futureToTaskMap[edge.source]) {
+                                    newSource = 'task-' + futureToTaskMap[edge.source];
+                                    addDebugLog('  ✓ Edge source: ' + edge.source + ' → ' + newSource, '#00ff00');
+                                }
+
+                                if (futureToTaskMap[edge.target]) {
+                                    newTarget = 'task-' + futureToTaskMap[edge.target];
+                                    addDebugLog('  ✓ Edge target: ' + edge.target + ' → ' + newTarget, '#00ff00');
+                                }
+
+                                if (newSource !== edge.source || newTarget !== edge.target) {
+                                    return {
+                                        ...edge,
+                                        id: 'edge-' + newSource + '-' + newTarget,
+                                        source: newSource,
+                                        target: newTarget
+                                    };
+                                }
+
+                                return edge;
+                            });
+                        });
+
+                        addDebugLog('✅ Узлы обновлены БЕЗ перезагрузки!', '#00ff00');
                     });
                 } catch (error) {
                     addDebugLog('❌ ОШИБКА: ' + error.message, '#f44336');
@@ -1560,6 +1728,17 @@ window.FlowCanvas = {
                     onInit: (instance) => {
                         reactFlowInstance.current = instance;
                         console.log('✅ ReactFlow instance готов');
+
+                        // Диагностика через 1 секунду после инициализации
+                        setTimeout(() => {
+                            console.log('%c═══════════════════════════════════════', 'color: #ff00ff; font-weight: bold;');
+                            console.log('%c🔍 ДИАГНОСТИКА ReactFlow ПОСЛЕ ИНИЦИАЛИЗАЦИИ', 'color: #ff00ff; font-weight: bold; font-size: 16px;');
+                            console.log('Nodes в ReactFlow:', instance.getNodes().length);
+                            instance.getNodes().forEach(n => console.log('  - ' + n.id));
+                            console.log('Edges в ReactFlow:', instance.getEdges().length);
+                            instance.getEdges().forEach(e => console.log('  - ' + e.id + ' (' + e.source + ' → ' + e.target + ')'));
+                            console.log('%c═══════════════════════════════════════', 'color: #ff00ff; font-weight: bold;');
+                        }, 1000);
                     },
                     nodeTypes: nodeTypes,
                     fitView: true,

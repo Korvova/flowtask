@@ -137,42 +137,81 @@ window.TaskCreator = {
         return new Promise((resolve) => {
             this.log('    🔍 getConnectionsFromTask: Ищем связи для task-' + taskId, '#9c27b0');
 
+            // СНАЧАЛА ищем futureId для этой задачи (если она была создана из предзадачи)
             BX24.callMethod('entity.item.get', {
-                ENTITY: 'tflow_conn'
-            }, (result) => {
-                if (result.error()) {
-                    this.log('    ❌ Ошибка загрузки связей: ' + JSON.stringify(result.error()), '#f44336');
-                    resolve([]);
-                    return;
+                ENTITY: 'tflow_future'
+            }, (futureResult) => {
+                let futureId = null;
+
+                if (!futureResult.error()) {
+                    const futureItems = futureResult.data();
+                    const futureTask = futureItems.find(item => {
+                        if (!item.DETAIL_TEXT) return false;
+                        try {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            return data.isCreated && data.realTaskId == taskId;
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+
+                    if (futureTask) {
+                        const futureData = JSON.parse(futureTask.DETAIL_TEXT);
+                        futureId = futureData.futureId;
+                        this.log('    🔍 Задача task-' + taskId + ' была создана из предзадачи: ' + futureId, '#ff9800');
+                    }
                 }
 
-                const items = result.data();
-                this.log('    📊 Всего связей в Entity: ' + items.length, '#2196f3');
-
-                // Логируем последние 5 связей для отладки
-                this.log('    📋 Последние 5 связей в Entity:', '#2196f3');
-                items.slice(-5).forEach((item, idx) => {
-                    try {
-                        const data = JSON.parse(item.DETAIL_TEXT);
-                        this.log('      ' + (items.length - 4 + idx) + '. ID=' + item.ID + ' source=' + data.sourceId + ' → target=' + data.targetId, '#9c27b0');
-                    } catch (e) {
-                        this.log('      ' + (items.length - 4 + idx) + '. ID=' + item.ID + ' (ошибка парсинга)', '#f44336');
+                // Теперь загружаем связи
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_conn'
+                }, (result) => {
+                    if (result.error()) {
+                        this.log('    ❌ Ошибка загрузки связей: ' + JSON.stringify(result.error()), '#f44336');
+                        resolve([]);
+                        return;
                     }
-                });
 
-                const filtered = items.filter(item => {
-                    if (!item.DETAIL_TEXT) return false;
-                    try {
-                        const data = JSON.parse(item.DETAIL_TEXT);
-                        return data.sourceId === 'task-' + taskId;
-                    } catch (e) {
-                        return false;
+                    const items = result.data();
+                    this.log('    📊 Всего связей в Entity: ' + items.length, '#2196f3');
+
+                    // Логируем последние 5 связей для отладки
+                    this.log('    📋 Последние 5 связей в Entity:', '#2196f3');
+                    items.slice(-5).forEach((item, idx) => {
+                        try {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            this.log('      ' + (items.length - 4 + idx) + '. ID=' + item.ID + ' source=' + data.sourceId + ' → target=' + data.targetId, '#9c27b0');
+                        } catch (e) {
+                            this.log('      ' + (items.length - 4 + idx) + '. ID=' + item.ID + ' (ошибка парсинга)', '#f44336');
+                        }
+                    });
+
+                    // КРИТИЧНО: Ищем связи где sourceId = 'task-XXX' ИЛИ sourceId = 'future-XXX'
+                    const filtered = items.filter(item => {
+                        if (!item.DETAIL_TEXT) return false;
+                        try {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            // Проверяем оба варианта!
+                            const matchTask = data.sourceId === 'task-' + taskId;
+                            const matchFuture = futureId && data.sourceId === futureId;
+                            return matchTask || matchFuture;
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+
+                    this.log('    ✅ Найдено связей для task-' + taskId + (futureId ? ' (или ' + futureId + ')' : '') + ': ' + filtered.length, '#00ff00');
+
+                    if (filtered.length > 0) {
+                        this.log('    📋 Найденные связи:', '#2196f3');
+                        filtered.forEach((item, idx) => {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            this.log('      ' + (idx+1) + '. ' + data.sourceId + ' → ' + data.targetId, '#9c27b0');
+                        });
                     }
+
+                    resolve(filtered);
                 });
-
-                this.log('    ✅ Найдено связей для task-' + taskId + ': ' + filtered.length, '#00ff00');
-
-                resolve(filtered);
             });
         });
     },
@@ -384,6 +423,12 @@ window.TaskCreator = {
                     })
                     .then(() => {
                         console.log('%c  ✅ Шаг 2 ЗАВЕРШЁН: Связь создана для новой задачи', 'color: #4caf50; font-weight: bold;');
+                        // 3. КРИТИЧНО: Копируем позицию из предзадачи!
+                        console.log('%c  📝 Шаг 3: Копируем позицию из предзадачи на canvas', 'color: #2196f3;');
+                        return this.copyPositionFromFuture(futureData, newTaskId);
+                    })
+                    .then(() => {
+                        console.log('%c  ✅ Шаг 3 ЗАВЕРШЁН: Позиция скопирована', 'color: #4caf50; font-weight: bold;');
                         console.log('%c✅✅✅ createRealTask ПОЛНОСТЬЮ ЗАВЕРШЁН для ID:', 'color: #00ff00; font-size: 16px; font-weight: bold;', newTaskId);
                         resolve(newTaskId);
                     })
@@ -527,6 +572,60 @@ window.TaskCreator = {
                         });
                     }, 500);
 
+                    resolve();
+                }
+            });
+        });
+    },
+
+    /**
+     * Копирование позиции из предзадачи в позицию реальной задачи
+     */
+    copyPositionFromFuture: function(futureData, newTaskId) {
+        return new Promise((resolve, reject) => {
+            console.log('%c═══════════════════════════════════════', 'color: #ff9800; font-weight: bold;');
+            console.log('%c📍 copyPositionFromFuture ВЫЗВАН', 'color: #ff9800; font-weight: bold; font-size: 14px;');
+            console.log('Task ID:', newTaskId);
+            console.log('futureData:', futureData);
+            console.log('positionX:', futureData.positionX, 'type:', typeof futureData.positionX);
+            console.log('positionY:', futureData.positionY, 'type:', typeof futureData.positionY);
+
+            // Проверяем что в futureData есть positionX и positionY
+            if (!futureData.positionX && !futureData.positionY) {
+                console.log('%c⚠️ У предзадачи нет сохранённой позиции, пропускаем', 'color: #ff9800; font-weight: bold;');
+                console.log('%c═══════════════════════════════════════', 'color: #ff9800; font-weight: bold;');
+                resolve();
+                return;
+            }
+
+            const position = {
+                x: futureData.positionX || 0,
+                y: futureData.positionY || 0
+            };
+
+            console.log('%c📍 Позиция предзадачи: (' + position.x + ', ' + position.y + ')', 'color: #00ff00; font-weight: bold;');
+
+            // Сохраняем позицию в Entity tflow_pos
+            const posData = {
+                nodeId: 'task-' + newTaskId,
+                positionX: position.x,
+                positionY: position.y
+            };
+            console.log('💾 Сохраняем в Entity tflow_pos:', posData);
+
+            BX24.callMethod('entity.item.add', {
+                ENTITY: 'tflow_pos',
+                NAME: 'task-' + newTaskId,
+                DETAIL_TEXT: JSON.stringify(posData)
+            }, (result) => {
+                if (result.error()) {
+                    console.error('%c❌ Ошибка сохранения позиции:', 'color: #f44336; font-weight: bold;', result.error());
+                    console.log('%c═══════════════════════════════════════', 'color: #ff9800; font-weight: bold;');
+                    // Не блокируем выполнение, просто логируем ошибку
+                    resolve();
+                } else {
+                    console.log('%c✅ Позиция task-' + newTaskId + ' сохранена в Entity (ID: ' + result.data() + ')', 'color: #00ff00; font-weight: bold;');
+                    console.log('%c═══════════════════════════════════════', 'color: #ff9800; font-weight: bold;');
                     resolve();
                 }
             });
