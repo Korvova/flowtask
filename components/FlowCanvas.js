@@ -1842,6 +1842,121 @@ window.FlowCanvas = {
                 }, '⏳ Загрузка...');
             }
 
+            // Очистка всех данных Entity
+            const clearAllEntity = () => {
+                if (!confirm('⚠️ ВНИМАНИЕ!\n\nЭто удалит ВСЕ данные:\n• Все связи (tflow_conn)\n• Все позиции (tflow_pos)\n• Все предзадачи (tflow_future)\n\nПродолжить?')) {
+                    return;
+                }
+
+                console.log('🗑️ Начинаем очистку всех Entity...');
+
+                // Функция для загрузки всех записей с FILTER
+                const loadAllItems = (entity) => {
+                    return new Promise((resolve) => {
+                        const allItems = [];
+                        const step = 100;
+
+                        const loadRange = (minId) => {
+                            const maxId = minId + step - 1;
+
+                            BX24.callMethod('entity.item.get', {
+                                ENTITY: entity,
+                                FILTER: {
+                                    '>=ID': minId,
+                                    '<=ID': maxId
+                                }
+                            }, (result) => {
+                                if (result.error()) {
+                                    resolve(allItems);
+                                    return;
+                                }
+
+                                const batch = result.data();
+                                allItems.push(...batch);
+
+                                if (batch.length > 0 && allItems.length < 2000) {
+                                    setTimeout(() => loadRange(minId + step), 50);
+                                } else {
+                                    resolve(allItems);
+                                }
+                            });
+                        };
+
+                        loadRange(1);
+                    });
+                };
+
+                // Функция для удаления записей
+                const deleteItems = (entity, items) => {
+                    return new Promise((resolve) => {
+                        if (items.length === 0) {
+                            console.log(`  ℹ️ ${entity}: нет записей для удаления`);
+                            resolve();
+                            return;
+                        }
+
+                        console.log(`  🗑️ ${entity}: удаляем ${items.length} записей...`);
+                        let deleted = 0;
+
+                        const deleteNext = (index) => {
+                            if (index >= items.length) {
+                                console.log(`  ✅ ${entity}: удалено ${deleted} записей`);
+                                resolve();
+                                return;
+                            }
+
+                            BX24.callMethod('entity.item.delete', {
+                                ENTITY: entity,
+                                ID: items[index].ID
+                            }, (result) => {
+                                if (!result.error()) {
+                                    deleted++;
+                                }
+
+                                // Прогресс каждые 10 записей
+                                if ((index + 1) % 10 === 0) {
+                                    console.log(`    🔄 ${entity}: ${index + 1}/${items.length}`);
+                                }
+
+                                setTimeout(() => deleteNext(index + 1), 10);
+                            });
+                        };
+
+                        deleteNext(0);
+                    });
+                };
+
+                // Очищаем все Entity последовательно
+                (async () => {
+                    try {
+                        // 1. Удаляем связи
+                        console.log('1️⃣ Загружаем связи (tflow_conn)...');
+                        const connections = await loadAllItems('tflow_conn');
+                        console.log(`  📊 Найдено: ${connections.length}`);
+                        await deleteItems('tflow_conn', connections);
+
+                        // 2. Удаляем позиции
+                        console.log('\n2️⃣ Загружаем позиции (tflow_pos)...');
+                        const positions = await loadAllItems('tflow_pos');
+                        console.log(`  📊 Найдено: ${positions.length}`);
+                        await deleteItems('tflow_pos', positions);
+
+                        // 3. Удаляем предзадачи
+                        console.log('\n3️⃣ Загружаем предзадачи (tflow_future)...');
+                        const futures = await loadAllItems('tflow_future');
+                        console.log(`  📊 Найдено: ${futures.length}`);
+                        await deleteItems('tflow_future', futures);
+
+                        console.log('\n✅✅✅ ВСЕ ДАННЫЕ ОЧИЩЕНЫ!');
+                        alert('✅ Все данные Entity успешно удалены!\n\nПерезагрузите страницу для применения изменений.');
+
+                    } catch (error) {
+                        console.error('❌ Ошибка при очистке:', error);
+                        alert('❌ Произошла ошибка при очистке: ' + error);
+                    }
+                })();
+            };
+
             // Тест Entity API - поиск конкретных ID
             const testEntityAPI = () => {
                 console.log('🔬 Тестируем Entity API и FILTER...');
@@ -2121,15 +2236,15 @@ window.FlowCanvas = {
                         boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
                     }
                 }, '🔗 Управление связями'),
-                // Кнопка теста Entity API
+                // Кнопка очистки всех данных Entity
                 React.createElement('button', {
-                    onClick: testEntityAPI,
+                    onClick: clearAllEntity,
                     style: {
                         position: 'absolute',
                         top: '70px',
                         right: '20px',
                         zIndex: 1000,
-                        background: '#ff9800',
+                        background: '#f44336',
                         color: 'white',
                         border: 'none',
                         padding: '12px 20px',
@@ -2139,7 +2254,7 @@ window.FlowCanvas = {
                         fontWeight: 'bold',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
                     }
-                }, '🔬 Тест Entity'),
+                }, '🗑️ Очистить Entity'),
                 React.createElement(ReactFlow, {
                     nodes: nodes,
                     edges: edges,

@@ -173,22 +173,16 @@ window.TaskCreator = {
     },
     
     /**
-     * Получение связей от future-узла
+     * Получение связей от future-узла (ОБНОВЛЕНО: теперь использует FILTER)
      */
     getConnectionsFromFutureNode: function(futureId) {
         return new Promise((resolve) => {
             this.log('    🔍 getConnectionsFromFutureNode: Ищем связи для ' + futureId, '#9c27b0');
+            this.log('    🔧 Используем loadAllConnectionsViaEntityManager (с FILTER)', '#00bcd4');
 
-            BX24.callMethod('entity.item.get', {
-                ENTITY: 'tflow_conn'
-            }, (result) => {
-                if (result.error()) {
-                    this.log('    ❌ Ошибка загрузки связей: ' + JSON.stringify(result.error()), '#f44336');
-                    resolve([]);
-                    return;
-                }
-
-                const items = result.data();
+            // Загружаем ВСЕ связи через метод с FILTER
+            this.loadAllConnectionsViaEntityManager().then(items => {
+                this.log('    📊 Всего связей загружено: ' + items.length, '#2196f3');
 
                 // Фильтруем связи где source = futureId
                 const connections = items.filter(item => {
@@ -202,7 +196,19 @@ window.TaskCreator = {
                 });
 
                 this.log('    ✅ Найдено связей для ' + futureId + ': ' + connections.length, '#2196f3');
+
+                if (connections.length > 0) {
+                    this.log('    📋 Найденные связи:', '#2196f3');
+                    connections.forEach((item, idx) => {
+                        const data = JSON.parse(item.DETAIL_TEXT);
+                        this.log('      ' + (idx+1) + '. ID=' + item.ID + ' ' + data.sourceId + ' → ' + data.targetId, '#9c27b0');
+                    });
+                }
+
                 resolve(connections);
+            }).catch(error => {
+                this.log('    ❌ Ошибка loadAllConnectionsViaEntityManager: ' + error, '#f44336');
+                resolve([]);
             });
         });
     },
@@ -564,22 +570,16 @@ window.TaskCreator = {
     },
 
     /**
-     * Создание связи для реальной задачи + обновление связей из future-узла
+     * Создание связи для реальной задачи + обновление связей из future-узла (ОБНОВЛЕНО: используем FILTER)
      */
     createConnectionForRealTask: function(parentTaskId, newTaskId, futureId) {
         return new Promise((resolve, reject) => {
             console.log('🔗 Обновляем связи для задачи:', newTaskId, 'от предзадачи:', futureId);
+            console.log('🔧 Используем loadAllConnectionsViaEntityManager (с FILTER)');
 
-            BX24.callMethod('entity.item.get', {
-                ENTITY: 'tflow_conn'
-            }, (result) => {
-                if (result.error()) {
-                    console.error('❌ Ошибка загрузки связей:', result.error());
-                    reject(result.error());
-                    return;
-                }
-
-                const connections = result.data();
+            // Загружаем ВСЕ связи через метод с FILTER
+            this.loadAllConnectionsViaEntityManager().then(connections => {
+                console.log('📊 Всего связей загружено:', connections.length);
 
                 // Находим связи ГДЕ targetId = futureId (входящие в future-узел)
                 const incomingConnections = connections.filter(conn => {
@@ -661,6 +661,9 @@ window.TaskCreator = {
                     console.log('✅ Все связи обновлены в Entity!');
                     resolve();
                 }).catch(() => resolve());
+            }).catch(error => {
+                console.error('❌ Ошибка loadAllConnectionsViaEntityManager:', error);
+                reject(error);
             });
         });
     },
