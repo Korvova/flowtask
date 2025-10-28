@@ -27,11 +27,20 @@
  */
 window.EntityManagerV2 = {
 
+    // Кэш проверки существования хранилища
+    _entityExistsCache: false,
+
     /**
      * Создать хранилище tflow_nodes если оно не существует
      */
     ensureEntityExists: function() {
         return new Promise((resolve, reject) => {
+            // Если уже проверяли - сразу возвращаем success
+            if (this._entityExistsCache) {
+                resolve(true);
+                return;
+            }
+
             console.log('🔍 Проверяем существование хранилища tflow_nodes...');
 
             BX24.callMethod('entity.add', {
@@ -46,6 +55,7 @@ window.EntityManagerV2 = {
                     // Если хранилище уже существует - это нормально
                     if (error.ex && error.ex.error_description && error.ex.error_description.includes('already exists')) {
                         console.log('✅ Хранилище tflow_nodes уже существует');
+                        this._entityExistsCache = true;
                         resolve(true);
                     } else {
                         console.error('❌ Ошибка создания хранилища:', error);
@@ -53,6 +63,7 @@ window.EntityManagerV2 = {
                     }
                 } else {
                     console.log('✅ Хранилище tflow_nodes создано успешно');
+                    this._entityExistsCache = true;
                     resolve(true);
                 }
             });
