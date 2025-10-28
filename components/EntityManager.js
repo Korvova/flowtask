@@ -258,7 +258,7 @@ window.EntityManager = {
 
             BX24.callMethod('entity.item.add', {
                 ENTITY: 'tflow_conn',
-                NAME: connectionData.sourceId + '->' + connectionData.targetId,
+                NAME: 'process_' + connectionData.processId,  // ← Храним processId в NAME для быстрой фильтрации!
                 DETAIL_TEXT: JSON.stringify(connectionData)
             }, (result) => {
                 if (result.error()) {
@@ -279,129 +279,39 @@ window.EntityManager = {
     loadConnections: function(processId) {
         return new Promise((resolve) => {
             console.log('📥 EntityManager: Загружаем связи для процесса', processId);
-            console.log('  ✅ Используем FILTER для загрузки диапазонов ID!');
+            console.log('  🚀 Используем FILTER по NAME = process_' + processId + ' (1 запрос вместо 10!)');
 
-            const allItems = [];
-            const seenIds = new Set();
-            const step = 100; // Увеличил шаг для быстрой загрузки
+            BX24.callMethod('entity.item.get', {
+                ENTITY: 'tflow_conn',
+                FILTER: {
+                    NAME: 'process_' + processId  // ← ФИЛЬТРУЕМ ПО NAME! Один запрос, только нужные записи
+                },
+                SORT: { ID: 'ASC' }
+            }, (result) => {
+                if (result.error()) {
+                    console.error('❌ Ошибка загрузки связей:', result.error());
+                    resolve([]);
+                    return;
+                }
 
-            const loadRange = (minId) => {
-                const maxId = minId + step - 1;
-                console.log(`  🔄 Загружаем диапазон ID: ${minId} - ${maxId}`);
+                const items = result.data();
+                console.log('  ✅ Получено связей:', items.length);
 
-                BX24.callMethod('entity.item.get', {
-                    ENTITY: 'tflow_conn',
-                    FILTER: {
-                        '>=ID': minId,
-                        '<=ID': maxId
-                    },
-                    SORT: { ID: 'ASC' }
-                }, (result) => {
-                    if (result.error()) {
-                        console.warn('⚠️ Ошибка загрузки:', result.error());
-                        resolve([]);
-                        return;
-                    }
-
-                    const batch = result.data();
-                    console.log(`  ✅ Получено: ${batch.length} записей`);
-
-                    // Добавляем записи
-                    batch.forEach(item => {
-                        if (!seenIds.has(item.ID)) {
-                            seenIds.add(item.ID);
-                            allItems.push(item);
-                        }
-                    });
-
-                    console.log(`  📊 Всего накоплено: ${allItems.length}`);
-
-                    // Продолжаем загрузку до maxId=1000, даже если batch пустой
-                    if (maxId < 1000 && allItems.length < 1000) {
-                        // Следующий диапазон
-                        setTimeout(() => loadRange(minId + step), 100);
-                    } else {
-                        console.log('✅ Загрузка завершена, всего:', allItems.length);
-
-                        const allIds = Array.from(seenIds).map(id => parseInt(id)).sort((a,b) => a-b);
-                        if (allIds.length > 0) {
-                            console.log(`  📊 ID диапазон: ${allIds[0]} - ${allIds[allIds.length-1]}`);
-                        }
-
-                        processAllItems(allItems);
-                    }
+                // Преобразуем в нужный формат
+                const connections = items.map(item => {
+                    const data = JSON.parse(item.DETAIL_TEXT);
+                    return {
+                        id: item.ID,
+                        sourceId: data.sourceId,
+                        targetId: data.targetId,
+                        connectionType: data.connectionType,
+                        processId: data.processId
+                    };
                 });
-            };
-
-            // Начинаем с ID=200 (из логов первый ID=256)
-            loadRange(200);
-
-            const processAllItems = (items) => {
-                console.log('🔍 Фильтруем связи с processId =', processId);
-
-                // Показываем ID диапазон
-                const allIds = items.map(i => parseInt(i.ID)).sort((a, b) => a - b);
-                console.log('📊 ID диапазон:', allIds.length > 0 ? `${allIds[0]} - ${allIds[allIds.length-1]}` : 'пусто');
-                console.log('📊 Все ID:', allIds.join(', '));
-
-                // Показываем ПЕРВЫЕ 5 связей
-                const firstItems = items.slice(0, 5);
-                console.log('📋 ПЕРВЫЕ 5 связей в Entity:');
-                firstItems.forEach((item, idx) => {
-                    if (item.DETAIL_TEXT) {
-                        try {
-                            const data = JSON.parse(item.DETAIL_TEXT);
-                            console.log(`  ${idx+1}. ID=${item.ID}: processId="${data.processId}" (${typeof data.processId}), source=${data.sourceId}, target=${data.targetId}`);
-                        } catch (e) {}
-                    }
-                });
-
-                // Показываем ПОСЛЕДНИЕ 5 связей для отладки
-                const lastItems = items.slice(-5);
-                console.log('📋 ПОСЛЕДНИЕ 5 связей в Entity:');
-                lastItems.forEach((item, idx) => {
-                    if (item.DETAIL_TEXT) {
-                        try {
-                            const data = JSON.parse(item.DETAIL_TEXT);
-                            console.log(`  ${idx+1}. ID=${item.ID}: processId="${data.processId}" (${typeof data.processId}), source=${data.sourceId}, target=${data.targetId}`);
-                        } catch (e) {}
-                    }
-                });
-
-                // ПРОВЕРЯЕМ наличие ID=402 и 404
-                const has402 = items.find(i => i.ID === '402');
-                const has404 = items.find(i => i.ID === '404');
-                console.log('🔍 Связь ID=402 в результатах:', has402 ? '✅ ЕСТЬ' : '❌ НЕТ');
-                console.log('🔍 Связь ID=404 в результатах:', has404 ? '✅ ЕСТЬ' : '❌ НЕТ');
-
-                const connections = items
-                    .filter(item => {
-                        if (!item.DETAIL_TEXT) return false;
-                        try {
-                            const data = JSON.parse(item.DETAIL_TEXT);
-                            const matches = data.processId == processId;
-                            if (!matches && data.sourceId && data.sourceId.includes('task-115')) {
-                                console.log('  ⚠️ Связь task-115 НЕ прошла фильтр! processId в данных:', data.processId, 'ищем:', processId);
-                            }
-                            return matches;
-                        } catch (e) {
-                            return false;
-                        }
-                    })
-                    .map(item => {
-                        const data = JSON.parse(item.DETAIL_TEXT);
-                        return {
-                            id: item.ID,
-                            sourceId: data.sourceId,
-                            targetId: data.targetId,
-                            connectionType: data.connectionType,
-                            processId: data.processId
-                        };
-                    });
 
                 console.log('✅ Найдено связей для processId=' + processId + ':', connections.length);
                 resolve(connections);
-            };
+            });
         });
     },
 
@@ -417,6 +327,7 @@ window.EntityManager = {
             BX24.callMethod('entity.item.update', {
                 ENTITY: 'tflow_conn',
                 ID: entityId,
+                NAME: 'process_' + connectionData.processId,  // ← Обновляем NAME тоже!
                 DETAIL_TEXT: JSON.stringify(connectionData)
             }, (result) => {
                 if (result.error()) {
