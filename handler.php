@@ -115,12 +115,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761660000000"></script>
-    <script src="components/PullSubscription.js?v=1761660000000"></script>
-    <script src="components/TaskCreator.js?v=1761660000000"></script>
-    <script src="components/TaskNode.js?v=1761660000000"></script>
-    <script src="components/TaskModal.js?v=1761660000000"></script>
-    <script src="components/FlowCanvas.js?v=1761660000000"></script>
+    <script src="components/StatusColors.js?v=1761661000000"></script>
+    <script src="components/PullSubscription.js?v=1761661000000"></script>
+    <script src="components/TaskCreator.js?v=1761661000000"></script>
+    <script src="components/TaskNode.js?v=1761661000000"></script>
+    <script src="components/TaskModal.js?v=1761661000000"></script>
+    <script src="components/FlowCanvas.js?v=1761661000000"></script>
 
     <script>
         // Debug functions
@@ -618,7 +618,7 @@
 
         BX24.init(function() {
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! v=1761660000000 (BX.PULL.subscribe)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK v=1761661000000 (DEBUG LOGS)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const auth = BX24.getAuth();
@@ -642,15 +642,19 @@
             }
 
             // === REAL-TIME UPDATES: Проверяем BX.PULL ===
-            console.log('📡 Проверяем доступность BX.PULL...');
+            console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #2196f3; font-size: 14px;');
+            console.log('%c📡 REAL-TIME СИСТЕМА:', 'color: #2196f3; font-weight: bold; font-size: 16px;');
             console.log('  - typeof BX:', typeof BX);
             console.log('  - typeof BX.PULL:', typeof BX !== 'undefined' ? typeof BX.PULL : 'BX undefined');
 
             if (typeof BX !== 'undefined' && typeof BX.PULL !== 'undefined') {
-                console.log('✅ BX.PULL доступен! Используем real-time события');
+                console.log('%c✅ BX.PULL ДОСТУПЕН! Используем Push & Pull', 'color: #00ff00; font-weight: bold; font-size: 14px;');
+                console.log('%c  → События придут мгновенно при изменении задачи', 'color: #00ff00;');
             } else {
-                console.log('⚠️ BX.PULL недоступен, будем использовать polling');
+                console.log('%c⚠️ BX.PULL НЕДОСТУПЕН! Будем использовать polling', 'color: #ff9800; font-weight: bold; font-size: 14px;');
+                console.log('%c  → Проверка каждые 5 секунд', 'color: #ff9800;');
             }
+            console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #2196f3; font-size: 14px;');
 
             BX24.callMethod("tasks.task.get", { taskId: taskId }, function(result) {
                 if (result.error()) {

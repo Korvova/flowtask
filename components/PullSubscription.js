@@ -23,6 +23,12 @@ window.PullSubscription = {
         // Проверяем доступность BX.PULL
         if (typeof BX === 'undefined' || typeof BX.PULL === 'undefined') {
             console.warn('⚠️  BX.PULL недоступен, используем fallback polling');
+
+            // Добавляем в DEBUG LOG
+            if (window.FlowCanvas && window.FlowCanvas.addDebugLog) {
+                window.FlowCanvas.addDebugLog('📡 Real-time: POLLING (каждые 5 сек)', '#ff9800');
+            }
+
             return this.startPolling(taskId, onStatusChange, onTaskComplete);
         }
 
@@ -38,7 +44,13 @@ window.PullSubscription = {
                     const eventTaskId = data.params?.TASK_ID || data.params?.ID;
 
                     if (eventTaskId == tid) {
-                        console.log('✅ Событие PULL для задачи:', tid, 'команда:', data.command);
+                        console.log('%c📨 Событие BX.PULL получено!', 'color: #00ff00; font-weight: bold; font-size: 14px;');
+                        console.log('  Задача:', tid, '| Команда:', data.command);
+
+                        // Добавляем в DEBUG LOG
+                        if (window.FlowCanvas && window.FlowCanvas.addDebugLog) {
+                            window.FlowCanvas.addDebugLog('📨 BX.PULL: ' + data.command + ' #' + tid, '#00ff00');
+                        }
 
                         // Загружаем актуальные данные задачи
                         this.fetchTaskData(tid, onStatus, onComplete);
@@ -63,7 +75,12 @@ window.PullSubscription = {
             type: 'pull'
         };
 
-        console.log('✅ Подписка на BX.PULL установлена для задачи:', taskId);
+        console.log('%c✅ Подписка на BX.PULL установлена для задачи: ' + taskId, 'color: #00ff00; font-weight: bold; font-size: 14px;');
+
+        // Добавляем в DEBUG LOG
+        if (window.FlowCanvas && window.FlowCanvas.addDebugLog) {
+            window.FlowCanvas.addDebugLog('📡 Real-time: BX.PULL (Push&Pull) ✅', '#00ff00');
+        }
     },
     
     /**
