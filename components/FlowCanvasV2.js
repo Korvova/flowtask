@@ -188,16 +188,60 @@ window.FlowCanvasV2 = {
                 if (target.classList.contains('react-flow__pane') && connectingNodeId) {
                     console.log('✅ Отпустили на пустое место! Создаём предзадачу');
 
-                    // Получить координаты мыши
-                    const reactFlowBounds = document.querySelector('.react-flow').getBoundingClientRect();
-                    const position = reactFlowInstanceRef.current.project({
-                        x: event.clientX - reactFlowBounds.left,
-                        y: event.clientY - reactFlowBounds.top,
+                    // Получить координаты мыши (используем новый метод screenToFlowPosition)
+                    const position = reactFlowInstanceRef.current.screenToFlowPosition({
+                        x: event.clientX,
+                        y: event.clientY,
                     });
 
-                    // Открыть модалку
-                    if (window.TaskModal) {
-                        window.TaskModal.open('future', position, connectingNodeId);
+                    console.log('📍 Позиция создания узла:', position);
+
+                    // Открыть модалку TaskModalV2
+                    if (window.TaskModalV2) {
+                        window.TaskModalV2.open({
+                            sourceNodeId: connectingNodeId,
+                            processId: window.currentProcessId,
+                            position: position,
+                            onSave: async (newNode) => {
+                                console.log('🎯 Новая предзадача создана:', newNode);
+
+                                // Добавляем узел на canvas
+                                const reactFlowNode = {
+                                    id: newNode.nodeId,
+                                    type: 'task',
+                                    position: { x: newNode.positionX, y: newNode.positionY },
+                                    data: {
+                                        nodeId: newNode.nodeId,
+                                        type: newNode.type,
+                                        title: newNode.title,
+                                        status: newNode.status,
+                                        realTaskId: newNode.realTaskId
+                                    }
+                                };
+
+                                setNodes((nds) => [...nds, reactFlowNode]);
+
+                                // Создаём связь
+                                const newEdge = {
+                                    id: `${connectingNodeId}-${newNode.nodeId}`,
+                                    source: connectingNodeId,
+                                    target: newNode.nodeId,
+                                    animated: true,
+                                    style: { stroke: '#667eea', strokeWidth: 2 }
+                                };
+
+                                setEdges((eds) => [...eds, newEdge]);
+
+                                // Сохраняем связь в базу
+                                await EntityManagerV2.saveConnection(
+                                    window.currentProcessId,
+                                    connectingNodeId,
+                                    newNode.nodeId
+                                );
+
+                                console.log('✅ Связь создана:', connectingNodeId, '->', newNode.nodeId);
+                            }
+                        });
                     }
                 }
 

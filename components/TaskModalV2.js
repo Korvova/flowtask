@@ -15,24 +15,31 @@ window.TaskModalV2 = {
      * @param {string} sourceId - ID исходного узла (если params это строка)
      */
     open: function(params, position, sourceId) {
-        // Новый формат: params это объект { sourceNodeId, processId, onSave }
+        // Новый формат: params это объект { sourceNodeId, processId, position, onSave }
         if (typeof params === 'object' && params.sourceNodeId) {
             this.currentSourceId = params.sourceNodeId;
             this.currentProcessId = params.processId || window.currentProcessId;
             this.onSaveCallback = params.onSave || null;
 
-            // Получаем текущие узлы чтобы вычислить позицию
-            EntityManagerV2.loadProcess(this.currentProcessId).then(nodes => {
-                const sourceNode = nodes.find(n => n.nodeId === this.currentSourceId);
-
-                // Размещаем новую предзадачу справа и ниже от исходной
-                this.currentPosition = {
-                    x: (sourceNode?.positionX || 400) + 250,
-                    y: (sourceNode?.positionY || 300) + 100
-                };
-
+            // Если позиция передана явно - используем её
+            if (params.position) {
+                this.currentPosition = params.position;
                 this.showPrompt();
-            });
+            }
+            // Иначе вычисляем позицию от исходного узла
+            else {
+                EntityManagerV2.loadProcess(this.currentProcessId).then(nodes => {
+                    const sourceNode = nodes.find(n => n.nodeId === this.currentSourceId);
+
+                    // Размещаем новую предзадачу справа и ниже от исходной
+                    this.currentPosition = {
+                        x: (sourceNode?.positionX || 400) + 250,
+                        y: (sourceNode?.positionY || 300) + 100
+                    };
+
+                    this.showPrompt();
+                });
+            }
         }
         // Старый формат: три отдельных параметра (для совместимости)
         else {
