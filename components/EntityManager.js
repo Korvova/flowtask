@@ -258,6 +258,23 @@ window.EntityManager = {
                 console.log('📦 Всего связей в Entity:', items.length);
                 console.log('🔍 Ищем связи с processId =', processId, '(type:', typeof processId + ')');
 
+                // Показываем ID диапазон
+                const allIds = items.map(i => parseInt(i.ID)).sort((a, b) => a - b);
+                console.log('📊 ID диапазон:', allIds.length > 0 ? `${allIds[0]} - ${allIds[allIds.length-1]}` : 'пусто');
+                console.log('📊 Все ID:', allIds.join(', '));
+
+                // Показываем ПЕРВЫЕ 5 связей
+                const firstItems = items.slice(0, 5);
+                console.log('📋 ПЕРВЫЕ 5 связей в Entity:');
+                firstItems.forEach((item, idx) => {
+                    if (item.DETAIL_TEXT) {
+                        try {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            console.log(`  ${idx+1}. ID=${item.ID}: processId="${data.processId}" (${typeof data.processId}), source=${data.sourceId}, target=${data.targetId}`);
+                        } catch (e) {}
+                    }
+                });
+
                 // Показываем ПОСЛЕДНИЕ 5 связей для отладки
                 const lastItems = items.slice(-5);
                 console.log('📋 ПОСЛЕДНИЕ 5 связей в Entity:');
@@ -269,6 +286,12 @@ window.EntityManager = {
                         } catch (e) {}
                     }
                 });
+
+                // ПРОВЕРЯЕМ наличие ID=402 и 404
+                const has402 = items.find(i => i.ID === '402');
+                const has404 = items.find(i => i.ID === '404');
+                console.log('🔍 Связь ID=402 в результатах:', has402 ? '✅ ЕСТЬ' : '❌ НЕТ');
+                console.log('🔍 Связь ID=404 в результатах:', has404 ? '✅ ЕСТЬ' : '❌ НЕТ');
 
                 const connections = items
                     .filter(item => {

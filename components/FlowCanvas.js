@@ -1842,6 +1842,75 @@ window.FlowCanvas = {
                 }, '⏳ Загрузка...');
             }
 
+            // Тест Entity API - поиск конкретных ID
+            const testEntityAPI = () => {
+                console.log('🔬 Тестируем Entity API...');
+
+                // 1. Получаем ВСЕ связи
+                BX24.callMethod('entity.item.get', {
+                    ENTITY: 'tflow_conn'
+                }, (result) => {
+                    if (result.error()) {
+                        console.error('❌ Ошибка:', result.error());
+                        return;
+                    }
+
+                    const items = result.data();
+                    console.log('📦 Всего связей:', items.length);
+
+                    // Все ID
+                    const allIds = items.map(i => i.ID);
+                    console.log('📋 Все ID:', allIds.join(', '));
+
+                    // Проверяем ID=402, 404
+                    const has402 = items.find(i => i.ID === '402');
+                    const has404 = items.find(i => i.ID === '404');
+                    console.log('🔍 ID=402:', has402 ? '✅ НАЙДЕНО' : '❌ НЕТ');
+                    console.log('🔍 ID=404:', has404 ? '✅ НАЙДЕНО' : '❌ НЕТ');
+
+                    if (has402) console.log('  Данные 402:', JSON.parse(has402.DETAIL_TEXT));
+                    if (has404) console.log('  Данные 404:', JSON.parse(has404.DETAIL_TEXT));
+
+                    // 2. Пробуем запросить конкретный ID
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_conn',
+                        FILTER: { ID: '402' }
+                    }, (res402) => {
+                        console.log('🔍 Прямой запрос ID=402:', res402.data().length > 0 ? '✅ НАЙДЕНО' : '❌ НЕТ');
+                        if (res402.data().length > 0) {
+                            console.log('  Данные:', JSON.parse(res402.data()[0].DETAIL_TEXT));
+                        }
+                    });
+
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_conn',
+                        FILTER: { ID: '404' }
+                    }, (res404) => {
+                        console.log('🔍 Прямой запрос ID=404:', res404.data().length > 0 ? '✅ НАЙДЕНО' : '❌ НЕТ');
+                        if (res404.data().length > 0) {
+                            console.log('  Данные:', JSON.parse(res404.data()[0].DETAIL_TEXT));
+                        }
+                    });
+
+                    // 3. Проверяем связи с processId=116
+                    const conn116 = items.filter(item => {
+                        if (!item.DETAIL_TEXT) return false;
+                        try {
+                            const data = JSON.parse(item.DETAIL_TEXT);
+                            return data.processId == '116';
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+                    console.log('🔍 Связей с processId=116:', conn116.length);
+                    conn116.forEach(item => {
+                        const data = JSON.parse(item.DETAIL_TEXT);
+                        console.log(`  ID=${item.ID}: ${data.sourceId} → ${data.targetId}`);
+                    });
+                });
+            };
+            window.testEntityAPI = testEntityAPI; // Экспортируем в window
+
             // Показать модалку управления связями
             const showConnectionsModal = () => {
                 console.log('🔧 Открываем модалку управления связями');
@@ -1988,6 +2057,25 @@ window.FlowCanvas = {
                         boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
                     }
                 }, '🔗 Управление связями'),
+                // Кнопка теста Entity API
+                React.createElement('button', {
+                    onClick: testEntityAPI,
+                    style: {
+                        position: 'absolute',
+                        top: '70px',
+                        right: '20px',
+                        zIndex: 1000,
+                        background: '#ff9800',
+                        color: 'white',
+                        border: 'none',
+                        padding: '12px 20px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                    }
+                }, '🔬 Тест Entity'),
                 React.createElement(ReactFlow, {
                     nodes: nodes,
                     edges: edges,
