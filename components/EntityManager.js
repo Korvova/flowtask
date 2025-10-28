@@ -258,8 +258,10 @@ window.EntityManager = {
                 console.log('📦 Всего связей в Entity:', items.length);
                 console.log('🔍 Ищем связи с processId =', processId, '(type:', typeof processId + ')');
 
-                // Показываем первые 5 связей для отладки
-                items.slice(0, 5).forEach((item, idx) => {
+                // Показываем ПОСЛЕДНИЕ 5 связей для отладки
+                const lastItems = items.slice(-5);
+                console.log('📋 ПОСЛЕДНИЕ 5 связей в Entity:');
+                lastItems.forEach((item, idx) => {
                     if (item.DETAIL_TEXT) {
                         try {
                             const data = JSON.parse(item.DETAIL_TEXT);
