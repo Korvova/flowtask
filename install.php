@@ -376,18 +376,19 @@ if (isset($_REQUEST['event']) && $_REQUEST['event'] === 'ONAPPINSTALL') {
 
         // Шаг 4: Регистрация Webhook
         function installStep4_RegisterWebhook() {
-            showProgress('Шаг 4/7: Регистрация webhook для автосоздания задач...');
-            
+            showProgress('Шаг 4/7: Регистрация webhook для real-time обновлений...');
+
+            // Регистрируем webhook для ONTASKUPDATE
             BX24.callMethod('event.bind', {
                 event: 'ONTASKUPDATE',
-                handler: window.location.origin + '/flowtask/task_completion_handler.php'
+                handler: 'https://test.test-rms.ru/flowtask/task_update_webhook.php'
             }, function(eventResult) {
                 if (eventResult.error()) {
-                    console.warn('⚠️ Webhook не зарегистрирован:', eventResult.error());
+                    console.warn('⚠️ Webhook ONTASKUPDATE не зарегистрирован:', eventResult.error());
                 } else {
-                    console.log('✅ Webhook зарегистрирован');
+                    console.log('✅ Webhook ONTASKUPDATE зарегистрирован');
                 }
-                
+
                 installStep5_Finish();
             });
         }

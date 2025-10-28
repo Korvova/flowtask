@@ -27,66 +27,40 @@ window.PullSubscription = {
                 return;
             }
 
-            // Получаем данные авторизации
-            BX24.callMethod('app.info', {}, (result) => {
-                if (result.error()) {
-                    console.error('❌ Ошибка получения app.info:', result.error());
-                    reject(result.error());
-                    return;
+            try {
+                // Создаём клиент BX.PullClient для приложения
+                this.pullClient = new BX.PullClient({
+                    restClient: BX24
+                });
+
+                console.log('✅ BX.PullClient создан');
+
+                // Подписываемся на custom команду от нашего webhook
+                this.pullClient.subscribe({
+                    type: BX.PullClient.SubscriptionType.Server,
+                    moduleId: 'application',
+                    command: 'flowtask_task_updated',
+                    callback: this.handlePullEvent.bind(this)
+                });
+
+                console.log('✅ Подписка на flowtask_task_updated установлена');
+
+                // Запускаем клиент
+                this.pullClient.start();
+                console.log('✅ BX.PullClient запущен');
+
+                // Добавляем в DEBUG LOG
+                if (window.FlowCanvas && window.FlowCanvas.addDebugLog) {
+                    window.FlowCanvas.addDebugLog('📡 Pull & Push ПОДКЛЮЧЕН', '#00ff00');
                 }
 
-                const appInfo = result.data();
-                console.log('📱 App Info получен:', appInfo);
+                this.isInitialized = true;
+                resolve();
 
-                // Получаем auth данные
-                BX24.getAuth((auth) => {
-                    console.log('🔐 Auth данные:', auth);
-
-                    const bitrixDomain = auth.domain; // test.test-rms.ru
-                    console.log('🌐 Домен портала Bitrix24:', bitrixDomain);
-
-                    try {
-                        // Создаём клиент BX.PullClient с явным указанием сервера портала
-                        this.pullClient = new BX.PullClient({
-                            restClient: BX24,
-                            userId: auth.user_id || auth.USER_ID,
-                            siteId: 's1',
-                            enabled: true,
-                            restApplication: 'telegsarflow.' + bitrixDomain,
-                            server: {
-                                // Long Polling endpoint на портале Bitrix24 (НЕ на rms-bot.com!)
-                                path: 'https://' + bitrixDomain + '/bitrix/sub/'
-                            }
-                        });
-
-                        console.log('✅ BX.PullClient создан для домена:', bitrixDomain);
-
-                        // Подписываемся на модуль tasks
-                        this.pullClient.subscribe({
-                            moduleId: 'tasks',
-                            callback: this.handlePullEvent.bind(this)
-                        });
-
-                        console.log('✅ Подписка на модуль tasks установлена');
-
-                        // Запускаем клиент
-                        this.pullClient.start();
-                        console.log('✅ BX.PullClient запущен');
-
-                        // Добавляем в DEBUG LOG
-                        if (window.FlowCanvas && window.FlowCanvas.addDebugLog) {
-                            window.FlowCanvas.addDebugLog('📡 Pull & Push ПОДКЛЮЧЕН', '#00ff00');
-                        }
-
-                        this.isInitialized = true;
-                        resolve();
-
-                    } catch (error) {
-                        console.error('❌ Ошибка инициализации BX.PullClient:', error);
-                        reject(error);
-                    }
-                });
-            });
+            } catch (error) {
+                console.error('❌ Ошибка инициализации BX.PullClient:', error);
+                reject(error);
+            }
         });
     },
 
@@ -101,19 +75,23 @@ window.PullSubscription = {
             window.FlowCanvas.addDebugLog('📨 PULL событие: ' + (data.command || 'unknown'), '#00bcd4');
         }
 
-        // Извлекаем ID задачи из разных возможных мест
-        const eventTaskId =
-            data.params?.FIELDS_AFTER?.ID ||
-            data.params?.ID ||
-            data.params?.TASK_ID ||
-            data.params?.taskId;
+        // Проверяем что это наше событие flowtask_task_updated
+        if (data.command !== 'flowtask_task_updated') {
+            console.log('⏭️ Не наше событие, пропускаем');
+            return;
+        }
+
+        // Извлекаем данные из params
+        const eventTaskId = data.params?.taskId;
+        const statusBefore = data.params?.statusBefore;
+        const statusAfter = data.params?.statusAfter;
 
         if (!eventTaskId) {
             console.warn('⚠️ Не удалось извлечь ID задачи из события:', data);
             return;
         }
 
-        console.log('📋 Событие для задачи #' + eventTaskId + ', команда:', data.command);
+        console.log('📋 Событие для задачи #' + eventTaskId + ', статус: ' + statusBefore + ' → ' + statusAfter);
 
         // Проверяем, подписаны ли мы на эту задачу
         const subscription = this.subscriptions[eventTaskId];
@@ -126,7 +104,7 @@ window.PullSubscription = {
 
         // Добавляем в DEBUG LOG
         if (window.FlowCanvas && window.FlowCanvas.addDebugLog) {
-            window.FlowCanvas.addDebugLog('🔄 Обновление задачи #' + eventTaskId, '#4caf50');
+            window.FlowCanvas.addDebugLog('🔄 Обновление задачи #' + eventTaskId + ' (' + statusBefore + ' → ' + statusAfter + ')', '#4caf50');
         }
 
         // Загружаем актуальные данные задачи
