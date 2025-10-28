@@ -115,12 +115,12 @@
         </div>
     </div>
 
-    <script src="components/StatusColors.js?v=1761659000000"></script>
-    <script src="components/PullSubscription.js?v=1761659000000"></script>
-    <script src="components/TaskCreator.js?v=1761659000000"></script>
-    <script src="components/TaskNode.js?v=1761659000000"></script>
-    <script src="components/TaskModal.js?v=1761659000000"></script>
-    <script src="components/FlowCanvas.js?v=1761659000000"></script>
+    <script src="components/StatusColors.js?v=1761660000000"></script>
+    <script src="components/PullSubscription.js?v=1761660000000"></script>
+    <script src="components/TaskCreator.js?v=1761660000000"></script>
+    <script src="components/TaskNode.js?v=1761660000000"></script>
+    <script src="components/TaskModal.js?v=1761660000000"></script>
+    <script src="components/FlowCanvas.js?v=1761660000000"></script>
 
     <script>
         // Debug functions
@@ -618,7 +618,7 @@
 
         BX24.init(function() {
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
-            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! Версия: v=1761659000000 (Pull&Push восстановлен)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
+            console.log('%c🚀 FLOWTASK ЗАГРУЖЕН! v=1761660000000 (BX.PULL.subscribe)', 'color: #00ff00; font-size: 20px; font-weight: bold;');
             console.log('%c═══════════════════════════════════════════', 'color: #00ff00; font-size: 16px;');
 
             const auth = BX24.getAuth();
@@ -641,42 +641,16 @@
                 return;
             }
 
-            // === REAL-TIME UPDATES: Загружаем Pull библиотеки ===
-            console.log('📡 Загружаем Bitrix Pull библиотеки для real-time обновлений...');
+            // === REAL-TIME UPDATES: Проверяем BX.PULL ===
+            console.log('📡 Проверяем доступность BX.PULL...');
+            console.log('  - typeof BX:', typeof BX);
+            console.log('  - typeof BX.PULL:', typeof BX !== 'undefined' ? typeof BX.PULL : 'BX undefined');
 
-            // Сначала загружаем Bitrix core, потом Pull библиотеку
-            loadBitrixCore(bitrixDomain)
-                .then(() => {
-                    console.log('✅ Bitrix core загружен, загружаем Pull библиотеку...');
-                    return loadPullLibrary(bitrixDomain);
-                })
-                .then(() => {
-                    console.log('✅ Pull библиотека загружена');
-                    console.log('🔍 Проверка доступных объектов:');
-                    console.log('  - typeof BX:', typeof BX);
-                    console.log('  - typeof BX.PullClient:', typeof BX !== 'undefined' ? typeof BX.PullClient : 'BX undefined');
-
-                    // Даём время на инициализацию BX объектов
-                    setTimeout(() => {
-                        console.log('🔍 Проверка после 500ms:');
-                        console.log('  - typeof BX.PullClient:', typeof BX !== 'undefined' ? typeof BX.PullClient : 'BX undefined');
-
-                        // Инициализируем PullSubscription с BX.PullClient
-                        if (window.PullSubscription && window.PullSubscription.initPullClient) {
-                            window.PullSubscription.initPullClient()
-                                .then(() => {
-                                    console.log('✅ PullSubscription инициализирован через BX.PullClient');
-                                })
-                                .catch((err) => {
-                                    console.warn('⚠️ BX.PullClient не удалось инициализировать, используем polling:', err);
-                                });
-                        }
-                    }, 500); // Задержка для полной загрузки BX
-                })
-                .catch((err) => {
-                    console.error('❌ Bitrix core или Pull библиотека недоступны, используем polling:', err);
-                    console.log('📡 Fallback: polling режим');
-                });
+            if (typeof BX !== 'undefined' && typeof BX.PULL !== 'undefined') {
+                console.log('✅ BX.PULL доступен! Используем real-time события');
+            } else {
+                console.log('⚠️ BX.PULL недоступен, будем использовать polling');
+            }
 
             BX24.callMethod("tasks.task.get", { taskId: taskId }, function(result) {
                 if (result.error()) {
