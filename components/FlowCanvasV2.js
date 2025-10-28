@@ -211,11 +211,14 @@ window.FlowCanvasV2 = {
                                     type: 'task',
                                     position: { x: newNode.positionX, y: newNode.positionY },
                                     data: {
-                                        nodeId: newNode.nodeId,
-                                        type: newNode.type,
+                                        id: newNode.nodeId,
                                         title: newNode.title,
-                                        status: newNode.status,
-                                        realTaskId: newNode.realTaskId
+                                        statusCode: newNode.status,  // TaskNode использует statusCode!
+                                        isFuture: newNode.type === 'future',
+                                        conditionType: newNode.condition,
+                                        delayMinutes: newNode.delayMinutes,
+                                        realTaskId: newNode.realTaskId,
+                                        _node: newNode
                                     }
                                 };
 
@@ -271,15 +274,16 @@ window.FlowCanvasV2 = {
             const handleStatusChange = useCallback(async (taskId, newStatus) => {
                 console.log('🔄 Статус изменён:', taskId, '→', newStatus);
 
-                // Обновить визуально
+                // Обновить визуально (TaskNode использует statusCode!)
                 setNodes((nds) =>
                     nds.map(node => {
                         if (node.id === 'task-' + taskId) {
+                            console.log('✅ Обновляем узел:', node.id, 'новый статус:', newStatus);
                             return {
                                 ...node,
                                 data: {
                                     ...node.data,
-                                    status: newStatus,
+                                    statusCode: newStatus,  // TaskNode использует statusCode!
                                     _updateTime: Date.now()
                                 }
                             };
