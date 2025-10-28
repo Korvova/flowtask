@@ -29,8 +29,26 @@ window.FlowCanvasV2 = {
         const { ReactFlow, Controls, Background, addEdge: rfAddEdge } = RF;
 
         // Простой компонент узла задачи
-        function TaskNodeComponent({ data }) {
+        function TaskNodeComponent({ data, id }) {
             const statusColor = window.StatusColors ? window.StatusColors.getColor(data.status) : '#0066cc';
+
+            const handleAddFuture = (e) => {
+                e.stopPropagation();
+                console.log('➕ Создание предзадачи для узла:', id);
+
+                // Открываем модальное окно для создания предзадачи
+                if (window.TaskModalV2) {
+                    window.TaskModalV2.open({
+                        sourceNodeId: id,
+                        processId: window.currentProcessId,
+                        onSave: () => {
+                            console.log('✅ Предзадача создана, перезагружаем canvas');
+                            // Перезагрузить canvas
+                            window.location.reload();
+                        }
+                    });
+                }
+            };
 
             return React.createElement('div', {
                 style: {
@@ -40,7 +58,8 @@ window.FlowCanvasV2 = {
                     borderRadius: '8px',
                     minWidth: '200px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    position: 'relative'
                 }
             }, [
                 React.createElement('div', {
@@ -59,7 +78,23 @@ window.FlowCanvasV2 = {
                         color: '#666',
                         marginTop: '5px'
                     }
-                }, `Статус: ${data.status}`) : null
+                }, `Статус: ${data.status}`) : null,
+                // Кнопка добавления предзадачи (только для task узлов)
+                data.isRealTask ? React.createElement('button', {
+                    key: 'add-btn',
+                    onClick: handleAddFuture,
+                    style: {
+                        marginTop: '10px',
+                        padding: '5px 10px',
+                        background: '#0066cc',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        width: '100%'
+                    }
+                }, '➕ Добавить предзадачу') : null
             ]);
         }
 

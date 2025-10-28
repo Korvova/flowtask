@@ -5,17 +5,53 @@ window.TaskModalV2 = {
 
     currentPosition: null,
     currentSourceId: null,
+    currentProcessId: null,
+    onSaveCallback: null,
 
     /**
      * Открыть модалку
+     * @param {Object|string} params - Объект параметров или тип (для совместимости)
+     * @param {Object} position - Позиция (если params это строка)
+     * @param {string} sourceId - ID исходного узла (если params это строка)
      */
-    open: function(type, position, sourceId) {
-        this.currentPosition = position;
-        this.currentSourceId = sourceId;
+    open: function(params, position, sourceId) {
+        // Новый формат: params это объект { sourceNodeId, processId, onSave }
+        if (typeof params === 'object' && params.sourceNodeId) {
+            this.currentSourceId = params.sourceNodeId;
+            this.currentProcessId = params.processId || window.currentProcessId;
+            this.onSaveCallback = params.onSave || null;
 
-        console.log('📝 Открываем модалку для создания:', type);
-        console.log('   Позиция:', position);
-        console.log('   От узла:', sourceId);
+            // Получаем текущие узлы чтобы вычислить позицию
+            EntityManagerV2.loadProcess(this.currentProcessId).then(nodes => {
+                const sourceNode = nodes.find(n => n.nodeId === this.currentSourceId);
+
+                // Размещаем новую предзадачу справа и ниже от исходной
+                this.currentPosition = {
+                    x: (sourceNode?.positionX || 400) + 250,
+                    y: (sourceNode?.positionY || 300) + 100
+                };
+
+                this.showPrompt();
+            });
+        }
+        // Старый формат: три отдельных параметра (для совместимости)
+        else {
+            this.currentPosition = position;
+            this.currentSourceId = sourceId;
+            this.currentProcessId = window.currentProcessId;
+            this.onSaveCallback = null;
+
+            this.showPrompt();
+        }
+    },
+
+    /**
+     * Показать prompt для ввода названия
+     */
+    showPrompt: function() {
+        console.log('📝 Открываем модалку для создания предзадачи');
+        console.log('   Позиция:', this.currentPosition);
+        console.log('   От узла:', this.currentSourceId);
 
         // Показать простой prompt
         const title = prompt('Введите название предзадачи:');
@@ -35,6 +71,7 @@ window.TaskModalV2 = {
             console.log('💾 Создаём предзадачу:', title);
 
             const futureId = 'future-' + Date.now();
+            const processId = this.currentProcessId || window.currentProcessId;
 
             // Создать узел предзадачи
             const futureNode = {
@@ -54,11 +91,11 @@ window.TaskModalV2 = {
                 ]
             };
 
-            await EntityManagerV2.saveNode(window.currentProcessId, futureNode);
+            await EntityManagerV2.saveNode(processId, futureNode);
             console.log('✅ Предзадача создана:', futureId);
 
             // Добавить связь к исходному узлу
-            const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
+            const allNodes = await EntityManagerV2.loadProcess(processId);
             const sourceNode = allNodes.find(n => n.nodeId === this.currentSourceId);
 
             if (sourceNode) {
@@ -71,12 +108,18 @@ window.TaskModalV2 = {
                     id: futureId
                 });
 
-                await EntityManagerV2.saveNode(window.currentProcessId, sourceNode);
+                await EntityManagerV2.saveNode(processId, sourceNode);
                 console.log('✅ Связь добавлена');
             }
 
-            // Перезагрузить canvas
-            if (window.FlowCanvasV2) {
+            // Вызвать callback если есть
+            if (this.onSaveCallback) {
+                console.log('📞 Вызываем onSave callback');
+                this.onSaveCallback(futureId);
+            }
+            // Иначе перезагрузить canvas
+            else if (window.FlowCanvasV2) {
+                console.log('🔄 Перезагружаем canvas');
                 window.FlowCanvasV2.reloadCanvas();
             }
 
