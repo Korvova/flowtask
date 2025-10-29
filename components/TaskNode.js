@@ -5,6 +5,15 @@ window.TaskNode = function({ id, data, selected }) {
     const React = window.React;
     const { Handle, NodeToolbar, Position } = window.ReactFlow || window.reactflow || {};
 
+    console.log('🎨 TaskNode render:', {
+        id,
+        isFuture: data.isFuture,
+        selected,
+        hasOnDelete: !!data.onDelete,
+        hasOnEdit: !!data.onEdit,
+        NodeToolbar: !!NodeToolbar
+    });
+
     if (!Handle) {
         console.error('Handle не найден в ReactFlow');
         return null;
