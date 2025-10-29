@@ -337,6 +337,12 @@ window.TaskModalV2 = {
                                         // Обновляем предзадачу
                                         futureNode.realTaskId = newTaskId;
                                         await EntityManagerV2.saveNode(processId, futureNode);
+
+                                        // Обновляем canvas - скрыть предзадачу, показать задачу
+                                        if (window.FlowCanvasV2 && window.FlowCanvasV2.updateNodes) {
+                                            console.log('🔄 Обновляем canvas после автоматического создания задачи...');
+                                            window.FlowCanvasV2.updateNodes();
+                                        }
                                     }
                                 } catch (error) {
                                     console.error('❌ Ошибка создания задачи:', error);
