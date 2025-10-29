@@ -100,6 +100,7 @@ window.TaskHandler = {
                     title: futureNode.title,
                     description: futureNode.description || '',
                     status: 2,
+                    realTaskId: newTaskId,  // ✅ Добавляем realTaskId для PULL подписки!
                     positionX: futureNode.positionX || 0,
                     positionY: futureNode.positionY || 0,
                     connectionsFrom: futureNode.connectionsFrom || [],
