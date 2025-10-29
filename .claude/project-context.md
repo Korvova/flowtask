@@ -4,7 +4,7 @@
 
 ### Окружение разработки
 - **Локальная машина**: `/var/www/flowtask` - Git репозиторий для разработки
-- **Удалённый сервер**: Bitrix24 VM (217.114.10.226)
+- **Удалённый сервер**: Bitrix24 VM 
   - SSH доступ: `ssh root@217.114.10.226` (пароль: ca4^UXhSN@3k)
   - Там находится production версия приложения
 
@@ -216,6 +216,109 @@ git log -p components/FlowCanvasV2.js
 **Источник:** Context7 xyflow/xyflow - рекомендуется через setState
 
 **Коммит:** `3173988` - Optimize: Update nodes via setState instead of full reload
+
+---
+
+### Сессия 2025-01-29 (вторая): Исправление обновления цветов задач в реальном времени
+
+#### Проблема: Задачи не меняют цвет при изменении статуса
+**Симптомы:**
+- Задача 137 меняет цвет при изменении статуса ✅
+- Задача 138 НЕ меняет цвет на полотне задачи 137 ❌
+- При перезагрузке страницы цвета устаревшие (белый вместо синего/зеленого)
+- События ONTASKUPDATE генерируют ошибки 400 Bad Request
+
+**Причины (найдено через логирование):**
+1. **BX24.callBind не работает в iframe** - генерирует ошибки 400
+2. **updateSingleTaskStatus обновлял data.status вместо data.statusCode** - TaskNode использует statusCode
+3. **updateTaskStatuses перезаписывал статусы** после PULL событий - loadProcessData вызывал updateTaskStatuses каждый раз
+4. **handleStatusChange НЕ сохранял в Entity Storage** - только обновлял React state
+5. **task-138 создан БЕЗ realTaskId** - TaskHandler.handleTaskComplete не добавлял realTaskId
+6. **PULL не подписывался на task-138** - фильтр `node.data.realTaskId` пропускал её
+
+**Решение по шагам:**
+
+**Шаг 1:** [handler.php:85-90] Убрали BX24.callBind - не работает в iframe
+```javascript
+// Real-time обновления статусов обрабатываются через PullSubscription.js
+if (typeof BX !== 'undefined' && typeof BX.PULL !== 'undefined') {
+    BX.PULL.start();
+}
+```
+
+**Шаг 2:** [FlowCanvasV2.js:168-170] Исправили updateSingleTaskStatus - используем statusCode
+```javascript
+data: {
+    ...node.data,
+    statusCode: newStatus,  // TaskNode использует statusCode!
+    _updateTime: Date.now()
+}
+```
+
+**Шаг 3:** [FlowCanvasV2.js:264-273] Добавили флаг isInitialLoad - updateTaskStatuses только при первой загрузке
+```javascript
+if (isInitialLoadRef.current) {
+    await updateTaskStatuses(allNodes, taskNodes);
+    isInitialLoadRef.current = false;
+} else {
+    console.log('ℹ️ Пропускаем updateTaskStatuses (статусы обновляются через PULL)');
+}
+```
+
+**Шаг 4:** [FlowCanvasV2.js:579-592] handleStatusChange сохраняет в Entity Storage ПЕРЕД обновлением UI
+```javascript
+const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
+const nodeToUpdate = allNodes.find(n => n.type === 'task' && n.realTaskId === taskId);
+if (nodeToUpdate) {
+    nodeToUpdate.status = newStatus;
+    await EntityManagerV2.saveNode(window.currentProcessId, nodeToUpdate);
+}
+```
+
+**Шаг 5:** [TaskHandler.js:103] Добавили realTaskId при создании задачи из предзадачи
+```javascript
+const newTaskNode = {
+    nodeId: 'task-' + newTaskId,
+    type: 'task',
+    realTaskId: newTaskId,  // ✅ Добавляем для PULL подписки!
+    // ...
+};
+```
+
+**Шаг 6:** [FlowCanvasV2.js:262-278] Автоисправление старых узлов без realTaskId
+```javascript
+const nodesWithoutRealTaskId = allNodes.filter(n =>
+    n.type === 'task' && !n.realTaskId && n.nodeId.startsWith('task-')
+);
+for (const node of nodesWithoutRealTaskId) {
+    const taskId = parseInt(node.nodeId.replace('task-', ''));
+    node.realTaskId = taskId;
+    await EntityManagerV2.saveNode(window.currentProcessId, node);
+}
+```
+
+**Результат:**
+- ✅ Все задачи на полотне меняют цвет в реальном времени
+- ✅ Цвета сохраняются после перезагрузки
+- ✅ Старые узлы автоматически исправляются при загрузке
+- ✅ Нет ошибок 400 в консоли
+
+**Коммиты:**
+- `04c4415` - Fix: Real-time status updates for ALL tasks on canvas
+- `0e3d9e9` - Fix: Use statusCode instead of status for visual updates
+- `d3a905c` - Fix: Prevent status overwrite on canvas reload
+- `4a35cc0` - Debug: Add detailed logging for status color changes
+- `a36e58e` - Fix: Save status to Entity Storage on PULL events
+- `787efa4` - Debug: Add logging for PULL subscription
+- `0445570` - Fix: Add realTaskId when creating task from future
+- `5583f06` - Fix: Auto-repair task nodes without realTaskId on load
+
+**Важные находки:**
+1. **TaskNode использует data.statusCode, НЕ data.status** - частая ошибка!
+2. **PULL подписка требует realTaskId** - без него события не работают
+3. **Entity Storage = источник правды** - React state должен синхронизироваться с ним
+4. **BX24.callBind не работает в iframe** - использовать BX.PULL вместо этого
+5. **Логирование критично** - без него не нашли бы realTaskId: undefined
 
 ---
 

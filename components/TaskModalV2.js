@@ -313,6 +313,37 @@ window.TaskModalV2 = {
                 if (this.currentSourceId) {
                     await EntityManagerV2.saveConnection(processId, this.currentSourceId, futureId);
                     console.log('✅ Связь создана:', this.currentSourceId, '->', futureId);
+
+                    // Проверяем: если родительская задача завершена И условие "immediately" - создаём задачу сразу
+                    if (condition === 'immediately') {
+                        const allNodes = await EntityManagerV2.loadProcess(processId);
+                        const sourceNode = allNodes.find(n => n.nodeId === this.currentSourceId);
+
+                        if (sourceNode && sourceNode.type === 'task' && sourceNode.status === 5) {
+                            console.log('🎉 Родительская задача завершена! Создаём задачу из предзадачи сразу...');
+
+                            // Используем TaskHandler для создания задачи
+                            if (window.TaskHandler && window.TaskHandler.createTaskFromFuture) {
+                                try {
+                                    const newTaskId = await window.TaskHandler.createTaskFromFuture(
+                                        futureNode,
+                                        sourceNode,
+                                        processId
+                                    );
+
+                                    if (newTaskId) {
+                                        console.log('✅ Задача создана сразу! ID:', newTaskId);
+
+                                        // Обновляем предзадачу
+                                        futureNode.realTaskId = newTaskId;
+                                        await EntityManagerV2.saveNode(processId, futureNode);
+                                    }
+                                } catch (error) {
+                                    console.error('❌ Ошибка создания задачи:', error);
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Вызвать callback если есть

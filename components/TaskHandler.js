@@ -181,6 +181,48 @@ window.TaskHandler = {
                 resolve(taskId);
             });
         });
+    },
+
+    /**
+     * Создать задачу из предзадачи (вызывается из TaskModalV2 если родитель завершён)
+     */
+    createTaskFromFuture: async function(futureNode, sourceNode, processId) {
+        console.log('📝 Создаём задачу из предзадачи:', futureNode.nodeId);
+
+        // Создать задачу в Bitrix24
+        const newTaskId = await this.createRealTask(
+            futureNode.title,
+            futureNode.description || '',
+            futureNode.responsibleId,
+            futureNode.groupId,
+            processId
+        );
+
+        if (!newTaskId) {
+            console.error('❌ Не удалось создать задачу');
+            return null;
+        }
+
+        console.log('✅ Задача создана! ID:', newTaskId);
+
+        // Создать узел новой задачи
+        const newTaskNode = {
+            nodeId: 'task-' + newTaskId,
+            type: 'task',
+            title: futureNode.title,
+            description: futureNode.description || '',
+            status: 2, // В работе
+            realTaskId: newTaskId,
+            positionX: futureNode.positionX || 0,
+            positionY: futureNode.positionY || 0,
+            connectionsFrom: futureNode.connectionsFrom || [],
+            connectionsTo: [{ type: 'task', id: sourceNode.nodeId }]
+        };
+
+        await EntityManagerV2.saveNode(processId, newTaskNode);
+        console.log('✅ Узел task-' + newTaskId + ' создан');
+
+        return newTaskId;
     }
 };
 
