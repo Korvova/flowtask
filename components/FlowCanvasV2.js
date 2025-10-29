@@ -165,7 +165,8 @@ window.FlowCanvasV2 = {
                                     ...node,
                                     data: {
                                         ...node.data,
-                                        status: newStatus
+                                        statusCode: newStatus,  // TaskNode использует statusCode!
+                                        _updateTime: Date.now()  // Форсируем перерисовку
                                     }
                                 };
                             }
