@@ -315,7 +315,7 @@ window.TaskModalV2 = {
                     console.log('✅ Связь создана:', this.currentSourceId, '->', futureId);
 
                     // Проверяем: если родительская задача завершена И условие "immediately" - создаём задачу сразу
-                    if (condition === 'immediately') {
+                    if (futureNode.condition === 'immediately') {
                         const allNodes = await EntityManagerV2.loadProcess(processId);
                         const sourceNode = allNodes.find(n => n.nodeId === this.currentSourceId);
 
