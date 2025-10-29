@@ -576,7 +576,22 @@ window.FlowCanvasV2 = {
             const handleStatusChange = useCallback(async (taskId, newStatus) => {
                 console.log('🔄 Статус изменён:', taskId, '→', newStatus);
 
-                // Обновить визуально (TaskNode использует statusCode!)
+                // 1. Обновить статус в Entity Storage (чтобы не потерять при updateNodes)
+                try {
+                    const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
+                    const nodeToUpdate = allNodes.find(n => n.type === 'task' && n.realTaskId === taskId);
+
+                    if (nodeToUpdate) {
+                        console.log('💾 Сохраняем статус в Entity Storage:', taskId, '→', newStatus);
+                        nodeToUpdate.status = newStatus;
+                        await EntityManagerV2.saveNode(window.currentProcessId, nodeToUpdate);
+                        console.log('✅ Статус сохранен в Entity Storage');
+                    }
+                } catch (error) {
+                    console.error('❌ Ошибка сохранения статуса:', error);
+                }
+
+                // 2. Обновить визуально (TaskNode использует statusCode!)
                 setNodes((nds) => {
                     console.log('  → Текущее количество узлов:', nds.length);
 
@@ -605,7 +620,7 @@ window.FlowCanvasV2 = {
                     return updatedNodes;
                 });
 
-                // Если завершена - создать предзадачи
+                // 3. Если завершена - создать предзадачи
                 if (newStatus === 5) {
                     console.log('✅ Задача завершена! Создаём предзадачи...');
                     await TaskHandler.handleTaskComplete(taskId, window.currentProcessId);
