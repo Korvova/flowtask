@@ -105,31 +105,29 @@ window.TaskNode = function({ id, data, selected }) {
         return conditions[conditionType] || '';
     };
 
-    // Обработчик удаления - вызываем глобальный обработчик напрямую
-    const handleDelete = React.useCallback((e) => {
+    // Обработчик удаления - как в старом коде FlowCanvas
+    const handleDelete = (e) => {
         e.stopPropagation();
         console.log('🔴 handleDelete вызван в TaskNode, id:', id);
-
-        if (window.FlowCanvasV2 && window.FlowCanvasV2.handleDeleteNode) {
-            console.log('🔴 Вызываем window.FlowCanvasV2.handleDeleteNode');
-            window.FlowCanvasV2.handleDeleteNode(id);
+        if (data.onDelete) {
+            console.log('🔴 Вызываем data.onDelete()');
+            data.onDelete();
         } else {
-            console.warn('⚠️ window.FlowCanvasV2.handleDeleteNode не определён!');
+            console.warn('⚠️ data.onDelete не определён!');
         }
-    }, [id]);
+    };
 
-    // Обработчик редактирования - вызываем глобальный обработчик напрямую
-    const handleEdit = React.useCallback((e) => {
+    // Обработчик редактирования - как в старом коде FlowCanvas
+    const handleEdit = (e) => {
         e.stopPropagation();
         console.log('✏️ handleEdit вызван в TaskNode, id:', id);
-
-        if (window.FlowCanvasV2 && window.FlowCanvasV2.handleEditNode) {
-            console.log('✏️ Вызываем window.FlowCanvasV2.handleEditNode');
-            window.FlowCanvasV2.handleEditNode({ id });
+        if (data.onEdit) {
+            console.log('✏️ Вызываем data.onEdit()');
+            data.onEdit(data);
         } else {
-            console.warn('⚠️ window.FlowCanvasV2.handleEditNode не определён!');
+            console.warn('⚠️ data.onEdit не определён!');
         }
-    }, [id]);
+    };
 
     // Обработчик открытия задачи в Bitrix24 (для реальных задач)
     const handleOpen = (e) => {

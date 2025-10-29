@@ -189,8 +189,18 @@ window.FlowCanvasV2 = {
                             conditionType: node.condition,  // TaskNode использует conditionType
                             delayMinutes: node.delayMinutes,
                             realTaskId: node.realTaskId,
-                            _node: node  // Сохраняем весь узел
-                            // Callback'и НЕ передаём - TaskNode использует window.FlowCanvasV2.handleDeleteNode напрямую
+                            _node: node,  // Сохраняем весь узел
+                            // Callback'и как в старом FlowCanvas - вызывают глобальные обработчики
+                            onDelete: node.type === 'future' ? () => {
+                                if (window.FlowCanvasV2?.handleDeleteNode) {
+                                    window.FlowCanvasV2.handleDeleteNode(node.nodeId);
+                                }
+                            } : undefined,
+                            onEdit: node.type === 'future' ? () => {
+                                if (window.FlowCanvasV2?.handleEditNode) {
+                                    window.FlowCanvasV2.handleEditNode({ id: node.nodeId });
+                                }
+                            } : undefined
                         }
                     }));
 
