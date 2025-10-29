@@ -9,8 +9,7 @@ window.TaskNode = function({ id, data, selected }) {
         id,
         isFuture: data.isFuture,
         selected,
-        hasOnDelete: !!data.onDelete,
-        hasOnEdit: !!data.onEdit,
+        hasGlobalHandlers: !!(window.FlowCanvasV2 && window.FlowCanvasV2.handleDeleteNode),
         NodeToolbar: !!NodeToolbar
     });
 
@@ -111,31 +110,31 @@ window.TaskNode = function({ id, data, selected }) {
         return conditions[conditionType] || '';
     };
 
-    // Обработчик удаления
-    const handleDelete = (e) => {
+    // Обработчик удаления - вызываем глобальный обработчик напрямую
+    const handleDelete = React.useCallback((e) => {
         e.stopPropagation();
         console.log('🔴 handleDelete вызван в TaskNode, id:', id);
-        console.log('🔴 data.onDelete существует?', !!data.onDelete, typeof data.onDelete);
-        if (data.onDelete) {
-            console.log('🔴 Вызываем data.onDelete()');
-            data.onDelete();
-        } else {
-            console.warn('⚠️ data.onDelete не определён!');
-        }
-    };
 
-    // Обработчик открытия для редактирования (для предзадач)
-    const handleEdit = (e) => {
+        if (window.FlowCanvasV2 && window.FlowCanvasV2.handleDeleteNode) {
+            console.log('🔴 Вызываем window.FlowCanvasV2.handleDeleteNode');
+            window.FlowCanvasV2.handleDeleteNode(id);
+        } else {
+            console.warn('⚠️ window.FlowCanvasV2.handleDeleteNode не определён!');
+        }
+    }, [id]);
+
+    // Обработчик редактирования - вызываем глобальный обработчик напрямую
+    const handleEdit = React.useCallback((e) => {
         e.stopPropagation();
         console.log('✏️ handleEdit вызван в TaskNode, id:', id);
-        console.log('✏️ data.onEdit существует?', !!data.onEdit, typeof data.onEdit);
-        if (data.onEdit) {
-            console.log('✏️ Вызываем data.onEdit()');
-            data.onEdit(data);
+
+        if (window.FlowCanvasV2 && window.FlowCanvasV2.handleEditNode) {
+            console.log('✏️ Вызываем window.FlowCanvasV2.handleEditNode');
+            window.FlowCanvasV2.handleEditNode({ id });
         } else {
-            console.warn('⚠️ data.onEdit не определён!');
+            console.warn('⚠️ window.FlowCanvasV2.handleEditNode не определён!');
         }
-    };
+    }, [id]);
 
     // Обработчик открытия задачи в Bitrix24 (для реальных задач)
     const handleOpen = (e) => {

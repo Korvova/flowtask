@@ -123,6 +123,18 @@ window.FlowCanvasV2 = {
                 }
             }, [setNodes]);
 
+            // Экспортируем обработчики в window для доступа из TaskNode
+            useEffect(() => {
+                window.FlowCanvasV2.handleDeleteNode = handleDeleteNode;
+                window.FlowCanvasV2.handleEditNode = handleEditNode;
+                console.log('✅ Обработчики экспортированы в window.FlowCanvasV2');
+
+                return () => {
+                    window.FlowCanvasV2.handleDeleteNode = null;
+                    window.FlowCanvasV2.handleEditNode = null;
+                };
+            }, [handleDeleteNode, handleEditNode]);
+
             // Загрузка данных
             useEffect(() => {
                 loadProcessData();
@@ -177,18 +189,8 @@ window.FlowCanvasV2 = {
                             conditionType: node.condition,  // TaskNode использует conditionType
                             delayMinutes: node.delayMinutes,
                             realTaskId: node.realTaskId,
-                            _node: node,  // Сохраняем весь узел
-                            // Callback'и для предзадач
-                            onDelete: node.type === 'future' ? () => {
-                                console.log('🔥 onDelete callback вызван для:', node.nodeId);
-                                console.log('🔥 handleDeleteNode доступен?', typeof handleDeleteNode);
-                                handleDeleteNode(node.nodeId);
-                            } : undefined,
-                            onEdit: node.type === 'future' ? () => {
-                                console.log('✏️ onEdit callback вызван для:', node.nodeId);
-                                console.log('✏️ handleEditNode доступен?', typeof handleEditNode);
-                                handleEditNode({ id: node.nodeId });
-                            } : undefined
+                            _node: node  // Сохраняем весь узел
+                            // Callback'и НЕ передаём - TaskNode использует window.FlowCanvasV2.handleDeleteNode напрямую
                         }
                     }));
 
@@ -357,10 +359,8 @@ window.FlowCanvasV2 = {
                                         conditionType: newNode.condition,
                                         delayMinutes: newNode.delayMinutes,
                                         realTaskId: newNode.realTaskId,
-                                        _node: newNode,
-                                        // Callback'и для кнопок
-                                        onDelete: () => handleDeleteNode(newNode.nodeId),
-                                        onEdit: () => handleEditNode({ id: newNode.nodeId })
+                                        _node: newNode
+                                        // Callback'и НЕ передаём - TaskNode использует window.FlowCanvasV2 напрямую
                                     }
                                 };
 
