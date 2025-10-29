@@ -3,10 +3,7 @@
  */
 window.TaskNode = function({ id, data, selected }) {
     const React = window.React;
-    const { Handle, NodeToolbar, Position } = window.ReactFlow || window.reactflow || {};
-
-    // Логи отключены для production
-    // console.log('🎨 TaskNode render:', { id, isFuture: data.isFuture, selected });
+    const { Handle, Position } = window.ReactFlow || window.reactflow || {};
 
     if (!Handle) {
         console.error('Handle не найден в ReactFlow');
@@ -23,12 +20,12 @@ window.TaskNode = function({ id, data, selected }) {
             // Предзадача - темно-серый
             return '#4b5563';
         }
-        
+
         if (isRealTask && data.statusCode) {
             // Реальная задача - цвет по статусу
             return window.StatusColors.getColor(data.statusCode);
         }
-        
+
         // По умолчанию - светло-серый
         return '#e5e7eb';
     };
@@ -45,12 +42,13 @@ window.TaskNode = function({ id, data, selected }) {
     // Стиль узла
     const nodeStyle = {
         background: getBackgroundColor(),
-        border: borderStyle,
+        border: selected ? '2px solid #667eea' : borderStyle,
         borderRadius: '10px',
         padding: '14px',
+        paddingTop: '32px', // Больше отступ сверху для кнопок
         minWidth: '220px',
         maxWidth: '280px',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        boxShadow: selected ? '0 8px 16px rgba(0, 0, 0, 0.2)' : '0 4px 6px rgba(0, 0, 0, 0.1)',
         color: textColor,
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
         transition: 'all 0.3s ease',
@@ -93,6 +91,65 @@ window.TaskNode = function({ id, data, selected }) {
         marginTop: '4px'
     };
 
+    // Стиль кнопки редактирования (слева вверху)
+    const editButtonStyle = {
+        position: 'absolute',
+        top: '6px',
+        left: '8px',
+        background: 'rgba(102, 126, 234, 0.9)',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        width: '24px',
+        height: '24px',
+        fontSize: '14px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s ease',
+        zIndex: 10
+    };
+
+    // Стиль кнопки удаления (справа вверху)
+    const deleteButtonStyle = {
+        position: 'absolute',
+        top: '6px',
+        right: '8px',
+        background: 'rgba(239, 68, 68, 0.9)',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        width: '24px',
+        height: '24px',
+        fontSize: '14px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s ease',
+        zIndex: 10
+    };
+
+    // Стиль кнопки открытия (для реальных задач)
+    const openButtonStyle = {
+        position: 'absolute',
+        top: '6px',
+        right: '8px',
+        background: 'rgba(102, 126, 234, 0.9)',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        width: '24px',
+        height: '24px',
+        fontSize: '14px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s ease',
+        zIndex: 10
+    };
 
     // Получаем название условия создания
     const getConditionName = (conditionType) => {
@@ -105,7 +162,7 @@ window.TaskNode = function({ id, data, selected }) {
         return conditions[conditionType] || '';
     };
 
-    // Обработчик удаления - как в старом коде FlowCanvas
+    // Обработчик удаления
     const handleDelete = (e) => {
         e.stopPropagation();
         console.log('🔴 handleDelete вызван в TaskNode, id:', id);
@@ -117,7 +174,7 @@ window.TaskNode = function({ id, data, selected }) {
         }
     };
 
-    // Обработчик редактирования - как в старом коде FlowCanvas
+    // Обработчик редактирования
     const handleEdit = (e) => {
         e.stopPropagation();
         console.log('✏️ handleEdit вызван в TaskNode, id:', id);
@@ -142,63 +199,11 @@ window.TaskNode = function({ id, data, selected }) {
         }
     };
 
-    // Стиль кнопки в тулбаре
-    const toolbarButtonStyle = {
-        padding: '8px 16px',
-        background: '#667eea',
-        color: 'white',
-        border: 'none',
-        borderRadius: '5px',
-        cursor: 'pointer',
-        fontSize: '13px',
-        fontWeight: '500',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-        transition: 'all 0.2s ease',
-        marginRight: '4px'
-    };
-
-    const deleteToolbarButtonStyle = {
-        ...toolbarButtonStyle,
-        background: '#ef4444'
-    };
-
-    return React.createElement(React.Fragment, null,
-        // NodeToolbar - появляется при выборе узла
-        NodeToolbar && React.createElement(NodeToolbar, {
-            isVisible: selected,
-            position: Position.Top
-        },
-            // Кнопка редактирования для предзадач
-            isFuture && React.createElement('button', {
-                style: toolbarButtonStyle,
-                onClick: handleEdit,
-                onMouseEnter: (e) => { e.target.style.background = '#5568d3'; },
-                onMouseLeave: (e) => { e.target.style.background = '#667eea'; }
-            }, '✏️ Редактировать'),
-
-            // Кнопка открытия для реальных задач
-            isRealTask && React.createElement('button', {
-                style: toolbarButtonStyle,
-                onClick: handleOpen,
-                onMouseEnter: (e) => { e.target.style.background = '#5568d3'; },
-                onMouseLeave: (e) => { e.target.style.background = '#667eea'; }
-            }, '📂 Открыть'),
-
-            // Кнопка удаления для предзадач
-            isFuture && React.createElement('button', {
-                style: deleteToolbarButtonStyle,
-                onClick: handleDelete,
-                onMouseEnter: (e) => { e.target.style.background = '#dc2626'; },
-                onMouseLeave: (e) => { e.target.style.background = '#ef4444'; }
-            }, '🗑️ Удалить')
-        ),
-
-        // Сама карточка
-        React.createElement('div', { style: nodeStyle },
+    return React.createElement('div', { style: nodeStyle },
         // Handle для входящих связей (слева)
         React.createElement(Handle, {
             type: 'target',
-            position: 'left',
+            position: Position.Left,
             style: {
                 background: isFuture ? '#9ca3af' : '#667eea',
                 width: '12px',
@@ -207,11 +212,56 @@ window.TaskNode = function({ id, data, selected }) {
             }
         }),
 
+        // Кнопка редактирования (только для предзадач, слева вверху)
+        isFuture && React.createElement('button', {
+            style: editButtonStyle,
+            onClick: handleEdit,
+            onMouseEnter: (e) => {
+                e.target.style.background = 'rgba(85, 104, 211, 1)';
+                e.target.style.transform = 'scale(1.1)';
+            },
+            onMouseLeave: (e) => {
+                e.target.style.background = 'rgba(102, 126, 234, 0.9)';
+                e.target.style.transform = 'scale(1)';
+            },
+            title: 'Редактировать предзадачу'
+        }, '✏️'),
+
+        // Кнопка удаления (только для предзадач, справа вверху)
+        isFuture && React.createElement('button', {
+            style: deleteButtonStyle,
+            onClick: handleDelete,
+            onMouseEnter: (e) => {
+                e.target.style.background = 'rgba(220, 38, 38, 1)';
+                e.target.style.transform = 'scale(1.1)';
+            },
+            onMouseLeave: (e) => {
+                e.target.style.background = 'rgba(239, 68, 68, 0.9)';
+                e.target.style.transform = 'scale(1)';
+            },
+            title: 'Удалить предзадачу'
+        }, '🗑️'),
+
+        // Кнопка открытия (только для реальных задач, справа вверху)
+        isRealTask && React.createElement('button', {
+            style: openButtonStyle,
+            onClick: handleOpen,
+            onMouseEnter: (e) => {
+                e.target.style.background = 'rgba(85, 104, 211, 1)';
+                e.target.style.transform = 'scale(1.1)';
+            },
+            onMouseLeave: (e) => {
+                e.target.style.background = 'rgba(102, 126, 234, 0.9)';
+                e.target.style.transform = 'scale(1)';
+            },
+            title: 'Открыть задачу в Bitrix24'
+        }, '📂'),
+
         // Заголовок с иконкой
         React.createElement('div', { style: headerStyle },
             React.createElement('span', null, icon),
-            isFuture && React.createElement('span', { 
-                style: { fontSize: '12px', opacity: 0.9 } 
+            isFuture && React.createElement('span', {
+                style: { fontSize: '12px', opacity: 0.9 }
             }, 'Предзадача')
         ),
 
@@ -226,14 +276,14 @@ window.TaskNode = function({ id, data, selected }) {
         // Условие создания для предзадач
         isFuture && data.conditionType && React.createElement('div', { style: badgeStyle },
             getConditionName(data.conditionType),
-            data.conditionType === 'delay' && data.delayMinutes && 
+            data.conditionType === 'delay' && data.delayMinutes &&
                 ` (${data.delayMinutes} мин)`
         ),
 
         // Handle для исходящих связей (справа)
         React.createElement(Handle, {
             type: 'source',
-            position: 'right',
+            position: Position.Right,
             style: {
                 background: isFuture ? '#9ca3af' : '#667eea',
                 width: '12px',
@@ -241,8 +291,7 @@ window.TaskNode = function({ id, data, selected }) {
                 border: '2px solid white'
             }
         })
-        ) // закрываем div карточки
-    ); // закрываем React.Fragment
+    );
 };
 
-console.log('✅ TaskNode component loaded with NodeToolbar buttons');
+console.log('✅ TaskNode component loaded with buttons inside card');
