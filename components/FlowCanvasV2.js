@@ -128,6 +128,42 @@ window.FlowCanvasV2 = {
                 saveNodePosition(node.id, node.position.x, node.position.y);
             }, []);
 
+            // Валидация связей (Context7: актуальная документация React Flow)
+            const isValidConnection = useCallback((connection) => {
+                // 1. Предотвращаем самосвязи
+                if (connection.source === connection.target) {
+                    console.warn('%c⚠️ Самосвязи запрещены', 'color: #ff9800; font-weight: bold;');
+                    return false;
+                }
+
+                // 2. Предотвращаем дублирование связей
+                const isDuplicate = edges.some(
+                    edge =>
+                        edge.source === connection.source &&
+                        edge.target === connection.target &&
+                        edge.sourceHandle === connection.sourceHandle &&
+                        edge.targetHandle === connection.targetHandle
+                );
+
+                if (isDuplicate) {
+                    console.warn('%c⚠️ Связь уже существует', 'color: #ff9800; font-weight: bold;');
+                    return false;
+                }
+
+                // 3. Проверяем типы узлов
+                const sourceNode = nodes.find(n => n.id === connection.source);
+                const targetNode = nodes.find(n => n.id === connection.target);
+
+                // Future узлы не могут иметь исходящие связи (только входящие)
+                if (sourceNode?.data?.isFuture) {
+                    console.warn('%c⚠️ Предзадачи не могут иметь исходящие связи', 'color: #ff9800; font-weight: bold;');
+                    return false;
+                }
+
+                console.log('%c✅ Связь валидна', 'color: #00ff00; font-weight: bold;');
+                return true;
+            }, [nodes, edges]);
+
             // Создание связи
             const onConnect = useCallback(async (connection) => {
                 console.log('🔗 Создание связи:', connection.source, '→', connection.target);
@@ -155,16 +191,18 @@ window.FlowCanvasV2 = {
 
                     // Сохранить
                     await EntityManagerV2.saveNode(window.currentProcessId, sourceNode);
-                    console.log('✅ Связь сохранена');
+                    console.log('✅ Связь сохранена в базу');
 
-                    // Обновить edges
+                    // Обновить edges с анимацией (из документации React Flow)
                     setEdges((eds) => [
                         ...eds,
                         {
                             id: `edge-${connection.source}-${connection.target}`,
                             source: connection.source,
                             target: connection.target,
-                            type: 'default'
+                            type: 'default',
+                            animated: true,
+                            style: { strokeWidth: 2, stroke: '#667eea' }
                         }
                     ]);
 
@@ -377,6 +415,7 @@ window.FlowCanvasV2 = {
                     onConnect: onConnect,
                     onConnectStart: onConnectStart,
                     onConnectEnd: onConnectEnd,
+                    isValidConnection: isValidConnection,
                     onInit: (instance) => {
                         reactFlowInstanceRef.current = instance;
                         console.log('✅ ReactFlow готов');
