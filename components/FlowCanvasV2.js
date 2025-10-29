@@ -637,8 +637,14 @@ window.FlowCanvasV2 = {
                 if (nodes.length === 0) return; // Ждём загрузки узлов
 
                 if (window.PullSubscription) {
+                    console.log('🔍 Проверяем узлы для подписки:', nodes.length, 'узлов');
+                    nodes.forEach(node => {
+                        console.log('  →', node.id, 'type:', node.type, 'realTaskId:', node.data?.realTaskId);
+                    });
+
                     // Собираем все task узлы
                     const taskNodes = nodes.filter(node => node.type === 'task' && node.data.realTaskId);
+                    console.log('✅ Найдено task узлов с realTaskId:', taskNodes.length);
 
                     // Подписываемся только на новые задачи (которые еще не в subscriptions)
                     const newTasks = taskNodes.filter(node => {
