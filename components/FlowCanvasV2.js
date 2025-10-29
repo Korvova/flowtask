@@ -25,7 +25,7 @@ window.FlowCanvasV2 = {
             return;
         }
 
-        const { useState, useCallback, useEffect, useRef } = React;
+        const { useState, useCallback, useEffect, useRef, useMemo } = React;
         const { ReactFlow, Controls, Background, addEdge: rfAddEdge, useNodesState, useEdgesState } = RF;
 
         // Используем стандартный TaskNode с React Flow handles
@@ -35,6 +35,13 @@ window.FlowCanvasV2 = {
             const [edges, setEdges, onEdgesChange] = useEdgesState([]);
             const [loading, setLoading] = useState(true);
             const reactFlowInstanceRef = useRef(null);
+
+            // Важно: nodeTypes должны быть в useMemo, иначе при каждом рендере создается новый объект
+            // и React Flow пересоздает узлы, что ломает обработчики кликов
+            const nodeTypes = useMemo(() => ({
+                task: window.TaskNode,
+                future: window.TaskNode
+            }), []);
 
             // Удаление предзадачи
             const handleDeleteNode = useCallback(async (nodeId) => {
@@ -527,10 +534,7 @@ window.FlowCanvasV2 = {
                         reactFlowInstanceRef.current = instance;
                         console.log('✅ ReactFlow готов');
                     },
-                    nodeTypes: {
-                        task: window.TaskNode,
-                        future: window.TaskNode
-                    },
+                    nodeTypes: nodeTypes,
                     fitView: true,
                     minZoom: 0.5,
                     maxZoom: 1.5,

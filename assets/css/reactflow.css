@@ -112,6 +112,12 @@
   cursor: -webkit-grab;
   cursor: grab;
 }
+.react-flow__node button {
+  pointer-events: all !important;
+  cursor: pointer !important;
+  position: relative;
+  z-index: 100;
+}
 .react-flow__node.dragging {
     cursor: -webkit-grabbing;
     cursor: grabbing;
@@ -407,13 +413,19 @@
 
 /* NodeToolbar - контекстное меню для узлов */
 .react-flow__node-toolbar {
-  position: absolute;
-  z-index: 1000;
-  pointer-events: all;
+  position: absolute !important;
+  z-index: 9999 !important;
+  pointer-events: all !important;
   transform: translate(-50%, 0);
+  display: flex !important;
+  gap: 4px;
 }
 
 .react-flow__node-toolbar button {
-  pointer-events: all;
-  cursor: pointer;
+  pointer-events: all !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 10000 !important;
+  border: none;
+  outline: none;
 }
