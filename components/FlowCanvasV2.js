@@ -35,6 +35,7 @@ window.FlowCanvasV2 = {
             const [edges, setEdges, onEdgesChange] = useEdgesState([]);
             const [loading, setLoading] = useState(true);
             const reactFlowInstanceRef = useRef(null);
+            const isInitialLoadRef = useRef(true);  // Флаг первой загрузки
 
             // Важно: nodeTypes должны быть в useMemo, иначе при каждом рендере создается новый объект
             // и React Flow пересоздает узлы, что ломает обработчики кликов
@@ -258,11 +259,17 @@ window.FlowCanvasV2 = {
                     let allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
                     console.log('✅ Загружено узлов:', allNodes.length);
 
-                    // Обновить статусы реальных задач из Bitrix24
-                    const taskNodes = allNodes.filter(n => n.type === 'task' && n.realTaskId);
-                    if (taskNodes.length > 0) {
-                        console.log('🔄 Обновляем статусы', taskNodes.length, 'задач...');
-                        await updateTaskStatuses(allNodes, taskNodes);
+                    // Обновить статусы ТОЛЬКО при первой загрузке
+                    // При последующих загрузках статусы обновляются через PULL события
+                    if (isInitialLoadRef.current) {
+                        const taskNodes = allNodes.filter(n => n.type === 'task' && n.realTaskId);
+                        if (taskNodes.length > 0) {
+                            console.log('🔄 Первая загрузка: обновляем статусы', taskNodes.length, 'задач...');
+                            await updateTaskStatuses(allNodes, taskNodes);
+                        }
+                        isInitialLoadRef.current = false;  // Больше не первая загрузка
+                    } else {
+                        console.log('ℹ️ Пропускаем updateTaskStatuses (статусы обновляются через PULL)');
                     }
 
                     // Если узлов нет - создаём узел для текущей задачи
