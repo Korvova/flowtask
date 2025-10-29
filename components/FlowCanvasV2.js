@@ -123,7 +123,7 @@ window.FlowCanvasV2 = {
                 }
             }, [setNodes]);
 
-            // Экспортируем обработчики в window для доступа из TaskNode
+            // Экспортируем обработчики ОДИН РАЗ при монтировании (пустые зависимости)
             useEffect(() => {
                 window.FlowCanvasV2.handleDeleteNode = handleDeleteNode;
                 window.FlowCanvasV2.handleEditNode = handleEditNode;
@@ -133,7 +133,7 @@ window.FlowCanvasV2 = {
                     window.FlowCanvasV2.handleDeleteNode = null;
                     window.FlowCanvasV2.handleEditNode = null;
                 };
-            }, [handleDeleteNode, handleEditNode]);
+            }, []); // ← ПУСТОЙ массив! Экспортируем только один раз
 
             // Загрузка данных
             useEffect(() => {
