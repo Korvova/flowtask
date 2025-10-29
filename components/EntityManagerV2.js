@@ -272,6 +272,31 @@ window.EntityManagerV2 = {
                 reject(error);
             }
         });
+    },
+
+    /**
+     * Алиас для addConnection (для совместимости)
+     * Автоматически определяет тип целевого узла
+     */
+    saveConnection: function(processId, fromNodeId, toNodeId) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                console.log('💾 saveConnection:', fromNodeId, '→', toNodeId);
+
+                // Загружаем узлы чтобы определить тип целевого узла
+                const nodes = await this.loadProcess(processId);
+                const toNode = nodes.find(n => n.nodeId === toNodeId);
+                const toType = toNode?.type || 'future';
+
+                // Вызываем addConnection
+                await this.addConnection(processId, fromNodeId, toNodeId, toType);
+                console.log('✅ Связь сохранена через saveConnection');
+                resolve();
+            } catch (error) {
+                console.error('❌ Ошибка saveConnection:', error);
+                reject(error);
+            }
+        });
     }
 };
 

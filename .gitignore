@@ -34,3 +34,4 @@ node_modules/
 # PHP
 vendor/
 composer.lock
+.claude/settings.json
