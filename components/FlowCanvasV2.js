@@ -577,11 +577,16 @@ window.FlowCanvasV2 = {
                 console.log('🔄 Статус изменён:', taskId, '→', newStatus);
 
                 // Обновить визуально (TaskNode использует statusCode!)
-                setNodes((nds) =>
-                    nds.map(node => {
+                setNodes((nds) => {
+                    console.log('  → Текущее количество узлов:', nds.length);
+
+                    const updatedNodes = nds.map(node => {
                         if (node.id === 'task-' + taskId) {
-                            console.log('✅ Обновляем узел:', node.id, 'новый статус:', newStatus);
-                            return {
+                            console.log('✅ Обновляем узел:', node.id);
+                            console.log('  → Старый statusCode:', node.data.statusCode);
+                            console.log('  → Новый statusCode:', newStatus);
+
+                            const newNode = {
                                 ...node,
                                 data: {
                                     ...node.data,
@@ -589,10 +594,16 @@ window.FlowCanvasV2 = {
                                     _updateTime: Date.now()
                                 }
                             };
+
+                            console.log('  → Обновленный node.data:', newNode.data);
+                            return newNode;
                         }
                         return node;
-                    })
-                );
+                    });
+
+                    console.log('  → Возвращаем обновленные узлы');
+                    return updatedNodes;
+                });
 
                 // Если завершена - создать предзадачи
                 if (newStatus === 5) {

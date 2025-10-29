@@ -16,6 +16,14 @@ window.TaskNode = function({ id, data, selected }) {
 
     // Получаем цвет фона
     const getBackgroundColor = () => {
+        console.log('🎨 TaskNode.getBackgroundColor:', {
+            nodeId: id,
+            isFuture: isFuture,
+            isRealTask: isRealTask,
+            statusCode: data.statusCode,
+            _updateTime: data._updateTime
+        });
+
         if (isFuture) {
             // Предзадача - темно-серый
             return '#4b5563';
@@ -23,10 +31,13 @@ window.TaskNode = function({ id, data, selected }) {
 
         if (isRealTask && data.statusCode) {
             // Реальная задача - цвет по статусу
-            return window.StatusColors.getColor(data.statusCode);
+            const color = window.StatusColors.getColor(data.statusCode);
+            console.log('  → StatusColors.getColor(' + data.statusCode + ') =', color);
+            return color;
         }
 
         // По умолчанию - светло-серый
+        console.log('  → Используется дефолтный цвет (нет statusCode)');
         return '#e5e7eb';
     };
 

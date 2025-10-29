@@ -83,46 +83,11 @@ CJSCore::Init();
             }
 
             // Инициализируем BX.PULL если доступен
+            // Real-time обновления статусов обрабатываются через PullSubscription.js
             if (typeof BX !== 'undefined' && typeof BX.PULL !== 'undefined') {
                 BX.PULL.start();
-                console.log('✅ Real-time обновления активированы');
+                console.log('✅ BX.PULL запущен, события обрабатываются через PullSubscription');
             }
-
-            // Подписываемся на событие обновления ЛЮБОЙ задачи
-            BX24.callBind('ONTASKUPDATE', function(data) {
-                console.log('📨 ONTASKUPDATE событие:', data);
-
-                // Получаем ID измененной задачи
-                if (data && data.TASK_ID) {
-                    const changedTaskId = parseInt(data.TASK_ID);
-                    console.log('🔄 Задача обновлена:', changedTaskId);
-
-                    // Загружаем актуальные данные задачи
-                    BX24.callMethod('tasks.task.get', { taskId: changedTaskId }, function(result) {
-                        if (!result.error()) {
-                            const task = result.data().task;
-                            const newStatus = parseInt(task.status || task.STATUS);
-
-                            console.log('📊 Новый статус задачи', changedTaskId, ':', newStatus);
-
-                            // Обновляем статус на canvas (для ЛЮБОЙ задачи на полотне)
-                            if (window.FlowCanvasV2 && window.FlowCanvasV2.updateSingleTaskStatus) {
-                                window.FlowCanvasV2.updateSingleTaskStatus(changedTaskId, newStatus);
-                            }
-
-                            // Если это текущая задача И она завершена - создаем предзадачи
-                            if (changedTaskId === taskId && newStatus === 5) {
-                                console.log('✅ Текущая задача завершена! Запускаем обработчик предзадач...');
-
-                                if (window.TaskHandler && window.TaskHandler.handleTaskComplete) {
-                                    window.TaskHandler.handleTaskComplete(taskId, window.currentProcessId);
-                                }
-                            }
-                        }
-                    });
-                }
-            }, false);
-            console.log('✅ Подписка на ONTASKUPDATE активирована (для всех задач)');
 
             BX24.callMethod("tasks.task.get", { taskId: taskId }, function(result) {
                 if (result.error()) {
