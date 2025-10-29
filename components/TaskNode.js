@@ -105,17 +105,26 @@ window.TaskNode = function({ id, data, selected }) {
     // Обработчик удаления
     const handleDelete = (e) => {
         e.stopPropagation();
+        console.log('🔴 handleDelete вызван в TaskNode, id:', id);
+        console.log('🔴 data.onDelete существует?', !!data.onDelete, typeof data.onDelete);
         if (data.onDelete) {
+            console.log('🔴 Вызываем data.onDelete()');
             data.onDelete();
+        } else {
+            console.warn('⚠️ data.onDelete не определён!');
         }
     };
 
     // Обработчик открытия для редактирования (для предзадач)
     const handleEdit = (e) => {
         e.stopPropagation();
-        console.log('✏️ Редактируем предзадачу:', id);
+        console.log('✏️ handleEdit вызван в TaskNode, id:', id);
+        console.log('✏️ data.onEdit существует?', !!data.onEdit, typeof data.onEdit);
         if (data.onEdit) {
+            console.log('✏️ Вызываем data.onEdit()');
             data.onEdit(data);
+        } else {
+            console.warn('⚠️ data.onEdit не определён!');
         }
     };
 

@@ -179,8 +179,16 @@ window.FlowCanvasV2 = {
                             realTaskId: node.realTaskId,
                             _node: node,  // Сохраняем весь узел
                             // Callback'и для предзадач
-                            onDelete: node.type === 'future' ? () => handleDeleteNode(node.nodeId) : undefined,
-                            onEdit: node.type === 'future' ? () => handleEditNode({ id: node.nodeId }) : undefined
+                            onDelete: node.type === 'future' ? () => {
+                                console.log('🔥 onDelete callback вызван для:', node.nodeId);
+                                console.log('🔥 handleDeleteNode доступен?', typeof handleDeleteNode);
+                                handleDeleteNode(node.nodeId);
+                            } : undefined,
+                            onEdit: node.type === 'future' ? () => {
+                                console.log('✏️ onEdit callback вызван для:', node.nodeId);
+                                console.log('✏️ handleEditNode доступен?', typeof handleEditNode);
+                                handleEditNode({ id: node.nodeId });
+                            } : undefined
                         }
                     }));
 
