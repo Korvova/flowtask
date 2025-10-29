@@ -121,8 +121,14 @@ window.TaskHandler = {
             console.log('═══════════════════════════════════════════');
 
             // Вызвать callback для обновления canvas
-            if (window.FlowCanvas && window.FlowCanvas.reloadCanvas) {
+            if (window.FlowCanvasV2 && window.FlowCanvasV2.reloadCanvas) {
+                console.log('🔄 Перезагружаем FlowCanvasV2...');
+                window.FlowCanvasV2.reloadCanvas();
+            } else if (window.FlowCanvas && window.FlowCanvas.reloadCanvas) {
+                console.log('🔄 Перезагружаем FlowCanvas (старый)...');
                 window.FlowCanvas.reloadCanvas();
+            } else {
+                console.warn('⚠️ Не найден метод reloadCanvas');
             }
 
         } catch (error) {

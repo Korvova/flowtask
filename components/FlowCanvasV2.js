@@ -180,8 +180,20 @@ window.FlowCanvasV2 = {
                         console.log('✅ Узел добавлен в массив');
                     }
 
+                    // Фильтруем предзадачи, которые уже созданы (realTaskId !== null)
+                    const visibleNodes = allNodes.filter(node => {
+                        // Если это предзадача И у неё есть realTaskId - скрываем
+                        if (node.type === 'future' && node.realTaskId) {
+                            console.log('⏭️ Скрываем созданную предзадачу:', node.nodeId, '→ task-' + node.realTaskId);
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    console.log('👁️ Видимых узлов:', visibleNodes.length, 'из', allNodes.length);
+
                     // Построить nodes для ReactFlow
-                    const rfNodes = allNodes.map(node => ({
+                    const rfNodes = visibleNodes.map(node => ({
                         id: node.nodeId,
                         type: node.type === 'task' ? 'task' : 'future',
                         position: {
@@ -211,18 +223,40 @@ window.FlowCanvasV2 = {
                         }
                     }));
 
-                    // Построить edges для ReactFlow
-                    const rfEdges = [];
+                    // Создать карту перенаправления: futureId → taskId
+                    const futureToTaskMap = {};
                     allNodes.forEach(node => {
+                        if (node.type === 'future' && node.realTaskId) {
+                            futureToTaskMap[node.nodeId] = 'task-' + node.realTaskId;
+                            console.log('🔀 Перенаправление:', node.nodeId, '→', 'task-' + node.realTaskId);
+                        }
+                    });
+
+                    // Построить edges для ReactFlow из ВИДИМЫХ узлов
+                    const rfEdges = [];
+                    visibleNodes.forEach(node => {
                         if (node.connectionsFrom) {
                             node.connectionsFrom.forEach(conn => {
-                                rfEdges.push({
-                                    id: `edge-${node.nodeId}-${conn.id}`,
-                                    source: node.nodeId,
-                                    target: conn.id,
-                                    type: 'default',
-                                    animated: false
-                                });
+                                // Перенаправляем target если это созданная предзадача
+                                let targetId = conn.id;
+                                if (futureToTaskMap[targetId]) {
+                                    console.log('🔀 Связь перенаправлена:', node.nodeId, '→', targetId, '⇒', futureToTaskMap[targetId]);
+                                    targetId = futureToTaskMap[targetId];
+                                }
+
+                                // Добавляем edge только если target существует в visibleNodes
+                                const targetExists = visibleNodes.some(n => n.nodeId === targetId);
+                                if (targetExists) {
+                                    rfEdges.push({
+                                        id: `edge-${node.nodeId}-${targetId}`,
+                                        source: node.nodeId,
+                                        target: targetId,
+                                        type: 'default',
+                                        animated: false
+                                    });
+                                } else {
+                                    console.warn('⚠️ Target не найден:', targetId);
+                                }
                             });
                         }
                     });
