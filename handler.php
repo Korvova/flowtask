@@ -88,27 +88,32 @@ CJSCore::Init();
                 console.log('✅ Real-time обновления активированы');
             }
 
-            // Подписываемся на событие обновления задачи
+            // Подписываемся на событие обновления ЛЮБОЙ задачи
             BX24.callBind('ONTASKUPDATE', function(data) {
                 console.log('📨 ONTASKUPDATE событие:', data);
 
-                // Проверяем, это наша задача?
-                if (data && data.TASK_ID == taskId) {
-                    console.log('🔄 Задача обновлена, проверяем статус...');
+                // Получаем ID измененной задачи
+                if (data && data.TASK_ID) {
+                    const changedTaskId = parseInt(data.TASK_ID);
+                    console.log('🔄 Задача обновлена:', changedTaskId);
 
                     // Загружаем актуальные данные задачи
-                    BX24.callMethod('tasks.task.get', { taskId: taskId }, function(result) {
+                    BX24.callMethod('tasks.task.get', { taskId: changedTaskId }, function(result) {
                         if (!result.error()) {
                             const task = result.data().task;
-                            const status = parseInt(task.status || task.STATUS);
+                            const newStatus = parseInt(task.status || task.STATUS);
 
-                            console.log('📊 Текущий статус задачи:', status);
+                            console.log('📊 Новый статус задачи', changedTaskId, ':', newStatus);
 
-                            // Статус 5 = Завершена
-                            if (status === 5) {
-                                console.log('✅ Задача завершена! Запускаем обработчик...');
+                            // Обновляем статус на canvas (для ЛЮБОЙ задачи на полотне)
+                            if (window.FlowCanvasV2 && window.FlowCanvasV2.updateSingleTaskStatus) {
+                                window.FlowCanvasV2.updateSingleTaskStatus(changedTaskId, newStatus);
+                            }
 
-                                // Вызываем обработчик завершения задачи
+                            // Если это текущая задача И она завершена - создаем предзадачи
+                            if (changedTaskId === taskId && newStatus === 5) {
+                                console.log('✅ Текущая задача завершена! Запускаем обработчик предзадач...');
+
                                 if (window.TaskHandler && window.TaskHandler.handleTaskComplete) {
                                     window.TaskHandler.handleTaskComplete(taskId, window.currentProcessId);
                                 }
@@ -117,7 +122,7 @@ CJSCore::Init();
                     });
                 }
             }, false);
-            console.log('✅ Подписка на ONTASKUPDATE активирована');
+            console.log('✅ Подписка на ONTASKUPDATE активирована (для всех задач)');
 
             BX24.callMethod("tasks.task.get", { taskId: taskId }, function(result) {
                 if (result.error()) {

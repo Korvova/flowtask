@@ -130,6 +130,55 @@ window.FlowCanvasV2 = {
                 }
             }, [setNodes]);
 
+            // Обновить статус конкретной задачи (вызывается из ONTASKUPDATE)
+            const updateSingleTaskStatus = useCallback(async (taskId, newStatus) => {
+                console.log('🔄 Обновляем статус задачи', taskId, 'на', newStatus);
+
+                // Загружаем все узлы процесса
+                const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
+
+                // Ищем узел с этой задачей
+                const nodeToUpdate = allNodes.find(n =>
+                    n.type === 'task' && n.realTaskId === taskId
+                );
+
+                if (!nodeToUpdate) {
+                    console.warn('⚠️ Узел задачи', taskId, 'не найден на полотне');
+                    return;
+                }
+
+                // Если статус изменился
+                if (nodeToUpdate.status !== newStatus) {
+                    console.log('✅ Статус изменен:', nodeToUpdate.status, '→', newStatus);
+
+                    // Обновляем статус в данных узла
+                    nodeToUpdate.status = newStatus;
+
+                    // Сохраняем в Entity Storage
+                    await EntityManagerV2.saveNode(window.currentProcessId, nodeToUpdate);
+
+                    // Обновляем визуальное отображение
+                    setNodes((nds) =>
+                        nds.map(node => {
+                            if (node.id === nodeToUpdate.nodeId) {
+                                return {
+                                    ...node,
+                                    data: {
+                                        ...node.data,
+                                        status: newStatus
+                                    }
+                                };
+                            }
+                            return node;
+                        })
+                    );
+
+                    console.log('🎨 Canvas обновлен для задачи', taskId);
+                } else {
+                    console.log('ℹ️ Статус не изменился, обновление не требуется');
+                }
+            }, [setNodes]);
+
             // Экспортируем обработчики и методы обновления ОДИН РАЗ при монтировании
             useEffect(() => {
                 window.FlowCanvasV2.handleDeleteNode = handleDeleteNode;
@@ -141,14 +190,18 @@ window.FlowCanvasV2 = {
                     loadProcessData();
                 };
 
+                // Экспортируем метод для обновления статуса конкретной задачи
+                window.FlowCanvasV2.updateSingleTaskStatus = updateSingleTaskStatus;
+
                 console.log('✅ Обработчики и методы экспортированы в window.FlowCanvasV2');
 
                 return () => {
                     window.FlowCanvasV2.handleDeleteNode = null;
                     window.FlowCanvasV2.handleEditNode = null;
                     window.FlowCanvasV2.updateNodes = null;
+                    window.FlowCanvasV2.updateSingleTaskStatus = null;
                 };
-            }, [handleDeleteNode, handleEditNode]); // Зависимости чтобы всегда был актуальный loadProcessData
+            }, [handleDeleteNode, handleEditNode, updateSingleTaskStatus]); // Зависимости чтобы всегда был актуальный loadProcessData
 
             // Загрузка данных
             useEffect(() => {
