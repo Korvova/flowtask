@@ -155,6 +155,46 @@ window.FlowCanvasV2 = {
                 loadProcessData();
             }, []);
 
+            // Обновить статусы задач из Bitrix24
+            const updateTaskStatuses = async (allNodes, taskNodes) => {
+                return new Promise((resolve) => {
+                    let updatedCount = 0;
+                    let processedCount = 0;
+
+                    taskNodes.forEach(taskNode => {
+                        const taskId = taskNode.realTaskId;
+
+                        BX24.callMethod('tasks.task.get', { taskId: taskId }, async (result) => {
+                            processedCount++;
+
+                            if (result.error()) {
+                                console.warn('⚠️ Не удалось загрузить задачу', taskId, ':', result.error());
+                            } else {
+                                const taskData = result.data();
+                                const task = taskData.task || taskData;
+                                const newStatus = parseInt(task.status || task.STATUS);
+
+                                // Если статус изменился - обновляем
+                                if (taskNode.status !== newStatus) {
+                                    console.log('🔄 Обновляем статус задачи', taskId, ':', taskNode.status, '→', newStatus);
+                                    taskNode.status = newStatus;
+
+                                    // Сохраняем в Entity Storage
+                                    await EntityManagerV2.saveNode(window.currentProcessId, taskNode);
+                                    updatedCount++;
+                                }
+                            }
+
+                            // Если обработали все задачи
+                            if (processedCount === taskNodes.length) {
+                                console.log('✅ Обновлено статусов:', updatedCount, 'из', taskNodes.length);
+                                resolve();
+                            }
+                        });
+                    });
+                });
+            };
+
             // Загрузить данные процесса
             const loadProcessData = async () => {
                 try {
@@ -163,6 +203,13 @@ window.FlowCanvasV2 = {
                     // Загрузить все узлы за 1 запрос
                     let allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
                     console.log('✅ Загружено узлов:', allNodes.length);
+
+                    // Обновить статусы реальных задач из Bitrix24
+                    const taskNodes = allNodes.filter(n => n.type === 'task' && n.realTaskId);
+                    if (taskNodes.length > 0) {
+                        console.log('🔄 Обновляем статусы', taskNodes.length, 'задач...');
+                        await updateTaskStatuses(allNodes, taskNodes);
+                    }
 
                     // Если узлов нет - создаём узел для текущей задачи
                     if (allNodes.length === 0 && window.currentTaskId) {
