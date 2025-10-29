@@ -322,6 +322,92 @@ for (const node of nodesWithoutRealTaskId) {
 
 ---
 
+### Сессия 2025-01-29 (третья): Автоматическое создание задач от завершённых родителей
+
+#### Проблема: Предзадачи от завершённых задач не создаются автоматически
+**Симптомы:**
+- Создаёшь предзадачу от завершённой (зелёной) задачи
+- С условием "⚡ Сразу"
+- Предзадача остаётся серой ❌
+- Реальная задача НЕ создаётся ❌
+
+**Логика:** Если родительская задача **уже завершена** (статус 5), то предзадача с условием "immediately" должна сразу стать реальной задачей.
+
+**Решение:**
+
+**Шаг 1:** [TaskModalV2.js:317-346] Проверка статуса родителя после сохранения
+```javascript
+if (futureNode.condition === 'immediately') {
+    const allNodes = await EntityManagerV2.loadProcess(processId);
+    const sourceNode = allNodes.find(n => n.nodeId === this.currentSourceId);
+
+    if (sourceNode && sourceNode.type === 'task' && sourceNode.status === 5) {
+        const newTaskId = await window.TaskHandler.createTaskFromFuture(
+            futureNode, sourceNode, processId
+        );
+
+        if (newTaskId) {
+            futureNode.realTaskId = newTaskId;
+            await EntityManagerV2.saveNode(processId, futureNode);
+            window.FlowCanvasV2.updateNodes(); // Обновить canvas
+        }
+    }
+}
+```
+
+**Шаг 2:** [TaskHandler.js:186-226] Новый метод createTaskFromFuture()
+```javascript
+createTaskFromFuture: async function(futureNode, sourceNode, processId) {
+    // Создать задачу в Bitrix24
+    const newTaskId = await this.createRealTask(
+        futureNode.title,
+        futureNode.description || '',
+        futureNode.responsibleId,
+        futureNode.groupId,
+        processId
+    );
+
+    // Создать узел task-XXX с realTaskId
+    const newTaskNode = {
+        nodeId: 'task-' + newTaskId,
+        type: 'task',
+        realTaskId: newTaskId, // ✅ Для PULL подписки
+        status: 2,
+        // ...
+    };
+
+    await EntityManagerV2.saveNode(processId, newTaskNode);
+    return newTaskId;
+}
+```
+
+**Шаг 3:** [TaskModalV2.js:342-345] Обновление canvas после создания
+```javascript
+if (window.FlowCanvasV2 && window.FlowCanvasV2.updateNodes) {
+    window.FlowCanvasV2.updateNodes();
+}
+```
+
+**Результат:**
+- ✅ Предзадача от завершённой задачи → сразу создаётся реальная задача в Bitrix24
+- ✅ Серая предзадача скрывается с полотна (realTaskId установлен)
+- ✅ Белая карточка новой задачи появляется
+- ✅ Связь идёт к новой задаче
+- ✅ PULL подписывается на новую задачу (есть realTaskId)
+
+**Коммиты:**
+- `19418ef` - Feature: Auto-create task when adding future to completed task
+- `c8c45e2` - Fix: Use futureNode.condition instead of undefined condition variable
+- `dc004c6` - Fix: Reload canvas after auto-creating task from future
+
+**Важные моменты:**
+1. **Проверяем статус родителя** после сохранения предзадачи
+2. **condition === 'immediately'** - только "⚡ Сразу", не "По расписанию"
+3. **Вызываем updateNodes()** - без этого canvas не обновится
+4. **realTaskId обязателен** - иначе PULL не подпишется
+
+---
+
 ### Ключевые технические решения
 
 #### React Flow: nodeTypes должны быть мемоизированы
