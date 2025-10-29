@@ -3,7 +3,7 @@
  */
 window.TaskNode = function({ id, data, selected }) {
     const React = window.React;
-    const { Handle, Position } = window.ReactFlow || window.reactflow || {};
+    const { Handle, Position, NodeToolbar } = window.ReactFlow || window.reactflow || {};
 
     if (!Handle) {
         console.error('Handle не найден в ReactFlow');
@@ -45,7 +45,6 @@ window.TaskNode = function({ id, data, selected }) {
         border: selected ? '2px solid #667eea' : borderStyle,
         borderRadius: '10px',
         padding: '14px',
-        paddingTop: '32px', // Больше отступ сверху для кнопок
         minWidth: '220px',
         maxWidth: '280px',
         boxShadow: selected ? '0 8px 16px rgba(0, 0, 0, 0.2)' : '0 4px 6px rgba(0, 0, 0, 0.1)',
@@ -91,64 +90,24 @@ window.TaskNode = function({ id, data, selected }) {
         marginTop: '4px'
     };
 
-    // Стиль кнопки редактирования (слева вверху)
-    const editButtonStyle = {
-        position: 'absolute',
-        top: '6px',
-        left: '8px',
-        background: 'rgba(102, 126, 234, 0.9)',
+    // Стиль кнопок в NodeToolbar
+    const toolbarButtonStyle = {
+        padding: '8px 16px',
+        background: '#667eea',
         color: 'white',
         border: 'none',
-        borderRadius: '4px',
-        width: '24px',
-        height: '24px',
-        fontSize: '14px',
+        borderRadius: '5px',
         cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        fontSize: '13px',
+        fontWeight: '500',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
         transition: 'all 0.2s ease',
-        zIndex: 10
+        marginRight: '4px'
     };
 
-    // Стиль кнопки удаления (справа вверху)
-    const deleteButtonStyle = {
-        position: 'absolute',
-        top: '6px',
-        right: '8px',
-        background: 'rgba(239, 68, 68, 0.9)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        width: '24px',
-        height: '24px',
-        fontSize: '14px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transition: 'all 0.2s ease',
-        zIndex: 10
-    };
-
-    // Стиль кнопки открытия (для реальных задач)
-    const openButtonStyle = {
-        position: 'absolute',
-        top: '6px',
-        right: '8px',
-        background: 'rgba(102, 126, 234, 0.9)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        width: '24px',
-        height: '24px',
-        fontSize: '14px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transition: 'all 0.2s ease',
-        zIndex: 10
+    const deleteToolbarButtonStyle = {
+        ...toolbarButtonStyle,
+        background: '#ef4444'
     };
 
     // Получаем название условия создания
@@ -199,99 +158,87 @@ window.TaskNode = function({ id, data, selected }) {
         }
     };
 
-    return React.createElement('div', { style: nodeStyle },
-        // Handle для входящих связей (слева)
-        React.createElement(Handle, {
-            type: 'target',
-            position: Position.Left,
-            style: {
-                background: isFuture ? '#9ca3af' : '#667eea',
-                width: '12px',
-                height: '12px',
-                border: '2px solid white'
-            }
-        }),
+    return React.createElement(React.Fragment, null,
+        // NodeToolbar - появляется над карточкой при выборе узла
+        NodeToolbar && React.createElement(NodeToolbar, {
+            isVisible: selected,
+            position: Position.Top
+        },
+            // Кнопка редактирования для предзадач
+            isFuture && React.createElement('button', {
+                style: toolbarButtonStyle,
+                onClick: handleEdit,
+                onMouseEnter: (e) => { e.target.style.background = '#5568d3'; },
+                onMouseLeave: (e) => { e.target.style.background = '#667eea'; }
+            }, '✏️ Редактировать'),
 
-        // Кнопка редактирования (только для предзадач, слева вверху)
-        isFuture && React.createElement('button', {
-            style: editButtonStyle,
-            onClick: handleEdit,
-            onMouseEnter: (e) => {
-                e.target.style.background = 'rgba(85, 104, 211, 1)';
-                e.target.style.transform = 'scale(1.1)';
-            },
-            onMouseLeave: (e) => {
-                e.target.style.background = 'rgba(102, 126, 234, 0.9)';
-                e.target.style.transform = 'scale(1)';
-            },
-            title: 'Редактировать предзадачу'
-        }, '✏️'),
+            // Кнопка открытия для реальных задач
+            isRealTask && React.createElement('button', {
+                style: toolbarButtonStyle,
+                onClick: handleOpen,
+                onMouseEnter: (e) => { e.target.style.background = '#5568d3'; },
+                onMouseLeave: (e) => { e.target.style.background = '#667eea'; }
+            }, '📂 Открыть'),
 
-        // Кнопка удаления (только для предзадач, справа вверху)
-        isFuture && React.createElement('button', {
-            style: deleteButtonStyle,
-            onClick: handleDelete,
-            onMouseEnter: (e) => {
-                e.target.style.background = 'rgba(220, 38, 38, 1)';
-                e.target.style.transform = 'scale(1.1)';
-            },
-            onMouseLeave: (e) => {
-                e.target.style.background = 'rgba(239, 68, 68, 0.9)';
-                e.target.style.transform = 'scale(1)';
-            },
-            title: 'Удалить предзадачу'
-        }, '🗑️'),
-
-        // Кнопка открытия (только для реальных задач, справа вверху)
-        isRealTask && React.createElement('button', {
-            style: openButtonStyle,
-            onClick: handleOpen,
-            onMouseEnter: (e) => {
-                e.target.style.background = 'rgba(85, 104, 211, 1)';
-                e.target.style.transform = 'scale(1.1)';
-            },
-            onMouseLeave: (e) => {
-                e.target.style.background = 'rgba(102, 126, 234, 0.9)';
-                e.target.style.transform = 'scale(1)';
-            },
-            title: 'Открыть задачу в Bitrix24'
-        }, '📂'),
-
-        // Заголовок с иконкой
-        React.createElement('div', { style: headerStyle },
-            React.createElement('span', null, icon),
-            isFuture && React.createElement('span', {
-                style: { fontSize: '12px', opacity: 0.9 }
-            }, 'Предзадача')
+            // Кнопка удаления для предзадач
+            isFuture && React.createElement('button', {
+                style: deleteToolbarButtonStyle,
+                onClick: handleDelete,
+                onMouseEnter: (e) => { e.target.style.background = '#dc2626'; },
+                onMouseLeave: (e) => { e.target.style.background = '#ef4444'; }
+            }, '🗑️ Удалить')
         ),
 
-        // Название задачи
-        React.createElement('div', { style: titleStyle }, data.title),
+        // Сама карточка
+        React.createElement('div', { style: nodeStyle },
+            // Handle для входящих связей (слева)
+            React.createElement(Handle, {
+                type: 'target',
+                position: Position.Left,
+                style: {
+                    background: isFuture ? '#9ca3af' : '#667eea',
+                    width: '12px',
+                    height: '12px',
+                    border: '2px solid white'
+                }
+            }),
 
-        // Статус для реальных задач
-        !isFuture && data.statusCode && React.createElement('div', { style: statusStyle },
-            window.StatusColors.getName(data.statusCode)
-        ),
+            // Заголовок с иконкой
+            React.createElement('div', { style: headerStyle },
+                React.createElement('span', null, icon),
+                isFuture && React.createElement('span', {
+                    style: { fontSize: '12px', opacity: 0.9 }
+                }, 'Предзадача')
+            ),
 
-        // Условие создания для предзадач
-        isFuture && data.conditionType && React.createElement('div', { style: badgeStyle },
-            getConditionName(data.conditionType),
-            data.conditionType === 'delay' && data.delayMinutes &&
-                ` (${data.delayMinutes} мин)`
-        ),
+            // Название задачи
+            React.createElement('div', { style: titleStyle }, data.title),
 
-        // Handle для исходящих связей (справа)
-        React.createElement(Handle, {
-            type: 'source',
-            position: Position.Right,
-            style: {
-                background: isFuture ? '#9ca3af' : '#667eea',
-                width: '12px',
-                height: '12px',
-                border: '2px solid white'
-            }
-        })
-    );
+            // Статус для реальных задач
+            !isFuture && data.statusCode && React.createElement('div', { style: statusStyle },
+                window.StatusColors.getName(data.statusCode)
+            ),
+
+            // Условие создания для предзадач
+            isFuture && data.conditionType && React.createElement('div', { style: badgeStyle },
+                getConditionName(data.conditionType),
+                data.conditionType === 'delay' && data.delayMinutes &&
+                    ` (${data.delayMinutes} мин)`
+            ),
+
+            // Handle для исходящих связей (справа)
+            React.createElement(Handle, {
+                type: 'source',
+                position: Position.Right,
+                style: {
+                    background: isFuture ? '#9ca3af' : '#667eea',
+                    width: '12px',
+                    height: '12px',
+                    border: '2px solid white'
+                }
+            })
+        ) // закрываем div карточки
+    ); // закрываем React.Fragment
 };
 
-console.log('✅ TaskNode component loaded with buttons inside card');
+console.log('✅ TaskNode component loaded with NodeToolbar buttons');
