@@ -234,10 +234,13 @@ window.FlowCanvasV2 = {
 
                     console.log('📍 Позиция создания узла:', position);
 
+                    // ВАЖНО: Сохраняем sourceId ДО обнуления connectingNodeId
+                    const sourceId = connectingNodeId;
+
                     // Открыть модалку TaskModalV2
                     if (window.TaskModalV2) {
                         window.TaskModalV2.open({
-                            sourceNodeId: connectingNodeId,
+                            sourceNodeId: sourceId,
                             processId: window.currentProcessId,
                             position: position,
                             onSave: async (newNode) => {
@@ -262,10 +265,10 @@ window.FlowCanvasV2 = {
 
                                 setNodes((nds) => [...nds, reactFlowNode]);
 
-                                // Создаём связь
+                                // Создаём связь на canvas (связь в БД уже создана в TaskModalV2)
                                 const newEdge = {
-                                    id: `${connectingNodeId}-${newNode.nodeId}`,
-                                    source: connectingNodeId,
+                                    id: `${sourceId}-${newNode.nodeId}`,
+                                    source: sourceId,
                                     target: newNode.nodeId,
                                     animated: true,
                                     style: { stroke: '#667eea', strokeWidth: 2 }
@@ -273,14 +276,7 @@ window.FlowCanvasV2 = {
 
                                 setEdges((eds) => [...eds, newEdge]);
 
-                                // Сохраняем связь в базу
-                                await EntityManagerV2.saveConnection(
-                                    window.currentProcessId,
-                                    connectingNodeId,
-                                    newNode.nodeId
-                                );
-
-                                console.log('✅ Связь создана:', connectingNodeId, '->', newNode.nodeId);
+                                console.log('✅ Узел и связь добавлены на canvas');
                             }
                         });
                     }
