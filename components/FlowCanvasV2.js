@@ -259,6 +259,24 @@ window.FlowCanvasV2 = {
                     let allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
                     console.log('✅ Загружено узлов:', allNodes.length);
 
+                    // АВТОИСПРАВЛЕНИЕ: добавить realTaskId узлам task-XXX без него
+                    const nodesWithoutRealTaskId = allNodes.filter(n =>
+                        n.type === 'task' && !n.realTaskId && n.nodeId.startsWith('task-')
+                    );
+
+                    if (nodesWithoutRealTaskId.length > 0) {
+                        console.log('🔧 Исправляем', nodesWithoutRealTaskId.length, 'узлов без realTaskId...');
+
+                        for (const node of nodesWithoutRealTaskId) {
+                            const taskId = parseInt(node.nodeId.replace('task-', ''));
+                            console.log('  → task-' + taskId + ': добавляем realTaskId =', taskId);
+                            node.realTaskId = taskId;
+                            await EntityManagerV2.saveNode(window.currentProcessId, node);
+                        }
+
+                        console.log('✅ Узлы исправлены');
+                    }
+
                     // Обновить статусы ТОЛЬКО при первой загрузке
                     // При последующих загрузках статусы обновляются через PULL события
                     if (isInitialLoadRef.current) {
