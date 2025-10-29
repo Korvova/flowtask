@@ -88,6 +88,37 @@ CJSCore::Init();
                 console.log('✅ Real-time обновления активированы');
             }
 
+            // Подписываемся на событие обновления задачи
+            BX24.callBind('ONTASKUPDATE', function(data) {
+                console.log('📨 ONTASKUPDATE событие:', data);
+
+                // Проверяем, это наша задача?
+                if (data && data.TASK_ID == taskId) {
+                    console.log('🔄 Задача обновлена, проверяем статус...');
+
+                    // Загружаем актуальные данные задачи
+                    BX24.callMethod('tasks.task.get', { taskId: taskId }, function(result) {
+                        if (!result.error()) {
+                            const task = result.data().task;
+                            const status = parseInt(task.status || task.STATUS);
+
+                            console.log('📊 Текущий статус задачи:', status);
+
+                            // Статус 5 = Завершена
+                            if (status === 5) {
+                                console.log('✅ Задача завершена! Запускаем обработчик...');
+
+                                // Вызываем обработчик завершения задачи
+                                if (window.TaskHandler && window.TaskHandler.handleTaskComplete) {
+                                    window.TaskHandler.handleTaskComplete(taskId, window.currentProcessId);
+                                }
+                            }
+                        }
+                    });
+                }
+            }, false);
+            console.log('✅ Подписка на ONTASKUPDATE активирована');
+
             BX24.callMethod("tasks.task.get", { taskId: taskId }, function(result) {
                 if (result.error()) {
                     console.error('❌ Ошибка загрузки задачи:', result.error());
