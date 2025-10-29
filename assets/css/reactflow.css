@@ -404,3 +404,16 @@
   border-bottom-width: 1px;
   top: 100%;
 }
+
+/* NodeToolbar - контекстное меню для узлов */
+.react-flow__node-toolbar {
+  position: absolute;
+  z-index: 1000;
+  pointer-events: all;
+  transform: translate(-50%, 0);
+}
+
+.react-flow__node-toolbar button {
+  pointer-events: all;
+  cursor: pointer;
+}
