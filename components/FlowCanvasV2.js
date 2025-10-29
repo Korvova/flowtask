@@ -36,6 +36,93 @@ window.FlowCanvasV2 = {
             const [loading, setLoading] = useState(true);
             const reactFlowInstanceRef = useRef(null);
 
+            // Удаление предзадачи
+            const handleDeleteNode = useCallback(async (nodeId) => {
+                try {
+                    console.log('🗑️ Удаляем узел:', nodeId);
+
+                    if (!confirm('Удалить предзадачу?')) {
+                        return;
+                    }
+
+                    // Находим узел, чтобы получить entityId
+                    const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
+                    const node = allNodes.find(n => n.nodeId === nodeId);
+
+                    if (!node || !node._entityId) {
+                        console.error('❌ Узел или entityId не найден');
+                        alert('Ошибка: не удалось найти узел');
+                        return;
+                    }
+
+                    // Удаляем узел из Entity Storage
+                    await EntityManagerV2.deleteNode(node._entityId);
+                    console.log('✅ Узел удалён из базы');
+
+                    // Удаляем узел из canvas
+                    setNodes((nds) => nds.filter(n => n.id !== nodeId));
+
+                    // Удаляем все связи с этим узлом
+                    setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+
+                    console.log('✅ Узел и связи удалены с canvas');
+
+                } catch (error) {
+                    console.error('❌ Ошибка удаления узла:', error);
+                    alert('Ошибка удаления: ' + error.message);
+                }
+            }, [setNodes, setEdges]);
+
+            // Редактирование предзадачи
+            const handleEditNode = useCallback(async (nodeData) => {
+                try {
+                    console.log('✏️ Редактируем узел:', nodeData);
+
+                    // Загружаем полные данные узла
+                    const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
+                    const fullNode = allNodes.find(n => n.nodeId === nodeData.id);
+
+                    if (!fullNode) {
+                        console.error('❌ Узел не найден');
+                        return;
+                    }
+
+                    // Открываем модалку в режиме редактирования
+                    if (window.TaskModalV2) {
+                        window.TaskModalV2.openEdit({
+                            node: fullNode,
+                            processId: window.currentProcessId,
+                            onSave: async (updatedNode) => {
+                                console.log('✅ Узел обновлён:', updatedNode);
+
+                                // Обновляем узел на canvas
+                                setNodes((nds) =>
+                                    nds.map(n => {
+                                        if (n.id === updatedNode.nodeId) {
+                                            return {
+                                                ...n,
+                                                data: {
+                                                    ...n.data,
+                                                    title: updatedNode.title,
+                                                    conditionType: updatedNode.condition,
+                                                    delayMinutes: updatedNode.delayMinutes,
+                                                    _node: updatedNode
+                                                }
+                                            };
+                                        }
+                                        return n;
+                                    })
+                                );
+                            }
+                        });
+                    }
+
+                } catch (error) {
+                    console.error('❌ Ошибка редактирования узла:', error);
+                    alert('Ошибка редактирования: ' + error.message);
+                }
+            }, [setNodes]);
+
             // Загрузка данных
             useEffect(() => {
                 loadProcessData();
@@ -309,93 +396,6 @@ window.FlowCanvasV2 = {
                     console.error('❌ Ошибка сохранения позиции:', error);
                 }
             };
-
-            // Удаление предзадачи
-            const handleDeleteNode = useCallback(async (nodeId) => {
-                try {
-                    console.log('🗑️ Удаляем узел:', nodeId);
-
-                    if (!confirm('Удалить предзадачу?')) {
-                        return;
-                    }
-
-                    // Находим узел, чтобы получить entityId
-                    const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
-                    const node = allNodes.find(n => n.nodeId === nodeId);
-
-                    if (!node || !node._entityId) {
-                        console.error('❌ Узел или entityId не найден');
-                        alert('Ошибка: не удалось найти узел');
-                        return;
-                    }
-
-                    // Удаляем узел из Entity Storage
-                    await EntityManagerV2.deleteNode(node._entityId);
-                    console.log('✅ Узел удалён из базы');
-
-                    // Удаляем узел из canvas
-                    setNodes((nds) => nds.filter(n => n.id !== nodeId));
-
-                    // Удаляем все связи с этим узлом
-                    setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
-
-                    console.log('✅ Узел и связи удалены с canvas');
-
-                } catch (error) {
-                    console.error('❌ Ошибка удаления узла:', error);
-                    alert('Ошибка удаления: ' + error.message);
-                }
-            }, []);
-
-            // Редактирование предзадачи
-            const handleEditNode = useCallback(async (nodeData) => {
-                try {
-                    console.log('✏️ Редактируем узел:', nodeData);
-
-                    // Загружаем полные данные узла
-                    const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
-                    const fullNode = allNodes.find(n => n.nodeId === nodeData.id);
-
-                    if (!fullNode) {
-                        console.error('❌ Узел не найден');
-                        return;
-                    }
-
-                    // Открываем модалку в режиме редактирования
-                    if (window.TaskModalV2) {
-                        window.TaskModalV2.openEdit({
-                            node: fullNode,
-                            processId: window.currentProcessId,
-                            onSave: async (updatedNode) => {
-                                console.log('✅ Узел обновлён:', updatedNode);
-
-                                // Обновляем узел на canvas
-                                setNodes((nds) =>
-                                    nds.map(n => {
-                                        if (n.id === updatedNode.nodeId) {
-                                            return {
-                                                ...n,
-                                                data: {
-                                                    ...n.data,
-                                                    title: updatedNode.title,
-                                                    conditionType: updatedNode.condition,
-                                                    delayMinutes: updatedNode.delayMinutes,
-                                                    _node: updatedNode
-                                                }
-                                            };
-                                        }
-                                        return n;
-                                    })
-                                );
-                            }
-                        });
-                    }
-
-                } catch (error) {
-                    console.error('❌ Ошибка редактирования узла:', error);
-                    alert('Ошибка редактирования: ' + error.message);
-                }
-            }, []);
 
             // Обработка статуса задачи
             const handleStatusChange = useCallback(async (taskId, newStatus) => {
