@@ -148,12 +148,53 @@ window.TaskModalV2 = {
     },
 
     /**
+     * Открыть модалку для редактирования предзадачи
+     */
+    openEdit: function(options) {
+        console.log('✏️ Открываем модалку для редактирования', options);
+
+        this.isEditing = true;
+        this.editingNode = options.node;
+        this.currentProcessId = options.processId;
+        this.onSaveCallback = options.onSave;
+
+        const modal = document.getElementById('taskModalV2');
+        if (!modal) {
+            this.createModal();
+        }
+
+        // Обновляем селекты
+        this.updateResponsibleSelect();
+        this.updateGroupSelect();
+
+        // Заполняем форму данными узла
+        document.getElementById('futureTaskTitleV2').value = this.editingNode.title || '';
+        document.getElementById('futureTaskDescriptionV2').value = this.editingNode.description || '';
+        document.getElementById('futureTaskGroupV2').value = this.editingNode.groupId || '';
+        document.getElementById('futureTaskResponsibleV2').value = this.editingNode.responsibleId || '';
+        document.getElementById('futureTaskConditionV2').value = this.editingNode.condition || 'immediately';
+        document.getElementById('futureTaskDelayV2').value = this.editingNode.delayMinutes || '0';
+
+        // Меняем заголовок модалки
+        const modalTitle = document.querySelector('#taskModalV2 h2');
+        if (modalTitle) {
+            modalTitle.textContent = '✏️ Редактировать предзадачу';
+        }
+
+        document.getElementById('taskModalV2').style.display = 'flex';
+        document.getElementById('futureTaskTitleV2').focus();
+    },
+
+    /**
      * Показать модальное окно
      */
     show: function() {
         console.log('📝 Открываем модалку для создания предзадачи');
         console.log('   Позиция:', this.currentPosition);
         console.log('   От узла:', this.currentSourceId);
+
+        this.isEditing = false;
+        this.editingNode = null;
 
         const modal = document.getElementById('taskModalV2');
         if (!modal) {
@@ -166,6 +207,12 @@ window.TaskModalV2 = {
 
         // Очищаем форму
         this.reset();
+
+        // Возвращаем заголовок на место
+        const modalTitle = document.querySelector('#taskModalV2 h2');
+        if (modalTitle) {
+            modalTitle.textContent = '✨ Создать предзадачу';
+        }
 
         document.getElementById('taskModalV2').style.display = 'flex';
         document.getElementById('futureTaskTitleV2').focus();
@@ -208,42 +255,70 @@ window.TaskModalV2 = {
                 return;
             }
 
-            console.log('💾 Создаём предзадачу:', title);
-
-            const futureId = 'future-' + Date.now();
             const processId = this.currentProcessId || window.currentProcessId;
 
-            // Создать узел предзадачи
-            const futureNode = {
-                nodeId: futureId,
-                type: 'future',
-                title: title,
-                description: description,
-                groupId: groupId,
-                responsibleId: responsibleId,
-                condition: conditionType,
-                delayMinutes: delayMinutes,
-                status: 0,
-                positionX: this.currentPosition.x,
-                positionY: this.currentPosition.y,
-                connectionsFrom: this.currentSourceId ? [this.currentSourceId] : [],
-                connectionsTo: [],
-                realTaskId: null
-            };
+            // Режим редактирования
+            if (this.isEditing && this.editingNode) {
+                console.log('✏️ Обновляем предзадачу:', title);
 
-            // Сохранить в EntityManagerV2
-            await EntityManagerV2.saveNode(processId, futureNode);
-            console.log('✅ Узел предзадачи сохранён в Entity');
+                // Обновляем существующий узел
+                const updatedNode = {
+                    ...this.editingNode,
+                    title: title,
+                    description: description,
+                    groupId: groupId,
+                    responsibleId: responsibleId,
+                    condition: conditionType,
+                    delayMinutes: delayMinutes
+                };
 
-            // Если есть исходный узел - создать связь
-            if (this.currentSourceId) {
-                await EntityManagerV2.saveConnection(processId, this.currentSourceId, futureId);
-                console.log('✅ Связь создана:', this.currentSourceId, '->', futureId);
+                // Сохранить в EntityManagerV2
+                await EntityManagerV2.saveNode(processId, updatedNode);
+                console.log('✅ Узел обновлён в Entity');
+
+                // Вызвать callback если есть
+                if (this.onSaveCallback) {
+                    this.onSaveCallback(updatedNode);
+                }
             }
+            // Режим создания
+            else {
+                console.log('💾 Создаём предзадачу:', title);
 
-            // Вызвать callback если есть
-            if (this.onSaveCallback) {
-                this.onSaveCallback(futureNode);
+                const futureId = 'future-' + Date.now();
+
+                // Создать узел предзадачи
+                const futureNode = {
+                    nodeId: futureId,
+                    type: 'future',
+                    title: title,
+                    description: description,
+                    groupId: groupId,
+                    responsibleId: responsibleId,
+                    condition: conditionType,
+                    delayMinutes: delayMinutes,
+                    status: 0,
+                    positionX: this.currentPosition.x,
+                    positionY: this.currentPosition.y,
+                    connectionsFrom: this.currentSourceId ? [this.currentSourceId] : [],
+                    connectionsTo: [],
+                    realTaskId: null
+                };
+
+                // Сохранить в EntityManagerV2
+                await EntityManagerV2.saveNode(processId, futureNode);
+                console.log('✅ Узел предзадачи сохранён в Entity');
+
+                // Если есть исходный узел - создать связь
+                if (this.currentSourceId) {
+                    await EntityManagerV2.saveConnection(processId, this.currentSourceId, futureId);
+                    console.log('✅ Связь создана:', this.currentSourceId, '->', futureId);
+                }
+
+                // Вызвать callback если есть
+                if (this.onSaveCallback) {
+                    this.onSaveCallback(futureNode);
+                }
             }
 
             this.close();
