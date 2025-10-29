@@ -130,17 +130,25 @@ window.FlowCanvasV2 = {
                 }
             }, [setNodes]);
 
-            // Экспортируем обработчики ОДИН РАЗ при монтировании (пустые зависимости)
+            // Экспортируем обработчики и методы обновления ОДИН РАЗ при монтировании
             useEffect(() => {
                 window.FlowCanvasV2.handleDeleteNode = handleDeleteNode;
                 window.FlowCanvasV2.handleEditNode = handleEditNode;
-                console.log('✅ Обработчики экспортированы в window.FlowCanvasV2');
+
+                // Экспортируем метод для обновления данных (вместо полной перезагрузки)
+                window.FlowCanvasV2.updateNodes = () => {
+                    console.log('🔄 Обновляем узлы без перезагрузки canvas...');
+                    loadProcessData();
+                };
+
+                console.log('✅ Обработчики и методы экспортированы в window.FlowCanvasV2');
 
                 return () => {
                     window.FlowCanvasV2.handleDeleteNode = null;
                     window.FlowCanvasV2.handleEditNode = null;
+                    window.FlowCanvasV2.updateNodes = null;
                 };
-            }, []); // ← ПУСТОЙ массив! Экспортируем только один раз
+            }, [handleDeleteNode, handleEditNode]); // Зависимости чтобы всегда был актуальный loadProcessData
 
             // Загрузка данных
             useEffect(() => {

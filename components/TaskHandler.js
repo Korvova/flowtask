@@ -120,15 +120,18 @@ window.TaskHandler = {
             console.log('✅ Создано задач:', createdTasks.length);
             console.log('═══════════════════════════════════════════');
 
-            // Вызвать callback для обновления canvas
-            if (window.FlowCanvasV2 && window.FlowCanvasV2.reloadCanvas) {
-                console.log('🔄 Перезагружаем FlowCanvasV2...');
+            // Обновить узлы на canvas (без полной перезагрузки)
+            if (window.FlowCanvasV2 && window.FlowCanvasV2.updateNodes) {
+                console.log('🔄 Обновляем узлы FlowCanvasV2 (без перезагрузки)...');
+                window.FlowCanvasV2.updateNodes();
+            } else if (window.FlowCanvasV2 && window.FlowCanvasV2.reloadCanvas) {
+                console.log('🔄 Перезагружаем FlowCanvasV2 (fallback)...');
                 window.FlowCanvasV2.reloadCanvas();
             } else if (window.FlowCanvas && window.FlowCanvas.reloadCanvas) {
                 console.log('🔄 Перезагружаем FlowCanvas (старый)...');
                 window.FlowCanvas.reloadCanvas();
             } else {
-                console.warn('⚠️ Не найден метод reloadCanvas');
+                console.warn('⚠️ Не найден метод обновления canvas');
             }
 
         } catch (error) {
