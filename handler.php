@@ -37,7 +37,7 @@ CJSCore::Init();
     </div>
 
     <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
-    <script src="components/EntityManagerV2.js?v=2.0.4-fix-load"></script>
+    <script src="components/EntityManagerV2.js?v=2.0.5-optimize"></script>
     <script src="components/TaskHandler.js?v=2.0.3-cleanup"></script>
     <script src="components/TaskModalV2.js?v=2.0.3-cleanup"></script>
     <script src="components/FlowCanvasV2.js?v=2.0.3-cleanup"></script>

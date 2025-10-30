@@ -302,28 +302,41 @@ window.EntityManagerV2 = {
     /**
      * Получить список всех процессов
      * Возвращает массив { processId: 123, nodeCount: 5, lastModified: timestamp }
+     *
+     * ОПТИМИЗАЦИЯ: Группирует процессы во время загрузки, останавливается
+     * после 3 пустых батчей (нет новых процессов)
      */
     getAllProcesses: function() {
         return new Promise(async (resolve, reject) => {
             try {
                 await this.ensureEntityExists();
 
-                console.log('📋 Загружаем список всех процессов...');
-                const allItems = [];
-                const MAX_RECORDS = 500; // Ограничение для безопасности
+                console.log('📋 Загружаем список всех процессов (оптимизированный режим)...');
+                const processMap = {}; // Группируем сразу во время загрузки
+                let totalRecordsLoaded = 0;
+                let emptyBatchCount = 0; // Счетчик батчей без новых процессов
+                const MAX_EMPTY_BATCHES = 3; // Останавливаемся после 3 пустых батчей
+                const MAX_RECORDS = 1000; // Абсолютный лимит для безопасности
 
                 const loadBatch = (start = 0) => {
                     // Защита от переполнения
-                    if (allItems.length >= MAX_RECORDS) {
+                    if (totalRecordsLoaded >= MAX_RECORDS) {
                         console.log(`⚠️ Достигнут лимит ${MAX_RECORDS} записей`);
-                        processResults();
+                        finishLoading();
+                        return;
+                    }
+
+                    // Останавливаемся если много батчей подряд без новых процессов
+                    if (emptyBatchCount >= MAX_EMPTY_BATCHES) {
+                        console.log(`✅ Остановка: ${MAX_EMPTY_BATCHES} батчей без новых процессов`);
+                        finishLoading();
                         return;
                     }
 
                     BX24.callMethod('entity.item.get', {
                         ENTITY: 'tflow_nodes',
                         FILTER: {
-                            '%NAME': 'process_'  // Только записи процессов
+                            '%NAME': 'process_'
                         },
                         SORT: { ID: 'DESC' },
                         start: start
@@ -334,48 +347,58 @@ window.EntityManagerV2 = {
                         }
 
                         const items = result.data();
-                        allItems.push(...items);
-                        console.log(`  → Загружено ${items.length} записей (всего: ${allItems.length})`);
+                        totalRecordsLoaded += items.length;
 
-                        // ИСПРАВЛЕНО: Останавливаемся если получено меньше 50 записей (конец данных)
-                        if (items.length < 50) {
-                            console.log('✅ Все данные загружены (получено меньше 50 записей)');
-                            processResults();
-                        } else if (allItems.length >= MAX_RECORDS) {
-                            console.log(`⚠️ Достигнут лимит ${MAX_RECORDS} записей`);
-                            processResults();
+                        // Считаем сколько НОВЫХ процессов в этом батче
+                        let newProcessesInBatch = 0;
+                        const prevProcessCount = Object.keys(processMap).length;
+
+                        items.forEach(item => {
+                            if (item.NAME && item.NAME.startsWith('process_')) {
+                                const match = item.NAME.match(/^process_(\d+)/);
+                                if (match) {
+                                    const processId = match[1];
+
+                                    if (!processMap[processId]) {
+                                        processMap[processId] = {
+                                            processId: processId,
+                                            nodeCount: 0,
+                                            lastModified: item.DATE_ACTIVE_TO || item.DATE_ACTIVE_FROM
+                                        };
+                                        newProcessesInBatch++;
+                                    }
+
+                                    processMap[processId].nodeCount++;
+                                }
+                            }
+                        });
+
+                        const currentProcessCount = Object.keys(processMap).length;
+                        console.log(`  → Батч: ${items.length} записей | Процессов: ${currentProcessCount} (новых: ${newProcessesInBatch})`);
+
+                        // Если в батче не было новых процессов - увеличиваем счетчик
+                        if (newProcessesInBatch === 0) {
+                            emptyBatchCount++;
                         } else {
-                            setTimeout(() => loadBatch(start + 50), 100);
+                            emptyBatchCount = 0; // Сброс счетчика если нашли новые процессы
+                        }
+
+                        // Останавливаемся если:
+                        // 1. Получено меньше 50 записей (конец данных)
+                        // 2. Достигнут лимит записей
+                        // 3. Много батчей без новых процессов (проверяется в начале следующего вызова)
+                        if (items.length < 50) {
+                            console.log('✅ Конец данных (получено меньше 50 записей)');
+                            finishLoading();
+                        } else {
+                            setTimeout(() => loadBatch(start + 50), 50);
                         }
                     });
                 };
 
-                const processResults = () => {
-                    // Группируем по processId
-                    const processMap = {};
-
-                    allItems.forEach(item => {
-                        if (item.NAME && item.NAME.startsWith('process_')) {
-                            // Поддержка обоих форматов
-                            const match = item.NAME.match(/^process_(\d+)/);
-                            if (match) {
-                                const processId = match[1];
-
-                                if (!processMap[processId]) {
-                                    processMap[processId] = {
-                                        processId: processId,
-                                        nodeCount: 0,
-                                        lastModified: item.DATE_ACTIVE_TO || item.DATE_ACTIVE_FROM
-                                    };
-                                }
-
-                                processMap[processId].nodeCount++;
-                            }
-                        }
-                    });
-
+                const finishLoading = () => {
                     const processes = Object.values(processMap);
-                    console.log('✅ Найдено процессов:', processes.length);
+                    console.log(`✅ Загрузка завершена: ${processes.length} процессов из ${totalRecordsLoaded} записей`);
                     resolve(processes);
                 };
 
