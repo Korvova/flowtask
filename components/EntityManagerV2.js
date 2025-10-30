@@ -157,7 +157,7 @@ window.EntityManagerV2 = {
                 BX24.callMethod('entity.item.update', {
                     ENTITY: 'tflow_nodes',
                     ID: node._entityId,
-                    NAME: 'process_' + processId,
+                    NAME: 'process_' + processId + '_node_' + node.nodeId,
                     DETAIL_TEXT: JSON.stringify(node)
                 }, (result) => {
                     if (result.error()) {
@@ -174,7 +174,7 @@ window.EntityManagerV2 = {
 
                 BX24.callMethod('entity.item.add', {
                     ENTITY: 'tflow_nodes',
-                    NAME: 'process_' + processId,
+                    NAME: 'process_' + processId + '_node_' + node.nodeId,
                     DETAIL_TEXT: JSON.stringify(node)
                 }, (result) => {
                     if (result.error()) {
@@ -294,6 +294,101 @@ window.EntityManagerV2 = {
                 resolve();
             } catch (error) {
                 console.error('❌ Ошибка saveConnection:', error);
+                reject(error);
+            }
+        });
+    },
+
+    /**
+     * Получить список всех процессов
+     * Возвращает массив { processId: 123, nodeCount: 5, lastModified: timestamp }
+     */
+    getAllProcesses: function() {
+        return new Promise(async (resolve, reject) => {
+            try {
+                await this.ensureEntityExists();
+
+                console.log('📋 Загружаем список всех процессов...');
+                const allItems = [];
+
+                const loadBatch = (start = 0) => {
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_nodes',
+                        SORT: { ID: 'DESC' },
+                        start: start
+                    }, (result) => {
+                        if (result.error()) {
+                            reject(result.error());
+                            return;
+                        }
+
+                        const items = result.data();
+                        allItems.push(...items);
+
+                        if (items.length === 50) {
+                            setTimeout(() => loadBatch(start + 50), 100);
+                        } else {
+                            // Группируем по processId
+                            const processMap = {};
+
+                            allItems.forEach(item => {
+                                if (item.NAME && item.NAME.startsWith('process_')) {
+                                    const match = item.NAME.match(/^process_(\d+)_/);
+                                    if (match) {
+                                        const processId = match[1];
+
+                                        if (!processMap[processId]) {
+                                            processMap[processId] = {
+                                                processId: processId,
+                                                nodeCount: 0,
+                                                lastModified: item.DATE_ACTIVE_TO || item.DATE_ACTIVE_FROM
+                                            };
+                                        }
+
+                                        processMap[processId].nodeCount++;
+                                    }
+                                }
+                            });
+
+                            const processes = Object.values(processMap);
+                            console.log('✅ Найдено процессов:', processes.length);
+                            resolve(processes);
+                        }
+                    });
+                };
+
+                loadBatch(0);
+            } catch (error) {
+                reject(error);
+            }
+        });
+    },
+
+    /**
+     * Удалить весь процесс со всеми узлами
+     */
+    deleteProcess: function(processId) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                console.log('🗑️ Удаляем процесс:', processId);
+
+                // Загружаем все узлы процесса
+                const nodes = await this.loadProcess(processId);
+                console.log(`📦 Найдено ${nodes.length} узлов для удаления`);
+
+                // Удаляем все узлы
+                let deletedCount = 0;
+                for (const node of nodes) {
+                    if (node._entityId) {
+                        await this.deleteNode(node._entityId);
+                        deletedCount++;
+                    }
+                }
+
+                console.log(`✅ Процесс ${processId} удалён (${deletedCount} узлов)`);
+                resolve(deletedCount);
+            } catch (error) {
+                console.error('❌ Ошибка удаления процесса:', error);
                 reject(error);
             }
         });

@@ -716,9 +716,48 @@ window.FlowCanvasV2 = {
                 style: {
                     width: '100%',
                     height: '100vh',
-                    background: '#f5f7fa'
+                    background: '#f5f7fa',
+                    position: 'relative'
                 }
             },
+                // Кнопка "Список процессов"
+                React.createElement('button', {
+                    onClick: () => {
+                        if (window.ProcessManager) {
+                            window.ProcessManager.open();
+                        }
+                    },
+                    style: {
+                        position: 'absolute',
+                        top: '16px',
+                        left: '16px',
+                        zIndex: 1000,
+                        padding: '10px 16px',
+                        background: '#667eea',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s'
+                    },
+                    onMouseEnter: (e) => {
+                        e.target.style.background = '#5568d3';
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 6px 8px rgba(0, 0, 0, 0.15)';
+                    },
+                    onMouseLeave: (e) => {
+                        e.target.style.background = '#667eea';
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                    }
+                }, '📋 Список процессов'),
+
                 React.createElement(ReactFlow, {
                     nodes: nodes,
                     edges: edges,

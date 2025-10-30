@@ -41,6 +41,7 @@ CJSCore::Init();
     <script src="components/TaskHandler.js?v=<?= time() ?>"></script>
     <script src="components/TaskModalV2.js?v=<?= time() ?>"></script>
     <script src="components/FlowCanvasV2.js?v=<?= time() ?>"></script>
+    <script src="components/ProcessManager.js?v=<?= time() ?>"></script>
 
     <!-- Компоненты, используемые обеими версиями -->
     <script src="components/StatusColors.js?v=<?= time() ?>"></script>
