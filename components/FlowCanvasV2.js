@@ -290,28 +290,76 @@ window.FlowCanvasV2 = {
                         console.log('ℹ️ Пропускаем updateTaskStatuses (статусы обновляются через PULL)');
                     }
 
-                    // Если узлов нет - создаём узел для текущей задачи
+                    // Если узлов нет - показываем ProcessSelector
                     if (allNodes.length === 0 && window.currentTaskId) {
-                        console.log('📝 Создаём начальный узел для задачи', window.currentTaskId);
+                        console.log('📋 Задача без связей, показываем ProcessSelector');
 
-                        const initialNode = {
-                            nodeId: 'task-' + window.currentTaskId,
-                            type: 'task',
-                            title: 'Задача #' + window.currentTaskId,
-                            status: 2, // В работе
-                            positionX: 250,
-                            positionY: 150,
-                            connectionsFrom: [],
-                            connectionsTo: [],
-                            realTaskId: window.currentTaskId
-                        };
+                        setLoading(false); // Убираем индикатор загрузки
 
-                        await EntityManagerV2.saveNode(window.currentProcessId, initialNode);
-                        console.log('✅ Начальный узел создан');
+                        // Показываем диалог выбора процесса
+                        if (window.ProcessSelector) {
+                            window.ProcessSelector.show(window.currentTaskId, async (processName, isNew) => {
+                                if (!processName) {
+                                    // Пользователь отменил
+                                    console.log('❌ Выбор процесса отменён');
+                                    document.getElementById('root').innerHTML =
+                                        '<div class="loading">Выбор процесса отменён</div>';
+                                    return;
+                                }
 
-                        // Используем созданный узел напрямую без перезагрузки
-                        allNodes = [initialNode];
-                        console.log('✅ Узел добавлен в массив');
+                                console.log('✅ Выбран процесс:', processName, 'новый:', isNew);
+
+                                if (isNew) {
+                                    // Создаём новый процесс с выбранным именем
+                                    window.currentProcessId = processName;
+                                    console.log('📝 Создаём начальный узел для нового процесса', processName);
+
+                                    const initialNode = {
+                                        nodeId: 'task-' + window.currentTaskId,
+                                        type: 'task',
+                                        title: 'Задача #' + window.currentTaskId,
+                                        status: 2, // В работе
+                                        positionX: 250,
+                                        positionY: 150,
+                                        connectionsFrom: [],
+                                        connectionsTo: [],
+                                        realTaskId: window.currentTaskId
+                                    };
+
+                                    await EntityManagerV2.saveNode(window.currentProcessId, initialNode);
+                                    console.log('✅ Начальный узел создан в процессе', processName);
+
+                                    // Перезагружаем canvas
+                                    loadProcessData();
+                                } else {
+                                    // Присоединяемся к существующему процессу
+                                    window.currentProcessId = processName;
+                                    console.log('📝 Добавляем задачу в существующий процесс', processName);
+
+                                    const initialNode = {
+                                        nodeId: 'task-' + window.currentTaskId,
+                                        type: 'task',
+                                        title: 'Задача #' + window.currentTaskId,
+                                        status: 2,
+                                        positionX: 250,
+                                        positionY: 150,
+                                        connectionsFrom: [],
+                                        connectionsTo: [],
+                                        realTaskId: window.currentTaskId
+                                    };
+
+                                    await EntityManagerV2.saveNode(window.currentProcessId, initialNode);
+                                    console.log('✅ Задача добавлена в процесс', processName);
+
+                                    // Перезагружаем canvas
+                                    loadProcessData();
+                                }
+                            });
+                        } else {
+                            console.error('❌ ProcessSelector не загружен!');
+                        }
+
+                        return; // Прерываем loadProcessData
                     }
 
                     // Фильтруем предзадачи, которые уже созданы (realTaskId !== null)
