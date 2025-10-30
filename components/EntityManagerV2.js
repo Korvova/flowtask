@@ -118,30 +118,28 @@ window.EntityManagerV2 = {
                     // - Новый: process_149_node_task-150
                     // - Старый: process_149
                     let matchedInBatch = 0;
+                    const matchedNames = [];
                     items.forEach(item => {
                         if (item.NAME) {
                             const isNewFormat = item.NAME.startsWith(processName + '_node_');
                             const isOldFormat = item.NAME === processName;
 
                             if (isNewFormat || isOldFormat) {
-                                allItems.push(item);
-                                matchedInBatch++;
+                                // Проверяем дубликаты по ID
+                                const isDuplicate = allItems.some(existing => existing.ID === item.ID);
+                                if (!isDuplicate) {
+                                    allItems.push(item);
+                                    matchedInBatch++;
+                                    matchedNames.push(item.NAME);
+                                }
                             }
                         }
                     });
-                    console.log(`  → Совпадений для "${processName}": ${matchedInBatch} из ${items.length}`);
+                    console.log(`  → Совпадений для "${processName}": ${matchedInBatch} из ${items.length}`, matchedNames.slice(0, 5));
 
-                    // Если в батче нет совпадений - увеличиваем счётчик
-                    if (matchedInBatch === 0) {
-                        emptyBatchCount++;
-                    } else {
-                        emptyBatchCount = 0; // Сбрасываем если нашли совпадения
-                    }
-
-                    // Останавливаем если:
-                    // 1. Получили меньше 50 записей (конец таблицы)
-                    // 2. Или 10 батчей подряд без совпадений (наши записи кончились)
-                    if (items.length < 50 || emptyBatchCount >= 10) {
+                    // Останавливаем только когда:
+                    // Получили меньше 50 записей (конец таблицы)
+                    if (items.length < 50) {
                         console.log(`✅ Найдено узлов процесса ${processId}: ${allItems.length}`);
 
                         // Парсим JSON
