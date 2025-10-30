@@ -302,7 +302,8 @@ window.TaskModalV2 = {
                     positionY: this.currentPosition.y,
                     connectionsFrom: this.currentSourceId ? [this.currentSourceId] : [],
                     connectionsTo: [],
-                    realTaskId: null
+                    realTaskId: null,
+                    processId: processId  // КРИТИЧНО: Сохраняем processId!
                 };
 
                 // Сохранить в EntityManagerV2

@@ -99,14 +99,33 @@ window.ProcessManager = {
             flex: 1;
         `;
 
-        // Футер с кнопкой закрытия
+        // Футер с кнопками
         const footer = document.createElement('div');
         footer.style.cssText = `
             padding: 16px 24px;
             border-top: 1px solid #e5e7eb;
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
+            align-items: center;
         `;
+
+        // Кнопка очистки удаленных процессов
+        const cleanupBtn = document.createElement('button');
+        cleanupBtn.style.cssText = `
+            padding: 10px 20px;
+            background: #f97316;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        `;
+        cleanupBtn.textContent = '🧹 Очистить удаленные';
+        cleanupBtn.onmouseover = () => { cleanupBtn.style.background = '#ea580c'; };
+        cleanupBtn.onmouseout = () => { cleanupBtn.style.background = '#f97316'; };
+        cleanupBtn.onclick = () => this.cleanupDeletedProcesses();
 
         const closeBtnBottom = document.createElement('button');
         closeBtnBottom.style.cssText = `
@@ -125,6 +144,7 @@ window.ProcessManager = {
         closeBtnBottom.onmouseout = () => { closeBtnBottom.style.background = '#6b7280'; };
         closeBtnBottom.onclick = () => this.close();
 
+        footer.appendChild(cleanupBtn);
         footer.appendChild(closeBtnBottom);
 
         // Собираем модалку
@@ -330,6 +350,157 @@ window.ProcessManager = {
             `;
 
             // Перезагружаем список через 2 секунды
+            setTimeout(() => {
+                this.loadProcessList();
+            }, 2000);
+        }
+    },
+
+    /**
+     * Очистить процессы удаленных задач
+     * Проверяет все процессы и удаляет те, у которых основная задача не существует
+     */
+    cleanupDeletedProcesses: async function() {
+        const content = document.getElementById('process-list-content');
+
+        if (!content) {
+            return;
+        }
+
+        // Показываем индикатор загрузки
+        content.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #6b7280;">
+                <div style="font-size: 32px; margin-bottom: 12px;">🔍</div>
+                <div>Поиск удаленных процессов...</div>
+            </div>
+        `;
+
+        try {
+            const processes = await EntityManagerV2.getAllProcesses();
+            console.log('📊 Проверяем процессов:', processes.length);
+
+            const deletedProcesses = [];
+            let checkedCount = 0;
+
+            // Обновляем статус проверки
+            const updateStatus = () => {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <div style="font-size: 32px; margin-bottom: 12px;">🔍</div>
+                        <div>Проверка процессов...</div>
+                        <div style="margin-top: 12px; font-size: 14px;">
+                            Проверено: ${checkedCount} из ${processes.length}
+                        </div>
+                    </div>
+                `;
+            };
+
+            // Проверяем каждый процесс
+            for (const process of processes) {
+                const taskInfo = await this.getTaskInfo(process.processId);
+                checkedCount++;
+
+                if (!taskInfo.exists) {
+                    deletedProcesses.push(process.processId);
+                }
+
+                // Обновляем статус каждые 5 процессов
+                if (checkedCount % 5 === 0) {
+                    updateStatus();
+                }
+            }
+
+            console.log('🗑️ Найдено удаленных процессов:', deletedProcesses.length);
+
+            if (deletedProcesses.length === 0) {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #10b981;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
+                        <div style="font-size: 16px; font-weight: 500;">Удаленных процессов не найдено</div>
+                        <div style="font-size: 14px; margin-top: 8px; color: #6b7280;">
+                            Все процессы имеют существующие задачи
+                        </div>
+                    </div>
+                `;
+
+                setTimeout(() => {
+                    this.loadProcessList();
+                }, 2000);
+                return;
+            }
+
+            // Подтверждение удаления
+            const confirmed = confirm(
+                `Найдено ${deletedProcesses.length} удаленных процессов:\n\n` +
+                deletedProcesses.map(id => `• Процесс #${id}`).join('\n') +
+                `\n\nУдалить все?`
+            );
+
+            if (!confirmed) {
+                this.loadProcessList();
+                return;
+            }
+
+            // Удаляем процессы
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #6b7280;">
+                    <div style="font-size: 32px; margin-bottom: 12px;">🗑️</div>
+                    <div>Удаление процессов...</div>
+                    <div style="margin-top: 12px; font-size: 14px;">
+                        Удалено: 0 из ${deletedProcesses.length}
+                    </div>
+                </div>
+            `;
+
+            let deletedCount = 0;
+            let totalNodesDeleted = 0;
+
+            for (const processId of deletedProcesses) {
+                const nodesDeleted = await EntityManagerV2.deleteProcess(processId);
+                totalNodesDeleted += nodesDeleted;
+                deletedCount++;
+
+                // Обновляем статус
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <div style="font-size: 32px; margin-bottom: 12px;">🗑️</div>
+                        <div>Удаление процессов...</div>
+                        <div style="margin-top: 12px; font-size: 14px;">
+                            Удалено: ${deletedCount} из ${deletedProcesses.length}
+                        </div>
+                    </div>
+                `;
+            }
+
+            console.log(`✅ Удалено процессов: ${deletedCount}, узлов: ${totalNodesDeleted}`);
+
+            // Показываем успех
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #10b981;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
+                    <div style="font-size: 16px; font-weight: 500;">Очистка завершена</div>
+                    <div style="font-size: 14px; margin-top: 8px; color: #6b7280;">
+                        Удалено процессов: ${deletedCount}<br>
+                        Удалено узлов: ${totalNodesDeleted}
+                    </div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                this.loadProcessList();
+            }, 2000);
+
+        } catch (error) {
+            console.error('❌ Ошибка очистки процессов:', error);
+
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #ef4444;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">❌</div>
+                    <div style="font-size: 16px; font-weight: 500;">Ошибка очистки</div>
+                    <div style="font-size: 14px; margin-top: 8px;">${error.message || error}</div>
+                </div>
+            `;
+
             setTimeout(() => {
                 this.loadProcessList();
             }, 2000);

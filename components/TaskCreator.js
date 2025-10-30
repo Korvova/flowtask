@@ -439,8 +439,7 @@ window.TaskCreator = {
                     TITLE: futureData.title,
                     DESCRIPTION: futureData.description || '',
                     RESPONSIBLE_ID: futureData.responsibleId,
-                    GROUP_ID: futureData.groupId || 0,
-                    UF_FLOWTASK_PROCESS_ID: processId // ДОБАВЛЕНО: наследуем processId!
+                    GROUP_ID: futureData.groupId || 0
                 }
             }, (result) => {
                 if (result.error()) {

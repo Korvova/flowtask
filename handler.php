@@ -37,12 +37,12 @@ CJSCore::Init();
     </div>
 
     <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
-    <script src="components/EntityManagerV2.js?v=2.0.2-fix-loop"></script>
-    <script src="components/TaskHandler.js?v=2.0.2-fix-loop"></script>
-    <script src="components/TaskModalV2.js?v=2.0.2-fix-loop"></script>
-    <script src="components/FlowCanvasV2.js?v=2.0.2-fix-loop"></script>
-    <script src="components/ProcessManager.js?v=2.0.2-fix-loop"></script>
-    <script src="components/TaskProcessMapping.js?v=2.0.2-fix-loop"></script>
+    <script src="components/EntityManagerV2.js?v=2.0.3-cleanup"></script>
+    <script src="components/TaskHandler.js?v=2.0.3-cleanup"></script>
+    <script src="components/TaskModalV2.js?v=2.0.3-cleanup"></script>
+    <script src="components/FlowCanvasV2.js?v=2.0.3-cleanup"></script>
+    <script src="components/ProcessManager.js?v=2.0.3-cleanup"></script>
+    <script src="components/TaskProcessMapping.js?v=2.0.3-cleanup"></script>
 
     <!-- Компоненты, используемые обеими версиями -->
     <script src="components/StatusColors.js?v=2.0.1"></script>
@@ -50,7 +50,7 @@ CJSCore::Init();
 
     <!-- Старая архитектура (временно, для совместимости) -->
     <script src="components/EntityManager.js?v=2.0.1"></script>
-    <script src="components/TaskCreator.js?v=2.0.1"></script>
+    <script src="components/TaskCreator.js?v=2.0.3-cleanup"></script>
     <script src="components/TaskNode.js?v=2.0.1"></script>
     <script src="components/TaskModal.js?v=2.0.1"></script>
     <script src="components/FlowCanvas.js?v=2.0.1"></script>
