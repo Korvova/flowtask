@@ -37,11 +37,11 @@ CJSCore::Init();
     </div>
 
     <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
-    <script src="components/EntityManagerV2.js?v=2.0.1"></script>
-    <script src="components/TaskHandler.js?v=2.0.1"></script>
-    <script src="components/TaskModalV2.js?v=2.0.1"></script>
-    <script src="components/FlowCanvasV2.js?v=2.0.1"></script>
-    <script src="components/ProcessManager.js?v=2.0.1"></script>
+    <script src="components/EntityManagerV2.js?v=2.0.2-fix-loop"></script>
+    <script src="components/TaskHandler.js?v=2.0.2-fix-loop"></script>
+    <script src="components/TaskModalV2.js?v=2.0.2-fix-loop"></script>
+    <script src="components/FlowCanvasV2.js?v=2.0.2-fix-loop"></script>
+    <script src="components/ProcessManager.js?v=2.0.2-fix-loop"></script>
 
     <!-- Компоненты, используемые обеими версиями -->
     <script src="components/StatusColors.js?v=2.0.1"></script>

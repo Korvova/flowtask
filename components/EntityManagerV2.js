@@ -113,11 +113,14 @@ window.EntityManagerV2 = {
                     console.log(`📦 Загружено ${items.length} записей (start=${start})`);
 
                     // Добавляем только записи нашего процесса
+                    let matchedInBatch = 0;
                     items.forEach(item => {
                         if (item.NAME && item.NAME.startsWith(processName + '_')) {
                             allItems.push(item);
+                            matchedInBatch++;
                         }
                     });
+                    console.log(`  → Совпадений для "${processName}": ${matchedInBatch} из ${items.length}`);
 
                     // Если получили 50 записей, значит есть еще
                     if (items.length === 50) {
