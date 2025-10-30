@@ -114,7 +114,7 @@ window.EntityManagerV2 = {
 
                     // Добавляем только записи нашего процесса
                     items.forEach(item => {
-                        if (item.NAME === processName) {
+                        if (item.NAME && item.NAME.startsWith(processName + '_')) {
                             allItems.push(item);
                         }
                     });
