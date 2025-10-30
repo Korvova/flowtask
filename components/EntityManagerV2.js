@@ -91,13 +91,15 @@ window.EntityManagerV2 = {
 
             const processName = 'process_' + processId;
             const allItems = [];
-            let emptyBatchCount = 0; // Счётчик батчей без совпадений
 
             const loadBatch = (start = 0) => {
-                console.log(`🔍 Запрос к entity.item.get: ENTITY=tflow_nodes, start=${start}`);
+                console.log(`🔍 Запрос к entity.item.get: ENTITY=tflow_nodes, FILTER=%NAME=${processName}, start=${start}`);
 
                 BX24.callMethod('entity.item.get', {
                     ENTITY: 'tflow_nodes',
+                    FILTER: {
+                        '%NAME': processName  // Поиск по подстроке: все NAME содержащие 'process_149'
+                    },
                     SORT: { ID: 'ASC' },
                     start: start
                 }, (result) => {
@@ -111,31 +113,10 @@ window.EntityManagerV2 = {
                     }
 
                     const items = result.data();
-                    console.log(`📦 Загружено ${items.length} записей (start=${start})`);
+                    console.log(`📦 Загружено ${items.length} записей для "${processName}" (start=${start})`);
 
-                    // Добавляем только записи нашего процесса
-                    // Поддерживаем оба формата:
-                    // - Новый: process_149_node_task-150
-                    // - Старый: process_149
-                    let matchedInBatch = 0;
-                    const matchedNames = [];
-                    items.forEach(item => {
-                        if (item.NAME) {
-                            const isNewFormat = item.NAME.startsWith(processName + '_node_');
-                            const isOldFormat = item.NAME === processName;
-
-                            if (isNewFormat || isOldFormat) {
-                                // Проверяем дубликаты по ID
-                                const isDuplicate = allItems.some(existing => existing.ID === item.ID);
-                                if (!isDuplicate) {
-                                    allItems.push(item);
-                                    matchedInBatch++;
-                                    matchedNames.push(item.NAME);
-                                }
-                            }
-                        }
-                    });
-                    console.log(`  → Совпадений для "${processName}": ${matchedInBatch} из ${items.length}`, matchedNames.slice(0, 5));
+                    // FILTER уже отфильтровал нужные записи, просто добавляем
+                    allItems.push(...items);
 
                     // Останавливаем только когда:
                     // Получили меньше 50 записей (конец таблицы)
