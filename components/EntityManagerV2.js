@@ -335,12 +335,17 @@ window.EntityManagerV2 = {
 
                         const items = result.data();
                         allItems.push(...items);
-                        console.log(`  → Загружено ${items.length} процессов (всего: ${allItems.length})`);
+                        console.log(`  → Загружено ${items.length} записей (всего: ${allItems.length})`);
 
-                        if (items.length === 50 && allItems.length < MAX_RECORDS) {
-                            setTimeout(() => loadBatch(start + 50), 100);
-                        } else {
+                        // ИСПРАВЛЕНО: Останавливаемся если получено меньше 50 записей (конец данных)
+                        if (items.length < 50) {
+                            console.log('✅ Все данные загружены (получено меньше 50 записей)');
                             processResults();
+                        } else if (allItems.length >= MAX_RECORDS) {
+                            console.log(`⚠️ Достигнут лимит ${MAX_RECORDS} записей`);
+                            processResults();
+                        } else {
+                            setTimeout(() => loadBatch(start + 50), 100);
                         }
                     });
                 };
