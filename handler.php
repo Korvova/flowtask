@@ -68,6 +68,27 @@ CJSCore::Init();
         BX24.init(function() {
             console.log('🚀 Flowtask');
 
+            // Создаём пользовательское поле UF_FLOWTASK_PROCESS_ID если его нет
+            BX24.callMethod('task.item.userfield.add', {
+                PARAMS: {
+                    'USER_TYPE_ID': 'integer',
+                    'FIELD_NAME': 'UF_FLOWTASK_PROCESS_ID',
+                    'XML_ID': 'FLOWTASK_PROCESS_ID',
+                    'EDIT_FORM_LABEL': {
+                        'en': 'Flowtask Process ID',
+                        'ru': 'ID процесса Flowtask'
+                    },
+                    'LABEL': 'Flowtask Process ID'
+                }
+            }, function(result) {
+                if (result.error()) {
+                    // Поле уже существует - это нормально
+                    console.log('ℹ️ UF поле уже существует или ошибка:', result.error());
+                } else {
+                    console.log('✅ UF поле создано:', result.data());
+                }
+            });
+
             const placement = BX24.placement.info();
 
             if (placement?.placement === "DEFAULT") {
@@ -100,7 +121,15 @@ CJSCore::Init();
 
                 const task = result.data().task;
                 console.log('✅ Задача загружена:', task.id, task.title);
-                console.log('🔍 UF поля:', task.ufFlowtaskProcessId, task.UF_FLOWTASK_PROCESS_ID);
+
+                // Ищем все UF поля
+                const ufFields = {};
+                Object.keys(task).forEach(key => {
+                    if (key.startsWith('UF_') || key.startsWith('uf')) {
+                        ufFields[key] = task[key];
+                    }
+                });
+                console.log('🔍 Все UF поля:', ufFields);
 
                 const processId = task.ufFlowtaskProcessId || task.UF_FLOWTASK_PROCESS_ID || task.id;
                 console.log('📋 Process ID:', processId);
