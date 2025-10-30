@@ -109,6 +109,10 @@ window.ProcessManager = {
             align-items: center;
         `;
 
+        // Левая группа кнопок
+        const leftButtons = document.createElement('div');
+        leftButtons.style.cssText = 'display: flex; gap: 8px;';
+
         // Кнопка очистки удаленных процессов
         const cleanupBtn = document.createElement('button');
         cleanupBtn.style.cssText = `
@@ -127,6 +131,46 @@ window.ProcessManager = {
         cleanupBtn.onmouseout = () => { cleanupBtn.style.background = '#f97316'; };
         cleanupBtn.onclick = () => this.cleanupDeletedProcesses();
 
+        // Кнопка удаления ВСЕХ процессов (для очистки тестов)
+        const deleteAllBtn = document.createElement('button');
+        deleteAllBtn.style.cssText = `
+            padding: 10px 20px;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        `;
+        deleteAllBtn.textContent = '🗑️ Удалить ВСЕ';
+        deleteAllBtn.onmouseover = () => { deleteAllBtn.style.background = '#b91c1c'; };
+        deleteAllBtn.onmouseout = () => { deleteAllBtn.style.background = '#dc2626'; };
+        deleteAllBtn.onclick = () => this.deleteAllProcesses();
+
+        // Кнопка удаления таблицы (ЯДЕРНАЯ ОПЦИЯ)
+        const nukeBtn = document.createElement('button');
+        nukeBtn.style.cssText = `
+            padding: 10px 20px;
+            background: #7c2d12;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        `;
+        nukeBtn.textContent = '☢️ Очистить таблицу';
+        nukeBtn.onmouseover = () => { nukeBtn.style.background = '#57120b'; };
+        nukeBtn.onmouseout = () => { nukeBtn.style.background = '#7c2d12'; };
+        nukeBtn.onclick = () => this.nukeStorage();
+
+        leftButtons.appendChild(cleanupBtn);
+        leftButtons.appendChild(deleteAllBtn);
+        leftButtons.appendChild(nukeBtn);
+
         const closeBtnBottom = document.createElement('button');
         closeBtnBottom.style.cssText = `
             padding: 10px 20px;
@@ -144,7 +188,7 @@ window.ProcessManager = {
         closeBtnBottom.onmouseout = () => { closeBtnBottom.style.background = '#6b7280'; };
         closeBtnBottom.onclick = () => this.close();
 
-        footer.appendChild(cleanupBtn);
+        footer.appendChild(leftButtons);
         footer.appendChild(closeBtnBottom);
 
         // Собираем модалку
@@ -492,6 +536,292 @@ window.ProcessManager = {
 
         } catch (error) {
             console.error('❌ Ошибка очистки процессов:', error);
+
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #ef4444;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">❌</div>
+                    <div style="font-size: 16px; font-weight: 500;">Ошибка очистки</div>
+                    <div style="font-size: 14px; margin-top: 8px;">${error.message || error}</div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                this.loadProcessList();
+            }, 2000);
+        }
+    },
+
+    /**
+     * Удалить ВСЕ процессы (для очистки тестовых данных)
+     */
+    deleteAllProcesses: async function() {
+        const content = document.getElementById('process-list-content');
+
+        if (!content) {
+            return;
+        }
+
+        // Подтверждение
+        const confirmed = confirm(
+            '⚠️ ВНИМАНИЕ! Это удалит ВСЕ процессы без возможности восстановления!\n\n' +
+            'Эта функция предназначена для очистки тестовых данных.\n\n' +
+            'Продолжить?'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        // Второе подтверждение
+        const doubleConfirmed = confirm(
+            '🚨 Вы уверены? Это действие необратимо!\n\n' +
+            'Будут удалены ВСЕ процессы и все их узлы.'
+        );
+
+        if (!doubleConfirmed) {
+            return;
+        }
+
+        content.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #6b7280;">
+                <div style="font-size: 32px; margin-bottom: 12px;">🔍</div>
+                <div>Загрузка списка процессов...</div>
+            </div>
+        `;
+
+        try {
+            const processes = await EntityManagerV2.getAllProcesses();
+            console.log('🗑️ Удаление всех процессов:', processes.length);
+
+            if (processes.length === 0) {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
+                        <div style="font-size: 16px; font-weight: 500;">Процессов не найдено</div>
+                    </div>
+                `;
+                setTimeout(() => this.loadProcessList(), 2000);
+                return;
+            }
+
+            // Удаляем все процессы
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #6b7280;">
+                    <div style="font-size: 32px; margin-bottom: 12px;">🗑️</div>
+                    <div>Удаление процессов...</div>
+                    <div style="margin-top: 12px; font-size: 14px;">
+                        Удалено: 0 из ${processes.length}
+                    </div>
+                </div>
+            `;
+
+            let deletedCount = 0;
+            let totalNodesDeleted = 0;
+
+            for (const process of processes) {
+                const nodesDeleted = await EntityManagerV2.deleteProcess(process.processId);
+                totalNodesDeleted += nodesDeleted;
+                deletedCount++;
+
+                // Обновляем статус
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <div style="font-size: 32px; margin-bottom: 12px;">🗑️</div>
+                        <div>Удаление процессов...</div>
+                        <div style="margin-top: 12px; font-size: 14px;">
+                            Удалено: ${deletedCount} из ${processes.length}
+                        </div>
+                    </div>
+                `;
+            }
+
+            console.log(`✅ Удалено всех процессов: ${deletedCount}, узлов: ${totalNodesDeleted}`);
+
+            // Показываем успех
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #10b981;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
+                    <div style="font-size: 16px; font-weight: 500;">Все процессы удалены</div>
+                    <div style="font-size: 14px; margin-top: 8px; color: #6b7280;">
+                        Удалено процессов: ${deletedCount}<br>
+                        Удалено узлов: ${totalNodesDeleted}
+                    </div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                this.loadProcessList();
+            }, 2000);
+
+        } catch (error) {
+            console.error('❌ Ошибка удаления всех процессов:', error);
+
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #ef4444;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">❌</div>
+                    <div style="font-size: 16px; font-weight: 500;">Ошибка удаления</div>
+                    <div style="font-size: 14px; margin-top: 8px;">${error.message || error}</div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                this.loadProcessList();
+            }, 2000);
+        }
+    },
+
+    /**
+     * Очистить ВСЮ таблицу tflow_nodes (удалить все записи)
+     */
+    nukeStorage: async function() {
+        const content = document.getElementById('process-list-content');
+
+        if (!content) {
+            return;
+        }
+
+        // Подтверждение
+        const confirmed = confirm(
+            '☢️ ЯДЕРНАЯ ОПЦИЯ!\n\n' +
+            'Это удалит ВСЕ записи из таблицы tflow_nodes!\n\n' +
+            'Все процессы, задачи и связи будут ПОЛНОСТЬЮ уничтожены.\n\n' +
+            'Продолжить?'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        // Второе подтверждение
+        const doubleConfirmed = confirm(
+            '🚨 ЭТО НЕОБРАТИМО!\n\n' +
+            'После этого потребуется заново создавать процессы.\n\n' +
+            'Вы АБСОЛЮТНО уверены?'
+        );
+
+        if (!doubleConfirmed) {
+            return;
+        }
+
+        content.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #6b7280;">
+                <div style="font-size: 32px; margin-bottom: 12px;">☢️</div>
+                <div>Загрузка всех записей...</div>
+            </div>
+        `;
+
+        try {
+            // Загружаем ВСЕ записи
+            const allRecords = [];
+            let start = 0;
+
+            while (true) {
+                const batch = await new Promise((resolve) => {
+                    BX24.callMethod('entity.item.get', {
+                        ENTITY: 'tflow_nodes',
+                        start: start
+                    }, (result) => {
+                        if (result.error()) {
+                            resolve([]);
+                        } else {
+                            resolve(result.data());
+                        }
+                    });
+                });
+
+                allRecords.push(...batch);
+
+                console.log(`📦 Загружено записей: ${allRecords.length}`);
+
+                if (batch.length < 50) {
+                    break; // Конец данных
+                }
+
+                start += 50;
+
+                // Обновляем статус
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <div style="font-size: 32px; margin-bottom: 12px;">☢️</div>
+                        <div>Загрузка всех записей...</div>
+                        <div style="margin-top: 12px; font-size: 14px;">
+                            Загружено: ${allRecords.length}
+                        </div>
+                    </div>
+                `;
+            }
+
+            console.log(`✅ Всего записей для удаления: ${allRecords.length}`);
+
+            if (allRecords.length === 0) {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
+                        <div style="font-size: 16px; font-weight: 500;">Таблица уже пуста</div>
+                    </div>
+                `;
+                setTimeout(() => this.loadProcessList(), 2000);
+                return;
+            }
+
+            // Удаляем все записи
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #6b7280;">
+                    <div style="font-size: 32px; margin-bottom: 12px;">🗑️</div>
+                    <div>Удаление записей...</div>
+                    <div style="margin-top: 12px; font-size: 14px;">
+                        Удалено: 0 из ${allRecords.length}
+                    </div>
+                </div>
+            `;
+
+            let deletedCount = 0;
+
+            for (const record of allRecords) {
+                await new Promise((resolve) => {
+                    BX24.callMethod('entity.item.delete', {
+                        ENTITY: 'tflow_nodes',
+                        ID: record.ID
+                    }, (result) => {
+                        resolve();
+                    });
+                });
+
+                deletedCount++;
+
+                // Обновляем статус каждые 10 записей
+                if (deletedCount % 10 === 0 || deletedCount === allRecords.length) {
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #6b7280;">
+                            <div style="font-size: 32px; margin-bottom: 12px;">🗑️</div>
+                            <div>Удаление записей...</div>
+                            <div style="margin-top: 12px; font-size: 14px;">
+                                Удалено: ${deletedCount} из ${allRecords.length}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            console.log(`✅ Удалено записей: ${deletedCount}`);
+
+            // Показываем успех
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #10b981;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
+                    <div style="font-size: 16px; font-weight: 500;">Таблица очищена</div>
+                    <div style="font-size: 14px; margin-top: 8px; color: #6b7280;">
+                        Удалено записей: ${deletedCount}
+                    </div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                this.loadProcessList();
+            }, 2000);
+
+        } catch (error) {
+            console.error('❌ Ошибка очистки таблицы:', error);
 
             content.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: #ef4444;">
