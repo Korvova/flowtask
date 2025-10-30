@@ -310,10 +310,21 @@ window.EntityManagerV2 = {
 
                 console.log('📋 Загружаем список всех процессов...');
                 const allItems = [];
+                const MAX_RECORDS = 500; // Ограничение для безопасности
 
                 const loadBatch = (start = 0) => {
+                    // Защита от переполнения
+                    if (allItems.length >= MAX_RECORDS) {
+                        console.log(`⚠️ Достигнут лимит ${MAX_RECORDS} записей`);
+                        processResults();
+                        return;
+                    }
+
                     BX24.callMethod('entity.item.get', {
                         ENTITY: 'tflow_nodes',
+                        FILTER: {
+                            '%NAME': 'process_'  // Только записи процессов
+                        },
                         SORT: { ID: 'DESC' },
                         start: start
                     }, (result) => {
@@ -324,37 +335,43 @@ window.EntityManagerV2 = {
 
                         const items = result.data();
                         allItems.push(...items);
+                        console.log(`  → Загружено ${items.length} процессов (всего: ${allItems.length})`);
 
-                        if (items.length === 50) {
+                        if (items.length === 50 && allItems.length < MAX_RECORDS) {
                             setTimeout(() => loadBatch(start + 50), 100);
                         } else {
-                            // Группируем по processId
-                            const processMap = {};
-
-                            allItems.forEach(item => {
-                                if (item.NAME && item.NAME.startsWith('process_')) {
-                                    const match = item.NAME.match(/^process_(\d+)_/);
-                                    if (match) {
-                                        const processId = match[1];
-
-                                        if (!processMap[processId]) {
-                                            processMap[processId] = {
-                                                processId: processId,
-                                                nodeCount: 0,
-                                                lastModified: item.DATE_ACTIVE_TO || item.DATE_ACTIVE_FROM
-                                            };
-                                        }
-
-                                        processMap[processId].nodeCount++;
-                                    }
-                                }
-                            });
-
-                            const processes = Object.values(processMap);
-                            console.log('✅ Найдено процессов:', processes.length);
-                            resolve(processes);
+                            processResults();
                         }
                     });
+                };
+
+                const processResults = () => {
+                    // Группируем по processId
+                    const processMap = {};
+
+                    allItems.forEach(item => {
+                        if (item.NAME && item.NAME.startsWith('process_')) {
+                            // Поддержка обоих форматов
+                            const match = item.NAME.match(/^process_(\d+)/);
+                            if (match) {
+                                const processId = match[1];
+
+                                if (!processMap[processId]) {
+                                    processMap[processId] = {
+                                        processId: processId,
+                                        nodeCount: 0,
+                                        lastModified: item.DATE_ACTIVE_TO || item.DATE_ACTIVE_FROM
+                                    };
+                                }
+
+                                processMap[processId].nodeCount++;
+                            }
+                        }
+                    });
+
+                    const processes = Object.values(processMap);
+                    console.log('✅ Найдено процессов:', processes.length);
+                    resolve(processes);
                 };
 
                 loadBatch(0);
