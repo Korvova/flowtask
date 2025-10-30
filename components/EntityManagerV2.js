@@ -91,6 +91,7 @@ window.EntityManagerV2 = {
 
             const processName = 'process_' + processId;
             const allItems = [];
+            let emptyBatchCount = 0; // Счётчик батчей без совпадений
 
             const loadBatch = (start = 0) => {
                 console.log(`🔍 Запрос к entity.item.get: ENTITY=tflow_nodes, start=${start}`);
@@ -113,20 +114,34 @@ window.EntityManagerV2 = {
                     console.log(`📦 Загружено ${items.length} записей (start=${start})`);
 
                     // Добавляем только записи нашего процесса
+                    // Поддерживаем оба формата:
+                    // - Новый: process_149_node_task-150
+                    // - Старый: process_149
                     let matchedInBatch = 0;
                     items.forEach(item => {
-                        if (item.NAME && item.NAME.startsWith(processName + '_')) {
-                            allItems.push(item);
-                            matchedInBatch++;
+                        if (item.NAME) {
+                            const isNewFormat = item.NAME.startsWith(processName + '_node_');
+                            const isOldFormat = item.NAME === processName;
+
+                            if (isNewFormat || isOldFormat) {
+                                allItems.push(item);
+                                matchedInBatch++;
+                            }
                         }
                     });
                     console.log(`  → Совпадений для "${processName}": ${matchedInBatch} из ${items.length}`);
 
-                    // Если получили 50 записей, значит есть еще
-                    if (items.length === 50) {
-                        setTimeout(() => loadBatch(start + 50), 100);
+                    // Если в батче нет совпадений - увеличиваем счётчик
+                    if (matchedInBatch === 0) {
+                        emptyBatchCount++;
                     } else {
-                        // Все загружено
+                        emptyBatchCount = 0; // Сбрасываем если нашли совпадения
+                    }
+
+                    // Останавливаем если:
+                    // 1. Получили меньше 50 записей (конец таблицы)
+                    // 2. Или 10 батчей подряд без совпадений (наши записи кончились)
+                    if (items.length < 50 || emptyBatchCount >= 10) {
                         console.log(`✅ Найдено узлов процесса ${processId}: ${allItems.length}`);
 
                         // Парсим JSON
@@ -137,6 +152,9 @@ window.EntityManagerV2 = {
                         });
 
                         resolve(nodes);
+                    } else {
+                        // Продолжаем загрузку следующего батча
+                        setTimeout(() => loadBatch(start + 50), 100);
                     }
                 });
             };
