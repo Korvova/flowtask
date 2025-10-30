@@ -41,7 +41,7 @@ CJSCore::Init();
     <script src="components/TaskHandler.js?v=2.0.3-cleanup"></script>
     <script src="components/TaskModalV2.js?v=2.0.3-cleanup"></script>
     <script src="components/FlowCanvasV2.js?v=2.0.3-cleanup"></script>
-    <script src="components/ProcessManager.js?v=2.0.6-deleteall"></script>
+    <script src="components/ProcessManager.js?v=2.0.7-filter"></script>
     <script src="components/TaskProcessMapping.js?v=2.0.3-cleanup"></script>
 
     <!-- Компоненты, используемые обеими версиями -->

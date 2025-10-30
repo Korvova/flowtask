@@ -719,6 +719,9 @@ window.ProcessManager = {
                 const batch = await new Promise((resolve) => {
                     BX24.callMethod('entity.item.get', {
                         ENTITY: 'tflow_nodes',
+                        FILTER: {
+                            '%NAME': 'process_'  // ТОЛЬКО записи процессов!
+                        },
                         start: start
                     }, (result) => {
                         if (result.error()) {
@@ -731,7 +734,7 @@ window.ProcessManager = {
 
                 allRecords.push(...batch);
 
-                console.log(`📦 Загружено записей: ${allRecords.length}`);
+                console.log(`📦 Загружено записей процессов: ${allRecords.length}`);
 
                 if (batch.length < 50) {
                     break; // Конец данных
