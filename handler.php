@@ -100,8 +100,9 @@ CJSCore::Init();
 
                 const task = result.data().task;
                 console.log('✅ Задача загружена:', task.id, task.title);
+                console.log('🔍 UF поля:', task.ufFlowtaskProcessId, task.UF_FLOWTASK_PROCESS_ID);
 
-                const processId = task.ufFlowtaskProcessId || task.id;
+                const processId = task.ufFlowtaskProcessId || task.UF_FLOWTASK_PROCESS_ID || task.id;
                 console.log('📋 Process ID:', processId);
 
                 // Используем НОВУЮ АРХИТЕКТУРУ V2
