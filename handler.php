@@ -69,29 +69,6 @@ CJSCore::Init();
         BX24.init(function() {
             console.log('🚀 Flowtask');
 
-            // Создаём пользовательское поле UF_FLOWTASK_PROCESS_ID если его нет
-            BX24.callMethod('task.item.userfield.add', {
-                PARAMS: {
-                    'USER_TYPE_ID': 'integer',
-                    'FIELD_NAME': 'UF_FLOWTASK_PROCESS_ID',
-                    'XML_ID': 'FLOWTASK_PROCESS_ID',
-                    'EDIT_FORM_LABEL': {
-                        'en': 'Flowtask Process ID',
-                        'ru': 'ID процесса Flowtask'
-                    },
-                    'LABEL': 'Flowtask Process ID'
-                }
-            }, function(result) {
-                if (result.error()) {
-                    const err = result.error();
-                    console.error('❌ Ошибка создания UF поля:', err);
-                    console.error('   Код:', err.ex?.error);
-                    console.error('   Описание:', err.ex?.error_description);
-                } else {
-                    console.log('✅ UF поле создано:', result.data());
-                }
-            });
-
             const placement = BX24.placement.info();
 
             if (placement?.placement === "DEFAULT") {
