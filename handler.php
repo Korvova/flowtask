@@ -42,6 +42,7 @@ CJSCore::Init();
     <script src="components/TaskModalV2.js?v=2.0.2-fix-loop"></script>
     <script src="components/FlowCanvasV2.js?v=2.0.2-fix-loop"></script>
     <script src="components/ProcessManager.js?v=2.0.2-fix-loop"></script>
+    <script src="components/TaskProcessMapping.js?v=2.0.2-fix-loop"></script>
 
     <!-- Компоненты, используемые обеими версиями -->
     <script src="components/StatusColors.js?v=2.0.1"></script>
@@ -82,8 +83,10 @@ CJSCore::Init();
                 }
             }, function(result) {
                 if (result.error()) {
-                    // Поле уже существует - это нормально
-                    console.log('ℹ️ UF поле уже существует или ошибка:', result.error());
+                    const err = result.error();
+                    console.error('❌ Ошибка создания UF поля:', err);
+                    console.error('   Код:', err.ex?.error);
+                    console.error('   Описание:', err.ex?.error_description);
                 } else {
                     console.log('✅ UF поле создано:', result.data());
                 }
@@ -122,31 +125,24 @@ CJSCore::Init();
                 const task = result.data().task;
                 console.log('✅ Задача загружена:', task.id, task.title);
 
-                // Ищем все UF поля
-                const ufFields = {};
-                Object.keys(task).forEach(key => {
-                    if (key.startsWith('UF_') || key.startsWith('uf')) {
-                        ufFields[key] = task[key];
+                // Ищем processId в Entity Storage
+                window.TaskProcessMapping.getProcessId(task.id).then(processId => {
+                    console.log('📋 Process ID:', processId);
+
+                    // Используем НОВУЮ АРХИТЕКТУРУ V2
+                    if (typeof window.FlowCanvasV2 !== "undefined") {
+                        window.currentProcessId = processId;
+                        window.currentTaskId = task.id;
+                        window.FlowCanvasV2.render();
+                        console.log('✅ Используем FlowCanvasV2 (новая архитектура)');
+                    } else if (typeof window.FlowCanvas !== "undefined") {
+                        // Fallback на старую версию
+                        window.FlowCanvas.render(task);
+                        console.log('⚠️ Используем FlowCanvas (старая архитектура)');
+                    } else {
+                        console.error("❌ FlowCanvas not loaded");
                     }
                 });
-                console.log('🔍 Все UF поля:', ufFields);
-
-                const processId = task.ufFlowtaskProcessId || task.UF_FLOWTASK_PROCESS_ID || task.id;
-                console.log('📋 Process ID:', processId);
-
-                // Используем НОВУЮ АРХИТЕКТУРУ V2
-                if (typeof window.FlowCanvasV2 !== "undefined") {
-                    window.currentProcessId = processId;
-                    window.currentTaskId = task.id;
-                    window.FlowCanvasV2.render();
-                    console.log('✅ Используем FlowCanvasV2 (новая архитектура)');
-                } else if (typeof window.FlowCanvas !== "undefined") {
-                    // Fallback на старую версию
-                    window.FlowCanvas.render(task);
-                    console.log('⚠️ Используем FlowCanvas (старая архитектура)');
-                } else {
-                    console.error("❌ FlowCanvas not loaded");
-                }
             });
 
             // Увеличиваем высоту iframe
