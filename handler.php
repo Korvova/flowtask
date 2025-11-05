@@ -43,7 +43,7 @@ CJSCore::Init();
     <script src="components/ProcessSelector.js?v=2.1.1-optimize"></script>
     <script src="components/FlowCanvasV2.js?v=2.1.0-selector"></script>
     <script src="components/ProcessManager.js?v=2.0.7-filter"></script>
-    <script src="components/TaskProcessMapping.js?v=2.0.3-cleanup"></script>
+    <script src="components/TaskProcessMapping.js?v=2.1.0-uf-field"></script>
 
     <!-- Компоненты, используемые обеими версиями -->
     <script src="components/StatusColors.js?v=2.0.1"></script>
