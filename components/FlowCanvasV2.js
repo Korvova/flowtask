@@ -277,17 +277,13 @@ window.FlowCanvasV2 = {
                         console.log('✅ Узлы исправлены');
                     }
 
-                    // Обновить статусы ТОЛЬКО при первой загрузке
-                    // При последующих загрузках статусы обновляются через PULL события
-                    if (isInitialLoadRef.current) {
-                        const taskNodes = allNodes.filter(n => n.type === 'task' && n.realTaskId);
-                        if (taskNodes.length > 0) {
-                            console.log('🔄 Первая загрузка: обновляем статусы', taskNodes.length, 'задач...');
-                            await updateTaskStatuses(allNodes, taskNodes);
-                        }
-                        isInitialLoadRef.current = false;  // Больше не первая загрузка
-                    } else {
-                        console.log('ℹ️ Пропускаем updateTaskStatuses (статусы обновляются через PULL)');
+                    // Обновить статусы задач из Bitrix24
+                    // ВАЖНО: Всегда обновляем статусы, так как при создании новых задач
+                    // из предзадач они могут иметь старые статусы из Entity Storage
+                    const taskNodes = allNodes.filter(n => n.type === 'task' && n.realTaskId);
+                    if (taskNodes.length > 0) {
+                        console.log('🔄 Обновляем статусы', taskNodes.length, 'задач из Bitrix24...');
+                        await updateTaskStatuses(allNodes, taskNodes);
                     }
 
                     // Если узлов нет - показываем ProcessSelector
