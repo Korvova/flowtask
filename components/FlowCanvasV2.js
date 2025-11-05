@@ -762,6 +762,26 @@ window.FlowCanvasV2 = {
                 }, '⏳ Загрузка...');
             }
 
+            // Открыть ProcessSwitcher
+            const openProcessSwitcher = useCallback(() => {
+                if (window.ProcessSwitcher) {
+                    window.ProcessSwitcher.open(window.currentProcessId, (newProcessId) => {
+                        if (newProcessId === null) {
+                            // Удалён текущий процесс - очищаем canvas
+                            console.log('🗑️ Текущий процесс удалён, очищаем canvas');
+                            window.currentProcessId = null;
+                            setNodes([]);
+                            setEdges([]);
+                        } else if (newProcessId !== window.currentProcessId) {
+                            // Переключаемся на другой процесс
+                            console.log('🔄 Переключаемся на процесс:', newProcessId);
+                            window.currentProcessId = newProcessId;
+                            loadProcessData();
+                        }
+                    });
+                }
+            }, []);
+
             return React.createElement('div', {
                 style: {
                     width: '100%',
@@ -770,6 +790,40 @@ window.FlowCanvasV2 = {
                     position: 'relative'
                 }
             },
+                // Кнопка "Список процессов" в правом верхнем углу
+                React.createElement('button', {
+                    onClick: openProcessSwitcher,
+                    style: {
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        zIndex: 5,
+                        padding: '10px 16px',
+                        background: '#2fc6f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s'
+                    },
+                    onMouseEnter: (e) => {
+                        e.target.style.background = '#0ea5e9';
+                        e.target.style.transform = 'translateY(-1px)';
+                        e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    },
+                    onMouseLeave: (e) => {
+                        e.target.style.background = '#2fc6f6';
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+                    }
+                }, '📋 Список процессов'),
+
                 React.createElement(ReactFlow, {
                     nodes: nodes,
                     edges: edges,
