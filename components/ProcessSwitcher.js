@@ -219,10 +219,10 @@ window.ProcessSwitcher = {
                     ` : ''}>
                         <div style="flex: 1;">
                             <div style="font-weight: ${isCurrent ? '600' : '500'}; font-size: 15px; color: #1f2937;">
-                                ${processName} ${isCurrent ? '(текущий)' : ''}
+                                ${processName} (ID: ${process.processId})${isCurrent ? ' (текущий)' : ''}
                             </div>
                             <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">
-                                ID: ${process.processId} • ${process.nodeCount} узлов
+                                ${process.nodeCount} узлов
                             </div>
                         </div>
                         <button
