@@ -83,15 +83,24 @@ window.TaskNode = function({ id, data, selected }) {
         wordBreak: 'break-word'
     };
 
-    // Стиль бейджа
-    const badgeStyle = {
-        display: 'inline-block',
-        padding: '3px 8px',
-        borderRadius: '4px',
-        fontSize: '11px',
-        fontWeight: '500',
-        background: isFuture ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-        marginTop: '6px'
+    // Проверяем является ли условие "отменой"
+    const isCancelCondition = (conditionType) => {
+        return conditionType === 'ifCancel_create' || conditionType === 'on_cancel';
+    };
+
+    // Стиль бейджа (красный для условия отмены)
+    const getBadgeStyle = (conditionType) => {
+        const isCancel = isCancelCondition(conditionType);
+        return {
+            display: 'inline-block',
+            padding: '3px 8px',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: '500',
+            background: isCancel ? '#ef4444' : (isFuture ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'),
+            color: isCancel ? '#ffffff' : 'inherit',
+            marginTop: '6px'
+        };
     };
 
     // Стиль описания статуса
@@ -125,9 +134,11 @@ window.TaskNode = function({ id, data, selected }) {
     const getConditionName = (conditionType) => {
         const conditions = {
             'immediately': '⚡ Сразу',
+            'on_complete': '✅ При завершении',
             'delay': '⏰ С задержкой',
             'ifCancel_cancel': '❌ Отменить',
-            'ifCancel_create': '✅ При отмене'
+            'ifCancel_create': '✅ При отмене',
+            'on_cancel': '✅ При отмене'  // Добавлена поддержка обоих форматов
         };
         return conditions[conditionType] || '';
     };
@@ -231,7 +242,7 @@ window.TaskNode = function({ id, data, selected }) {
             ),
 
             // Условие создания для предзадач
-            isFuture && data.conditionType && React.createElement('div', { style: badgeStyle },
+            isFuture && data.conditionType && React.createElement('div', { style: getBadgeStyle(data.conditionType) },
                 getConditionName(data.conditionType),
                 data.conditionType === 'delay' && data.delayMinutes &&
                     ` (${data.delayMinutes} мин)`

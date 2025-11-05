@@ -243,9 +243,9 @@ window.TaskHandler = {
                 console.log('📝 Предзадача:', futureNode.title);
                 console.log('   Условие:', futureNode.condition);
 
-                // Проверить условие создания - должно быть 'on_cancel'
-                if (futureNode.condition !== 'on_cancel') {
-                    console.log('⏭️ Условие не "on_cancel", пропускаем');
+                // Проверить условие создания - должно быть 'ifCancel_create'
+                if (futureNode.condition !== 'ifCancel_create') {
+                    console.log('⏭️ Условие не "ifCancel_create", пропускаем');
                     continue;
                 }
 
