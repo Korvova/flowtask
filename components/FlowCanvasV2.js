@@ -310,9 +310,9 @@ window.FlowCanvasV2 = {
                                 console.log('✅ Выбран процесс:', processName, 'новый:', isNew);
 
                                 if (isNew) {
-                                    // Создаём новый процесс с выбранным именем
-                                    window.currentProcessId = processName;
-                                    console.log('📝 Создаём начальный узел для нового процесса', processName);
+                                    // Создаём новый процесс с числовым ID и названием
+                                    window.currentProcessId = window.currentTaskId; // Используем taskId как processId
+                                    console.log('📝 Создаём начальный узел для нового процесса', window.currentProcessId, 'с названием "' + processName + '"');
 
                                     const initialNode = {
                                         nodeId: 'task-' + window.currentTaskId,
@@ -323,18 +323,19 @@ window.FlowCanvasV2 = {
                                         positionY: 150,
                                         connectionsFrom: [],
                                         connectionsTo: [],
-                                        realTaskId: window.currentTaskId
+                                        realTaskId: window.currentTaskId,
+                                        processName: processName // Сохраняем название процесса
                                     };
 
                                     await EntityManagerV2.saveNode(window.currentProcessId, initialNode);
-                                    console.log('✅ Начальный узел создан в процессе', processName);
+                                    console.log('✅ Начальный узел создан в процессе', window.currentProcessId, 'с названием "' + processName + '"');
 
                                     // Перезагружаем canvas
                                     loadProcessData();
                                 } else {
-                                    // Присоединяемся к существующему процессу
-                                    window.currentProcessId = processName;
-                                    console.log('📝 Добавляем задачу в существующий процесс', processName);
+                                    // Присоединяемся к существующему процессу (processName теперь это processId)
+                                    window.currentProcessId = processName; // processName содержит числовой ID
+                                    console.log('📝 Добавляем задачу в существующий процесс', window.currentProcessId);
 
                                     const initialNode = {
                                         nodeId: 'task-' + window.currentTaskId,
@@ -346,10 +347,11 @@ window.FlowCanvasV2 = {
                                         connectionsFrom: [],
                                         connectionsTo: [],
                                         realTaskId: window.currentTaskId
+                                        // processName не устанавливаем - берётся из первого узла процесса
                                     };
 
                                     await EntityManagerV2.saveNode(window.currentProcessId, initialNode);
-                                    console.log('✅ Задача добавлена в процесс', processName);
+                                    console.log('✅ Задача добавлена в процесс', window.currentProcessId);
 
                                     // Перезагружаем canvas
                                     loadProcessData();

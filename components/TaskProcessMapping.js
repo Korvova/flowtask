@@ -56,13 +56,13 @@ window.TaskProcessMapping = {
                 });
 
                 if (result.length > 0) {
-                    // Извлекаем processId из NAME: process_XXX_node_task-YYY
-                    // Поддержка ЛЮБЫХ символов в processId (не только цифры)
+                    // Извлекаем processId из NAME: process_159_node_task-159
+                    // processId теперь всегда числовой
                     const name = result[0].NAME;
-                    const match = name.match(/^process_([^_]+)_node/);
+                    const match = name.match(/^process_(\d+)_node/);
 
                     if (match) {
-                        const processId = match[1];
+                        const processId = parseInt(match[1], 10);
                         console.log('✅ ProcessId найден в Entity Storage:', processId, 'для задачи', taskId);
                         resolve(processId);
                         return;
@@ -70,7 +70,7 @@ window.TaskProcessMapping = {
                 }
 
                 console.log('ℹ️ ProcessId не найден, используем taskId:', taskId);
-                resolve(taskId); // Fallback на taskId
+                resolve(parseInt(taskId, 10)); // Fallback на taskId (числовой)
 
             } catch (error) {
                 console.error('❌ Ошибка поиска processId:', error);

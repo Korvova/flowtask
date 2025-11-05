@@ -22,17 +22,18 @@ window.ProcessSelector = {
     },
 
     /**
-     * Загрузить список существующих процессов (уникальных NAME)
+     * Загрузить список существующих процессов с их названиями
      * ОПТИМИЗАЦИЯ: останавливается после 3 батчей без новых процессов
+     * Возвращает: [{ id: "159", name: "Мойша" }, { id: "160", name: "Project Alpha" }]
      */
     loadExistingProcesses: async function() {
         return new Promise((resolve) => {
-            const processNames = new Set();
+            const processMap = new Map(); // processId -> { id, name }
             let start = 0;
             const batchSize = 50;
             let consecutiveEmptyBatches = 0;
             const MAX_EMPTY_BATCHES = 3;
-            const MAX_RECORDS = 1000; // Абсолютный лимит для безопасности
+            const MAX_RECORDS = 1000;
             let totalLoaded = 0;
 
             const loadBatch = (startPos) => {
@@ -67,33 +68,44 @@ window.ProcessSelector = {
                     const items = result.data();
                     totalLoaded += items.length;
 
-                    // Считаем сколько НОВЫХ процессов в этом батче
-                    const prevCount = processNames.size;
+                    const prevCount = processMap.size;
 
-                    // Извлекаем уникальные processId из NAME
+                    // Извлекаем processId и processName
                     items.forEach(item => {
-                        // NAME формат: process_154_node_task-154
-                        const match = item.NAME.match(/^process_(\d+|[a-zA-Z0-9_-]+)/);
+                        // NAME формат: process_159_node_task-159
+                        const match = item.NAME.match(/^process_(\d+)_node/);
                         if (match) {
-                            const processName = match[1];
-                            processNames.add(processName);
+                            const processId = match[1];
+
+                            // Если процесс еще не в map - добавляем
+                            if (!processMap.has(processId)) {
+                                try {
+                                    const data = JSON.parse(item.DETAIL_TEXT);
+                                    // processName может быть только у первого узла процесса
+                                    const processName = data.processName || processId;
+
+                                    processMap.set(processId, {
+                                        id: processId,
+                                        name: processName
+                                    });
+
+                                    console.log(`📝 Процесс найден: ID=${processId}, Name="${processName}"`);
+                                } catch (e) {
+                                    console.warn('⚠️ Не удалось распарсить узел:', item.NAME);
+                                }
+                            }
                         }
                     });
 
-                    const newProcessesCount = processNames.size - prevCount;
-                    console.log(`📦 Батч ${startPos}: ${items.length} записей, процессов: ${processNames.size} (новых: ${newProcessesCount})`);
+                    const newProcessesCount = processMap.size - prevCount;
+                    console.log(`📦 Батч ${startPos}: ${items.length} записей, процессов: ${processMap.size} (новых: ${newProcessesCount})`);
 
-                    // Если в батче не было новых процессов - увеличиваем счетчик
                     if (newProcessesCount === 0) {
                         consecutiveEmptyBatches++;
                     } else {
-                        consecutiveEmptyBatches = 0; // Сброс счетчика если нашли новые процессы
+                        consecutiveEmptyBatches = 0;
                     }
 
-                    // Останавливаемся если:
-                    // 1. Получено меньше 50 записей (конец данных)
-                    // 2. Достигнут лимит записей (проверяется в начале следующего вызова)
-                    // 3. Много батчей без новых процессов (проверяется в начале следующего вызова)
                     if (items.length < batchSize) {
                         console.log('✅ Конец данных (получено меньше 50 записей)');
                         finishLoading();
@@ -104,7 +116,7 @@ window.ProcessSelector = {
             };
 
             const finishLoading = () => {
-                const processList = Array.from(processNames);
+                const processList = Array.from(processMap.values());
                 console.log(`✅ Загружено процессов: ${processList.length} из ${totalLoaded} записей`);
                 resolve(processList);
             };
@@ -190,7 +202,7 @@ window.ProcessSelector = {
                                 "
                             >
                                 <option value="">-- Выберите процесс --</option>
-                                ${processes.map(p => `<option value="${p}">Процесс ${p}</option>`).join('')}
+                                ${processes.map(p => `<option value="${p.id}">${p.name} (ID: ${p.id})</option>`).join('')}
                             </select>
                             ${processes.length === 0 ? '<div style="font-size: 12px; color: #999; margin-top: 5px;">Нет существующих процессов</div>' : ''}
                         </div>

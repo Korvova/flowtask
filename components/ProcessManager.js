@@ -254,8 +254,9 @@ window.ProcessManager = {
                 <div style="display: flex; flex-direction: column; gap: 12px;">
             `;
 
-            // Для каждого процесса нужно загрузить информацию о задаче
+            // Для каждого процесса отображаем название и информацию
             for (const process of processes) {
+                const processName = process.processName || process.processId;
                 const taskInfo = await this.getTaskInfo(process.processId);
 
                 html += `
@@ -270,10 +271,10 @@ window.ProcessManager = {
                     " onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
                         <div style="flex: 1;">
                             <div style="font-weight: 600; font-size: 15px; color: #1f2937; margin-bottom: 4px;">
-                                ${taskInfo.exists ? taskInfo.title : 'Процесс #' + process.processId}
+                                ${processName}
                             </div>
                             <div style="font-size: 13px; color: #6b7280;">
-                                Задача #${process.processId} • ${process.nodeCount} узлов
+                                ID процесса: ${process.processId} • ${process.nodeCount} узлов${taskInfo.exists ? ' • ' + taskInfo.title : ''}
                             </div>
                         </div>
                         <button
