@@ -184,6 +184,139 @@ window.TaskHandler = {
     },
 
     /**
+     * Обработка отмены задачи (статус 6)
+     * Создаёт задачи из предзадач с условием 'on_cancel'
+     */
+    handleTaskCancel: async function(taskId, processId) {
+        console.log('═══════════════════════════════════════════');
+        console.log('🚫 Задача отменена! ID:', taskId);
+        console.log('═══════════════════════════════════════════');
+
+        try {
+            // 1. Загружаем ВСЕ узлы процесса
+            const nodes = await EntityManagerV2.loadProcess(processId);
+            console.log('📊 Загружено узлов процесса:', nodes.length);
+
+            // 2. Найти узел задачи
+            const taskNode = nodes.find(n => n.nodeId === 'task-' + taskId);
+            if (!taskNode) {
+                console.log('⚠️ Узел task-' + taskId + ' не найден');
+                return;
+            }
+
+            console.log('✅ Найден узел задачи:', taskNode.nodeId);
+            console.log('📊 Связей исходящих:', (taskNode.connectionsFrom || []).length);
+
+            // 3. Найти все предзадачи с условием 'on_cancel'
+            const futureConnections = (taskNode.connectionsFrom || []).filter(
+                conn => conn.type === 'future'
+            );
+
+            console.log('📋 Предзадач найдено:', futureConnections.length);
+
+            if (futureConnections.length === 0) {
+                console.log('ℹ️ Нет предзадач для создания');
+                return;
+            }
+
+            // 4. Создать задачи для каждой предзадачи с условием 'on_cancel'
+            const createdTasks = [];
+
+            for (const conn of futureConnections) {
+                const futureId = conn.id;
+                console.log('─────────────────────────────────────────');
+                console.log('🔍 Обрабатываем предзадачу:', futureId);
+
+                // Найти узел предзадачи
+                const futureNode = nodes.find(n => n.nodeId === futureId);
+                if (!futureNode) {
+                    console.log('⚠️ Предзадача не найдена:', futureId);
+                    continue;
+                }
+
+                // Проверить что задача еще не создана
+                if (futureNode.realTaskId) {
+                    console.log('⏭️ Уже создана, ID:', futureNode.realTaskId);
+                    continue;
+                }
+
+                console.log('📝 Предзадача:', futureNode.title);
+                console.log('   Условие:', futureNode.condition);
+
+                // Проверить условие создания - должно быть 'on_cancel'
+                if (futureNode.condition !== 'on_cancel') {
+                    console.log('⏭️ Условие не "on_cancel", пропускаем');
+                    continue;
+                }
+
+                // Создать реальную задачу
+                const newTaskId = await this.createRealTask(
+                    futureNode.title,
+                    futureNode.description || '',
+                    futureNode.responsibleId || 1,
+                    futureNode.groupId || 0,
+                    processId
+                );
+
+                if (!newTaskId) {
+                    console.log('❌ Не удалось создать задачу');
+                    continue;
+                }
+
+                console.log('✅ Задача создана! ID:', newTaskId);
+
+                // Обновить предзадачу
+                futureNode.realTaskId = newTaskId;
+                await EntityManagerV2.saveNode(processId, futureNode);
+
+                // Создать узел новой задачи
+                const newTaskNode = {
+                    nodeId: 'task-' + newTaskId,
+                    type: 'task',
+                    title: futureNode.title,
+                    description: futureNode.description || '',
+                    status: 2,
+                    realTaskId: newTaskId,
+                    positionX: futureNode.positionX || 0,
+                    positionY: futureNode.positionY || 0,
+                    connectionsFrom: futureNode.connectionsFrom || [],
+                    connectionsTo: [{ type: 'task', id: taskNode.nodeId }]
+                };
+
+                await EntityManagerV2.saveNode(processId, newTaskNode);
+
+                createdTasks.push({
+                    futureId: futureId,
+                    taskId: newTaskId
+                });
+
+                console.log('✅ Узел task-' + newTaskId + ' создан');
+            }
+
+            console.log('═══════════════════════════════════════════');
+            console.log('✅ Создано задач при отмене:', createdTasks.length);
+            console.log('═══════════════════════════════════════════');
+
+            // Обновить узлы на canvas
+            if (window.FlowCanvasV2 && window.FlowCanvasV2.updateNodes) {
+                console.log('🔄 Обновляем узлы FlowCanvasV2 (без перезагрузки)...');
+                window.FlowCanvasV2.updateNodes();
+            } else if (window.FlowCanvasV2 && window.FlowCanvasV2.reloadCanvas) {
+                console.log('🔄 Перезагружаем FlowCanvasV2 (fallback)...');
+                window.FlowCanvasV2.reloadCanvas();
+            } else if (window.FlowCanvas && window.FlowCanvas.reloadCanvas) {
+                console.log('🔄 Перезагружаем FlowCanvas (старый)...');
+                window.FlowCanvas.reloadCanvas();
+            } else {
+                console.warn('⚠️ Не найден метод обновления canvas');
+            }
+
+        } catch (error) {
+            console.error('❌ Ошибка обработки отмены:', error);
+        }
+    },
+
+    /**
      * Создать задачу из предзадачи (вызывается из TaskModalV2 если родитель завершён)
      */
     createTaskFromFuture: async function(futureNode, sourceNode, processId) {

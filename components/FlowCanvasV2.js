@@ -698,6 +698,17 @@ window.FlowCanvasV2 = {
                         loadProcessData();
                     }, 1000);
                 }
+
+                // 4. Если отменена - создать предзадачи с условием 'on_cancel'
+                if (newStatus === 6 || newStatus === '6') {
+                    console.log('🚫 Задача отменена! Создаём предзадачи с условием on_cancel...');
+                    await TaskHandler.handleTaskCancel(taskId, window.currentProcessId);
+
+                    // Перезагрузить canvas
+                    setTimeout(() => {
+                        loadProcessData();
+                    }, 1000);
+                }
             }, []);
 
             // Подписка на BX.PULL при загрузке узлов

@@ -139,6 +139,16 @@ window.PullSubscription = {
                     } else {
                         console.warn('%c  ⚠️  onTaskComplete callback НЕ ОПРЕДЕЛЁН!', 'color: #ff9800; font-weight: bold;');
                     }
+                }
+                // Проверяем отмену (статус 6 = Отложена/Отменена)
+                else if (newStatus == 6) {
+                    console.log('%c🚫🚫🚫 ЗАДАЧА ОТМЕНЕНА (status=6)!', 'color: #ef4444; font-size: 16px; font-weight: bold;');
+                    if (onTaskComplete) {
+                        console.log('%c  → Вызываем onTaskComplete callback для отмены...', 'color: #ef4444; font-weight: bold;');
+                        onTaskComplete(taskId, taskData.task);
+                    } else {
+                        console.warn('%c  ⚠️  onTaskComplete callback НЕ ОПРЕДЕЛЁН!', 'color: #ff9800; font-weight: bold;');
+                    }
                 } else {
                     console.log('%c  ℹ️  Задача ещё не завершена (status=' + newStatus + ')', 'color: #9c27b0;');
                 }
