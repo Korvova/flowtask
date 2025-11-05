@@ -37,7 +37,7 @@ CJSCore::Init();
     </div>
 
     <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
-    <script src="components/EntityManagerV2.js?v=2.2.0-processname"></script>
+    <script src="components/EntityManagerV2.js?v=2.2.1-processname-fix"></script>
     <script src="components/TaskHandler.js?v=2.0.3-cleanup"></script>
     <script src="components/TaskModalV2.js?v=2.0.3-cleanup"></script>
     <script src="components/ProcessSelector.js?v=2.2.0-processname"></script>

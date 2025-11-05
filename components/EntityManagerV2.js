@@ -377,24 +377,25 @@ window.EntityManagerV2 = {
                                     const processId = match[1];
 
                                     if (!processMap[processId]) {
-                                        // Извлекаем processName из первого узла процесса
-                                        let processName = processId; // По умолчанию = ID
-                                        try {
-                                            const nodeData = JSON.parse(item.DETAIL_TEXT);
-                                            if (nodeData.processName) {
-                                                processName = nodeData.processName;
-                                            }
-                                        } catch (e) {
-                                            // Если не удалось распарсить - используем ID
-                                        }
-
+                                        // Создаём запись для нового процесса
                                         processMap[processId] = {
                                             processId: processId,
-                                            processName: processName,
+                                            processName: processId, // По умолчанию = ID
                                             nodeCount: 0,
                                             lastModified: item.DATE_ACTIVE_TO || item.DATE_ACTIVE_FROM
                                         };
                                         newProcessesInBatch++;
+                                    }
+
+                                    // Проверяем КАЖДЫЙ узел на наличие processName
+                                    try {
+                                        const nodeData = JSON.parse(item.DETAIL_TEXT);
+                                        if (nodeData.processName && processMap[processId].processName === processId) {
+                                            // Обновляем processName если нашли узел с названием
+                                            processMap[processId].processName = nodeData.processName;
+                                        }
+                                    } catch (e) {
+                                        // Если не удалось распарсить - пропускаем
                                     }
 
                                     processMap[processId].nodeCount++;
