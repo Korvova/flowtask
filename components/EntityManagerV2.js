@@ -52,18 +52,22 @@ window.EntityManagerV2 = {
             }, (result) => {
                 if (result.error()) {
                     const error = result.error();
-                    const errorStr = JSON.stringify(error);
 
-                    console.log('⚠️ Ответ от entity.add:', errorStr);
+                    // Безопасное логирование ошибки (избегаем circular structure)
+                    console.log('⚠️ Ответ от entity.add:', {
+                        error: error.ex?.error || error,
+                        error_description: error.ex?.error_description || ''
+                    });
 
                     // Если хранилище уже существует - это нормально
                     // Проверяем разные варианты ошибки
+                    const errorCode = error.ex?.error || error;
+                    const errorDesc = error.ex?.error_description || '';
+
                     const isAlreadyExists = (
-                        (error.ex && error.ex.error_description && error.ex.error_description.includes('already exists')) ||
-                        (error.ex && error.ex.error && (error.ex.error === 'ERROR_ENTITY_ALREADY_EXISTS' || error.ex.error.includes('ALREADY_EXISTS'))) ||
-                        (error === 'ERROR_ENTITY_ALREADY_EXISTS') ||
-                        errorStr.includes('already exists') ||
-                        errorStr.includes('ALREADY_EXISTS')
+                        (errorDesc && errorDesc.includes('already exists')) ||
+                        (errorCode === 'ERROR_ENTITY_ALREADY_EXISTS') ||
+                        (typeof errorCode === 'string' && errorCode.includes('ALREADY_EXISTS'))
                     );
 
                     if (isAlreadyExists) {
@@ -71,7 +75,7 @@ window.EntityManagerV2 = {
                         this._entityExistsCache = true;
                         resolve(true);
                     } else {
-                        console.error('❌ Ошибка создания хранилища:', error);
+                        console.error('❌ Ошибка создания хранилища:', errorCode, errorDesc);
                         reject(error);
                     }
                 } else {
