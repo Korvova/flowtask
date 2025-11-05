@@ -749,20 +749,7 @@ window.FlowCanvasV2 = {
                 // НЕ отписываемся - подписки работают глобально на всю сессию
             }, [nodes.length]); // Подписываемся при изменении количества узлов!
 
-            // Render
-            if (loading) {
-                return React.createElement('div', {
-                    style: {
-                        width: '100%',
-                        height: '100vh',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }
-                }, '⏳ Загрузка...');
-            }
-
-            // Открыть ProcessSwitcher
+            // Открыть ProcessSwitcher (ВАЖНО: до условного return)
             const openProcessSwitcher = useCallback(() => {
                 if (window.ProcessSwitcher) {
                     window.ProcessSwitcher.open(window.currentProcessId, (newProcessId) => {
@@ -781,6 +768,19 @@ window.FlowCanvasV2 = {
                     });
                 }
             }, []);
+
+            // Render
+            if (loading) {
+                return React.createElement('div', {
+                    style: {
+                        width: '100%',
+                        height: '100vh',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }
+                }, '⏳ Загрузка...');
+            }
 
             return React.createElement('div', {
                 style: {
