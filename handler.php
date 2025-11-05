@@ -47,7 +47,7 @@ CJSCore::Init();
     <script src="components/TaskProcessMapping.js?v=2.2.0-numeric-id"></script>
 
     <!-- Компоненты, используемые обеими версиями -->
-    <script src="components/StatusColors.js?v=2.0.1"></script>
+    <script src="components/StatusColors.js?v=2.0.2-red-postponed"></script>
     <script src="components/PullSubscription.js?v=2.0.1"></script>
 
     <!-- Старая архитектура (временно, для совместимости) -->
