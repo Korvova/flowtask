@@ -23,14 +23,33 @@ window.ProcessSelector = {
 
     /**
      * Загрузить список существующих процессов (уникальных NAME)
+     * ОПТИМИЗАЦИЯ: останавливается после 3 батчей без новых процессов
      */
     loadExistingProcesses: async function() {
         return new Promise((resolve) => {
             const processNames = new Set();
             let start = 0;
             const batchSize = 50;
+            let consecutiveEmptyBatches = 0;
+            const MAX_EMPTY_BATCHES = 3;
+            const MAX_RECORDS = 1000; // Абсолютный лимит для безопасности
+            let totalLoaded = 0;
 
             const loadBatch = (startPos) => {
+                // Защита от переполнения
+                if (totalLoaded >= MAX_RECORDS) {
+                    console.log(`⚠️ Достигнут лимит ${MAX_RECORDS} записей, останавливаем`);
+                    finishLoading();
+                    return;
+                }
+
+                // Останавливаемся если много батчей подряд без новых процессов
+                if (consecutiveEmptyBatches >= MAX_EMPTY_BATCHES) {
+                    console.log(`✅ Остановка: ${MAX_EMPTY_BATCHES} батчей без новых процессов`);
+                    finishLoading();
+                    return;
+                }
+
                 BX24.callMethod('entity.item.get', {
                     ENTITY: 'tflow_nodes',
                     FILTER: {
@@ -46,7 +65,10 @@ window.ProcessSelector = {
                     }
 
                     const items = result.data();
-                    console.log('📦 Загружено записей:', items.length, 'с позиции', startPos);
+                    totalLoaded += items.length;
+
+                    // Считаем сколько НОВЫХ процессов в этом батче
+                    const prevCount = processNames.size;
 
                     // Извлекаем уникальные processId из NAME
                     items.forEach(item => {
@@ -58,16 +80,33 @@ window.ProcessSelector = {
                         }
                     });
 
-                    // Если есть ещё записи - продолжаем
-                    if (result.more()) {
-                        loadBatch(startPos + batchSize);
+                    const newProcessesCount = processNames.size - prevCount;
+                    console.log(`📦 Батч ${startPos}: ${items.length} записей, процессов: ${processNames.size} (новых: ${newProcessesCount})`);
+
+                    // Если в батче не было новых процессов - увеличиваем счетчик
+                    if (newProcessesCount === 0) {
+                        consecutiveEmptyBatches++;
                     } else {
-                        // Конвертируем Set в массив
-                        const processList = Array.from(processNames);
-                        console.log('✅ Найдено уникальных процессов:', processList.length);
-                        resolve(processList);
+                        consecutiveEmptyBatches = 0; // Сброс счетчика если нашли новые процессы
+                    }
+
+                    // Останавливаемся если:
+                    // 1. Получено меньше 50 записей (конец данных)
+                    // 2. Достигнут лимит записей (проверяется в начале следующего вызова)
+                    // 3. Много батчей без новых процессов (проверяется в начале следующего вызова)
+                    if (items.length < batchSize) {
+                        console.log('✅ Конец данных (получено меньше 50 записей)');
+                        finishLoading();
+                    } else {
+                        setTimeout(() => loadBatch(startPos + batchSize), 50);
                     }
                 });
+            };
+
+            const finishLoading = () => {
+                const processList = Array.from(processNames);
+                console.log(`✅ Загружено процессов: ${processList.length} из ${totalLoaded} записей`);
+                resolve(processList);
             };
 
             loadBatch(0);

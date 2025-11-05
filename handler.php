@@ -40,7 +40,7 @@ CJSCore::Init();
     <script src="components/EntityManagerV2.js?v=2.0.7-circular-fix"></script>
     <script src="components/TaskHandler.js?v=2.0.3-cleanup"></script>
     <script src="components/TaskModalV2.js?v=2.0.3-cleanup"></script>
-    <script src="components/ProcessSelector.js?v=2.1.0-selector"></script>
+    <script src="components/ProcessSelector.js?v=2.1.1-optimize"></script>
     <script src="components/FlowCanvasV2.js?v=2.1.0-selector"></script>
     <script src="components/ProcessManager.js?v=2.0.7-filter"></script>
     <script src="components/TaskProcessMapping.js?v=2.0.3-cleanup"></script>
