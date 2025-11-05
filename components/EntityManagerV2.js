@@ -52,8 +52,21 @@ window.EntityManagerV2 = {
             }, (result) => {
                 if (result.error()) {
                     const error = result.error();
+                    const errorStr = JSON.stringify(error);
+
+                    console.log('⚠️ Ответ от entity.add:', errorStr);
+
                     // Если хранилище уже существует - это нормально
-                    if (error.ex && error.ex.error_description && error.ex.error_description.includes('already exists')) {
+                    // Проверяем разные варианты ошибки
+                    const isAlreadyExists = (
+                        (error.ex && error.ex.error_description && error.ex.error_description.includes('already exists')) ||
+                        (error.ex && error.ex.error && (error.ex.error === 'ERROR_ENTITY_ALREADY_EXISTS' || error.ex.error.includes('ALREADY_EXISTS'))) ||
+                        (error === 'ERROR_ENTITY_ALREADY_EXISTS') ||
+                        errorStr.includes('already exists') ||
+                        errorStr.includes('ALREADY_EXISTS')
+                    );
+
+                    if (isAlreadyExists) {
                         console.log('✅ Хранилище tflow_nodes уже существует');
                         this._entityExistsCache = true;
                         resolve(true);
