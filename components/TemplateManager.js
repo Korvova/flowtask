@@ -5,7 +5,7 @@
  * - Сохранение текущего canvas как шаблон (конвертация задач в предзадачи)
  * - Загрузка шаблона на canvas (добавление к существующим узлам)
  * - Удаление и переименование шаблонов
- * - Хранение в Entity Storage (tflow_templates)
+ * - Хранение в Entity Storage (tflow_tmpl)
  */
 
 window.TemplateManager = {
@@ -254,7 +254,7 @@ window.TemplateManager = {
 
             await new Promise((resolve, reject) => {
                 BX24.callMethod('entity.item.add', {
-                    ENTITY: 'tflow_templates',
+                    ENTITY: 'tflow_tmpl',
                     NAME: 'template_' + Date.now(),
                     PROPERTY_VALUES: {
                         TEMPLATE_NAME: templateName,
@@ -459,7 +459,7 @@ window.TemplateManager = {
 
             await new Promise((resolve, reject) => {
                 BX24.callMethod('entity.item.update', {
-                    ENTITY: 'tflow_templates',
+                    ENTITY: 'tflow_tmpl',
                     ID: templateId,
                     PROPERTY_VALUES: {
                         TEMPLATE_NAME: newName,
@@ -496,7 +496,7 @@ window.TemplateManager = {
 
             await new Promise((resolve, reject) => {
                 BX24.callMethod('entity.item.delete', {
-                    ENTITY: 'tflow_templates',
+                    ENTITY: 'tflow_tmpl',
                     ID: templateId
                 }, (result) => {
                     if (result.error()) {
@@ -531,10 +531,10 @@ window.TemplateManager = {
                 return;
             }
 
-            console.log('🔍 Проверяем существование хранилища tflow_templates...');
+            console.log('🔍 Проверяем существование хранилища tflow_tmpl...');
 
             BX24.callMethod('entity.add', {
-                ENTITY: 'tflow_templates',
+                ENTITY: 'tflow_tmpl',
                 NAME: 'Flowtask Templates Storage',
                 ACCESS: {
                     'AU': 'W'  // Все авторизованные пользователи могут записывать
@@ -561,7 +561,7 @@ window.TemplateManager = {
                     );
 
                     if (isAlreadyExists) {
-                        console.log('✅ Хранилище tflow_templates уже существует');
+                        console.log('✅ Хранилище tflow_tmpl уже существует');
                         this._storageExistsCache = true;
                         resolve(true);
                     } else {
@@ -569,7 +569,7 @@ window.TemplateManager = {
                         reject(error);
                     }
                 } else {
-                    console.log('✅ Хранилище tflow_templates создано успешно');
+                    console.log('✅ Хранилище tflow_tmpl создано успешно');
                     this._storageExistsCache = true;
                     resolve(true);
                 }
@@ -586,7 +586,7 @@ window.TemplateManager = {
 
         return new Promise((resolve, reject) => {
             BX24.callMethod('entity.item.get', {
-                ENTITY: 'tflow_templates',
+                ENTITY: 'tflow_tmpl',
                 SORT: { DATE_CREATE: 'DESC' }
             }, (result) => {
                 if (result.error()) {
