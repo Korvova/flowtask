@@ -182,14 +182,54 @@ CJSCore::Init();
         }
 
         // Шаг 2: Создание Entity Storage
-        // В новой архитектуре используется ОДНО хранилище tflow_nodes
-        // Оно создаётся автоматически через EntityManagerV2.ensureEntityExists()
         function installStep2_CreateEntities() {
-            showProgress('Шаг 2/7: Хранилище будет создано автоматически...');
-            console.log('ℹ️ Хранилище tflow_nodes будет создано при первом использовании');
+            showProgress('Шаг 2/7: Создание хранилищ данных...');
+            console.log('📦 Создаём хранилища tflow_nodes и tflow_tmpl...');
 
-            // Сразу переходим к следующему шагу
-            installStep3_CreateCustomField();
+            // Создаём хранилище для узлов процессов
+            BX24.callMethod('entity.add', {
+                ENTITY: 'tflow_nodes',
+                NAME: 'Flowtask Nodes Storage',
+                ACCESS: {
+                    AU: 'W'
+                }
+            }, (result1) => {
+                if (result1.error()) {
+                    const err = result1.error();
+                    // Если уже существует - это нормально
+                    if (err && (String(err).includes('ALREADY_EXISTS') || String(err).includes('already exists'))) {
+                        console.log('✅ Хранилище tflow_nodes уже существует');
+                    } else {
+                        console.warn('⚠️ Не удалось создать tflow_nodes:', err);
+                    }
+                } else {
+                    console.log('✅ Хранилище tflow_nodes создано');
+                }
+
+                // Создаём хранилище для шаблонов
+                BX24.callMethod('entity.add', {
+                    ENTITY: 'tflow_tmpl',
+                    NAME: 'Flowtask Templates Storage',
+                    ACCESS: {
+                        AU: 'W'
+                    }
+                }, (result2) => {
+                    if (result2.error()) {
+                        const err = result2.error();
+                        // Если уже существует - это нормально
+                        if (err && (String(err).includes('ALREADY_EXISTS') || String(err).includes('already exists'))) {
+                            console.log('✅ Хранилище tflow_tmpl уже существует');
+                        } else {
+                            console.warn('⚠️ Не удалось создать tflow_tmpl:', err);
+                        }
+                    } else {
+                        console.log('✅ Хранилище tflow_tmpl создано');
+                    }
+
+                    // Продолжаем установку
+                    installStep3_CreateCustomField();
+                });
+            });
         }
 
         // Шаг 3: Создание пользовательского поля для ProcessId

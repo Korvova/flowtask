@@ -37,12 +37,12 @@ CJSCore::Init();
     </div>
 
     <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
-    <script src="components/EntityManagerV2.js?v=2.2.2-access-fix"></script>
+    <script src="components/EntityManagerV2.js?v=2.3.0-no-create"></script>
     <script src="components/TaskHandler.js?v=2.2.0-incremental-update"></script>
     <script src="components/TaskModalV2.js?v=2.0.4-remove-delay"></script>
     <script src="components/ProcessSelector.js?v=2.2.0-processname"></script>
     <script src="components/ProcessSwitcher.js?v=2.3.1-name-format"></script>
-    <script src="components/TemplateManager.js?v=1.0.8-access-fix"></script>
+    <script src="components/TemplateManager.js?v=1.1.0-no-create"></script>
     <script src="components/FlowCanvasV2.js?v=2.7.0-templates"></script>
     <script src="components/ProcessManager.js?v=2.2.0-processname"></script>
     <script src="components/TaskProcessMapping.js?v=2.2.0-numeric-id"></script>

@@ -31,7 +31,9 @@ window.EntityManagerV2 = {
     _entityExistsCache: false,
 
     /**
-     * Создать хранилище tflow_nodes если оно не существует
+     * Проверить существование хранилища tflow_nodes
+     * ВАЖНО: entity.add требует административных прав
+     * Хранилище должно быть создано при установке приложения
      */
     ensureEntityExists: function() {
         return new Promise((resolve, reject) => {
@@ -43,43 +45,16 @@ window.EntityManagerV2 = {
 
             console.log('🔍 Проверяем существование хранилища tflow_nodes...');
 
-            BX24.callMethod('entity.add', {
-                ENTITY: 'tflow_nodes',
-                NAME: 'Flowtask Nodes Storage',
-                ACCESS: {
-                    AU: 'W'  // Все авторизованные пользователи могут записывать
-                }
+            // Просто проверяем что хранилище существует через entity.get
+            BX24.callMethod('entity.get', {
+                ENTITY: 'tflow_nodes'
             }, (result) => {
                 if (result.error()) {
-                    const error = result.error();
-
-                    // Безопасное логирование ошибки (избегаем circular structure)
-                    console.log('⚠️ Ответ от entity.add:', {
-                        error: error.ex?.error || error,
-                        error_description: error.ex?.error_description || ''
-                    });
-
-                    // Если хранилище уже существует - это нормально
-                    // Проверяем разные варианты ошибки
-                    const errorCode = error.ex?.error || error;
-                    const errorDesc = error.ex?.error_description || '';
-
-                    const isAlreadyExists = (
-                        (errorDesc && errorDesc.includes('already exists')) ||
-                        (errorCode === 'ERROR_ENTITY_ALREADY_EXISTS') ||
-                        (typeof errorCode === 'string' && errorCode.includes('ALREADY_EXISTS'))
-                    );
-
-                    if (isAlreadyExists) {
-                        console.log('✅ Хранилище tflow_nodes уже существует');
-                        this._entityExistsCache = true;
-                        resolve(true);
-                    } else {
-                        console.error('❌ Ошибка создания хранилища:', errorCode, errorDesc);
-                        reject(error);
-                    }
+                    console.error('❌ Хранилище tflow_nodes не найдено!');
+                    console.error('   Необходимо переустановить приложение через install.php');
+                    reject(new Error('Хранилище tflow_nodes не существует. Переустановите приложение.'));
                 } else {
-                    console.log('✅ Хранилище tflow_nodes создано успешно');
+                    console.log('✅ Хранилище tflow_nodes существует');
                     this._entityExistsCache = true;
                     resolve(true);
                 }
