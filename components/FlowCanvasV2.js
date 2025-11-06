@@ -371,6 +371,78 @@ window.FlowCanvasV2 = {
                 // Экспортируем метод для обновления статуса конкретной задачи
                 window.FlowCanvasV2.updateSingleTaskStatus = updateSingleTaskStatus;
 
+                // Экспортируем методы для работы с шаблонами
+                window.FlowCanvasV2.getCurrentNodes = () => nodes;
+                window.FlowCanvasV2.getCurrentEdges = () => edges;
+
+                // Метод добавления узлов из шаблона
+                window.FlowCanvasV2.addTemplateNodes = async (templateNodes) => {
+                    console.log('📥 Добавляем узлы из шаблона:', templateNodes.length);
+
+                    const newReactFlowNodes = [];
+                    const newReactFlowEdges = [];
+
+                    // Создаем React Flow узлы из шаблона
+                    for (const templateNode of templateNodes) {
+                        const reactFlowNode = {
+                            id: templateNode.nodeId,
+                            type: 'future',
+                            position: {
+                                x: templateNode.positionX || 0,
+                                y: templateNode.positionY || 0
+                            },
+                            data: {
+                                id: templateNode.nodeId,
+                                title: templateNode.title,
+                                statusCode: null,
+                                isFuture: true,
+                                conditionType: templateNode.condition,
+                                realTaskId: null,
+                                _node: templateNode,
+                                onDelete: () => {
+                                    if (window.FlowCanvasV2?.handleDeleteNode) {
+                                        window.FlowCanvasV2.handleDeleteNode(templateNode.nodeId);
+                                    }
+                                },
+                                onEdit: () => {
+                                    if (window.FlowCanvasV2?.handleEditNode) {
+                                        window.FlowCanvasV2.handleEditNode({ id: templateNode.nodeId });
+                                    }
+                                }
+                            }
+                        };
+
+                        newReactFlowNodes.push(reactFlowNode);
+
+                        // Сохраняем в Entity Storage
+                        await EntityManagerV2.saveNode(window.currentProcessId, templateNode);
+                    }
+
+                    // Создаем связи
+                    for (const templateNode of templateNodes) {
+                        const connections = templateNode.connectionsFrom || [];
+                        for (const conn of connections) {
+                            newReactFlowEdges.push({
+                                id: `edge-${templateNode.nodeId}-${conn.id}`,
+                                source: templateNode.nodeId,
+                                target: conn.id,
+                                type: 'default',
+                                animated: true,
+                                style: { strokeWidth: 2, stroke: '#667eea' }
+                            });
+                        }
+                    }
+
+                    console.log('  → Добавляем', newReactFlowNodes.length, 'узлов');
+                    console.log('  → Добавляем', newReactFlowEdges.length, 'связей');
+
+                    // Добавляем на canvas
+                    setNodes((nds) => [...nds, ...newReactFlowNodes]);
+                    setEdges((eds) => [...eds, ...newReactFlowEdges]);
+
+                    console.log('✅ Шаблон загружен на canvas');
+                };
+
                 console.log('✅ Обработчики и методы экспортированы в window.FlowCanvasV2');
 
                 return () => {
@@ -970,39 +1042,81 @@ window.FlowCanvasV2 = {
                     position: 'relative'
                 }
             },
-                // Кнопка "Список процессов" в правом верхнем углу
-                React.createElement('button', {
-                    onClick: openProcessSwitcher,
+                // Кнопки в правом верхнем углу
+                React.createElement('div', {
                     style: {
                         position: 'absolute',
                         top: '10px',
                         right: '10px',
                         zIndex: 5,
-                        padding: '10px 16px',
-                        background: '#2fc6f6',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        transition: 'all 0.2s'
-                    },
-                    onMouseEnter: (e) => {
-                        e.target.style.background = '#0ea5e9';
-                        e.target.style.transform = 'translateY(-1px)';
-                        e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-                    },
-                    onMouseLeave: (e) => {
-                        e.target.style.background = '#2fc6f6';
-                        e.target.style.transform = 'translateY(0)';
-                        e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+                        gap: '8px'
                     }
-                }, '📋 Список процессов'),
+                },
+                    // Кнопка "Шаблоны"
+                    React.createElement('button', {
+                        onClick: () => {
+                            if (window.TemplateManager) {
+                                window.TemplateManager.open();
+                            }
+                        },
+                        style: {
+                            padding: '10px 16px',
+                            background: '#8b5cf6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s'
+                        },
+                        onMouseEnter: (e) => {
+                            e.target.style.background = '#7c3aed';
+                            e.target.style.transform = 'translateY(-1px)';
+                            e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                        },
+                        onMouseLeave: (e) => {
+                            e.target.style.background = '#8b5cf6';
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+                        }
+                    }, '📑 Шаблоны'),
+
+                    // Кнопка "Список процессов"
+                    React.createElement('button', {
+                        onClick: openProcessSwitcher,
+                        style: {
+                            padding: '10px 16px',
+                            background: '#2fc6f6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s'
+                        },
+                        onMouseEnter: (e) => {
+                            e.target.style.background = '#0ea5e9';
+                            e.target.style.transform = 'translateY(-1px)';
+                            e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                        },
+                        onMouseLeave: (e) => {
+                            e.target.style.background = '#2fc6f6';
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+                        }
+                    }, '📋 Список процессов')
+                ),
 
                 React.createElement(ReactFlow, {
                     nodes: nodes,
