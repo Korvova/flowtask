@@ -110,8 +110,9 @@ window.TaskHandler = {
                 await EntityManagerV2.saveNode(processId, newTaskNode);
 
                 createdTasks.push({
-                    futureId: futureId,
-                    taskId: newTaskId
+                    futureNodeId: futureId,
+                    newTaskId: newTaskId,
+                    futureNode: futureNode  // Передаём данные узла для позиционирования
                 });
 
                 console.log('✅ Узел task-' + newTaskId + ' создан');
@@ -121,18 +122,20 @@ window.TaskHandler = {
             console.log('✅ Создано задач:', createdTasks.length);
             console.log('═══════════════════════════════════════════');
 
-            // Обновить узлы на canvas (без полной перезагрузки)
-            if (window.FlowCanvasV2 && window.FlowCanvasV2.updateNodes) {
-                console.log('🔄 Обновляем узлы FlowCanvasV2 (без перезагрузки)...');
-                window.FlowCanvasV2.updateNodes();
-            } else if (window.FlowCanvasV2 && window.FlowCanvasV2.reloadCanvas) {
-                console.log('🔄 Перезагружаем FlowCanvasV2 (fallback)...');
-                window.FlowCanvasV2.reloadCanvas();
-            } else if (window.FlowCanvas && window.FlowCanvas.reloadCanvas) {
-                console.log('🔄 Перезагружаем FlowCanvas (старый)...');
-                window.FlowCanvas.reloadCanvas();
-            } else {
-                console.warn('⚠️ Не найден метод обновления canvas');
+            // Инкрементальное обновление canvas
+            if (createdTasks.length > 0) {
+                if (window.FlowCanvasV2 && window.FlowCanvasV2.addNewTaskNodes) {
+                    console.log('➕ Добавляем задачи инкрементально через addNewTaskNodes...');
+                    await window.FlowCanvasV2.addNewTaskNodes(createdTasks);
+                } else if (window.FlowCanvasV2 && window.FlowCanvasV2.reloadCanvas) {
+                    console.log('🔄 Перезагружаем FlowCanvasV2 (fallback)...');
+                    window.FlowCanvasV2.reloadCanvas();
+                } else if (window.FlowCanvas && window.FlowCanvas.reloadCanvas) {
+                    console.log('🔄 Перезагружаем FlowCanvas (старый)...');
+                    window.FlowCanvas.reloadCanvas();
+                } else {
+                    console.warn('⚠️ Не найден метод обновления canvas');
+                }
             }
 
         } catch (error) {
@@ -286,8 +289,9 @@ window.TaskHandler = {
                 await EntityManagerV2.saveNode(processId, newTaskNode);
 
                 createdTasks.push({
-                    futureId: futureId,
-                    taskId: newTaskId
+                    futureNodeId: futureId,
+                    newTaskId: newTaskId,
+                    futureNode: futureNode  // Передаём данные узла для позиционирования
                 });
 
                 console.log('✅ Узел task-' + newTaskId + ' создан');
@@ -297,18 +301,20 @@ window.TaskHandler = {
             console.log('✅ Создано задач при отмене:', createdTasks.length);
             console.log('═══════════════════════════════════════════');
 
-            // Обновить узлы на canvas
-            if (window.FlowCanvasV2 && window.FlowCanvasV2.updateNodes) {
-                console.log('🔄 Обновляем узлы FlowCanvasV2 (без перезагрузки)...');
-                window.FlowCanvasV2.updateNodes();
-            } else if (window.FlowCanvasV2 && window.FlowCanvasV2.reloadCanvas) {
-                console.log('🔄 Перезагружаем FlowCanvasV2 (fallback)...');
-                window.FlowCanvasV2.reloadCanvas();
-            } else if (window.FlowCanvas && window.FlowCanvas.reloadCanvas) {
-                console.log('🔄 Перезагружаем FlowCanvas (старый)...');
-                window.FlowCanvas.reloadCanvas();
-            } else {
-                console.warn('⚠️ Не найден метод обновления canvas');
+            // Инкрементальное обновление canvas
+            if (createdTasks.length > 0) {
+                if (window.FlowCanvasV2 && window.FlowCanvasV2.addNewTaskNodes) {
+                    console.log('➕ Добавляем задачи инкрементально через addNewTaskNodes...');
+                    await window.FlowCanvasV2.addNewTaskNodes(createdTasks);
+                } else if (window.FlowCanvasV2 && window.FlowCanvasV2.reloadCanvas) {
+                    console.log('🔄 Перезагружаем FlowCanvasV2 (fallback)...');
+                    window.FlowCanvasV2.reloadCanvas();
+                } else if (window.FlowCanvas && window.FlowCanvas.reloadCanvas) {
+                    console.log('🔄 Перезагружаем FlowCanvas (старый)...');
+                    window.FlowCanvas.reloadCanvas();
+                } else {
+                    console.warn('⚠️ Не найден метод обновления canvas');
+                }
             }
 
         } catch (error) {

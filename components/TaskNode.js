@@ -201,13 +201,13 @@ window.TaskNode = function({ id, data, selected }) {
                 onMouseLeave: (e) => { e.target.style.background = '#667eea'; }
             }, '📂 Открыть'),
 
-            // Кнопка удаления для предзадач
-            isFuture && React.createElement('button', {
+            // Кнопка удаления (для всех типов узлов)
+            React.createElement('button', {
                 style: deleteToolbarButtonStyle,
                 onClick: handleDelete,
                 onMouseEnter: (e) => { e.target.style.background = '#dc2626'; },
                 onMouseLeave: (e) => { e.target.style.background = '#ef4444'; }
-            }, '🗑️ Удалить')
+            }, '✕ Удалить')
         ),
 
         // Сама карточка

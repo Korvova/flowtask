@@ -49,17 +49,21 @@ window.FlowCanvasV2 = {
                 try {
                     console.log('🗑️ Удаляем узел:', nodeId);
 
-                    if (!confirm('Удалить предзадачу?')) {
-                        return;
-                    }
-
-                    // Находим узел, чтобы получить entityId
+                    // Находим узел, чтобы получить entityId и определить тип
                     const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
                     const node = allNodes.find(n => n.nodeId === nodeId);
 
                     if (!node || !node._entityId) {
                         console.error('❌ Узел или entityId не найден');
                         alert('Ошибка: не удалось найти узел');
+                        return;
+                    }
+
+                    // Определяем тип узла для текста подтверждения
+                    const nodeType = node.type === 'future' ? 'предзадачу' : 'задачу';
+                    const nodeName = node.title || nodeId;
+
+                    if (!confirm(`Удалить ${nodeType} "${nodeName}"?\n\nВнимание: это удалит узел с полотна, но сама задача в Bitrix24 останется.`)) {
                         return;
                     }
 
@@ -74,6 +78,12 @@ window.FlowCanvasV2 = {
                     setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
 
                     console.log('✅ Узел и связи удалены с canvas');
+
+                    // Отписываемся от PULL событий если это реальная задача
+                    if (node.type === 'task' && node.realTaskId && window.PullSubscription) {
+                        window.PullSubscription.unsubscribe(node.realTaskId);
+                        console.log('✅ Отписались от PULL событий задачи:', node.realTaskId);
+                    }
 
                 } catch (error) {
                     console.error('❌ Ошибка удаления узла:', error);
@@ -186,10 +196,176 @@ window.FlowCanvasV2 = {
                 window.FlowCanvasV2.handleDeleteNode = handleDeleteNode;
                 window.FlowCanvasV2.handleEditNode = handleEditNode;
 
-                // Экспортируем метод для обновления данных (вместо полной перезагрузки)
-                window.FlowCanvasV2.updateNodes = () => {
-                    console.log('🔄 Обновляем узлы без перезагрузки canvas...');
+                // Экспортируем метод для ПОЛНОЙ перезагрузки (fallback)
+                window.FlowCanvasV2.reloadCanvas = () => {
+                    console.log('🔄 ПОЛНАЯ перезагрузка canvas...');
                     loadProcessData();
+                };
+
+                // Экспортируем метод для инкрементального добавления новых задач
+                window.FlowCanvasV2.addNewTaskNodes = async (createdTasks) => {
+                    console.log('➕ Добавляем новые задачи инкрементально:', createdTasks.length);
+
+                    const newNodes = [];
+                    const newEdges = [];
+                    const futureNodesToHide = [];
+                    const taskIdsToSubscribe = [];
+
+                    for (const task of createdTasks) {
+                        const { futureNodeId, newTaskId, futureNode } = task;
+
+                        console.log('  → Обрабатываем:', futureNodeId, '→ task-' + newTaskId);
+
+                        // 1. Скрываем предзадачу
+                        futureNodesToHide.push(futureNodeId);
+
+                        // 2. Получаем данные новой задачи из Bitrix24
+                        let taskData = null;
+                        await new Promise((resolve) => {
+                            BX24.callMethod('tasks.task.get', { taskId: newTaskId }, (result) => {
+                                if (!result.error()) {
+                                    taskData = result.data().task;
+                                }
+                                resolve();
+                            });
+                        });
+
+                        // 3. Создаём новый узел задачи
+                        const newNode = {
+                            id: 'task-' + newTaskId,
+                            type: 'task',
+                            position: {
+                                x: futureNode.positionX || 0,
+                                y: futureNode.positionY || 0
+                            },
+                            data: {
+                                id: 'task-' + newTaskId,
+                                title: futureNode.title,
+                                statusCode: taskData?.status || 2,
+                                isFuture: false,
+                                realTaskId: newTaskId,
+                                _node: {
+                                    nodeId: 'task-' + newTaskId,
+                                    type: 'task',
+                                    title: futureNode.title,
+                                    status: taskData?.status || 2,
+                                    positionX: futureNode.positionX || 0,
+                                    positionY: futureNode.positionY || 0,
+                                    connectionsFrom: futureNode.connectionsFrom || [],
+                                    connectionsTo: futureNode.connectionsTo || [],
+                                    realTaskId: newTaskId
+                                },
+                                // Добавляем callback удаления для новых узлов
+                                onDelete: () => {
+                                    if (window.FlowCanvasV2?.handleDeleteNode) {
+                                        window.FlowCanvasV2.handleDeleteNode('task-' + newTaskId);
+                                    }
+                                }
+                            }
+                        };
+
+                        newNodes.push(newNode);
+                        taskIdsToSubscribe.push(newTaskId);
+                    }
+
+                    // Обновляем React state
+                    console.log('  → Скрываем предзадачи:', futureNodesToHide.length);
+                    console.log('  → Добавляем задачи:', newNodes.length);
+
+                    setEdges((eds) => {
+                        console.log('  → Текущих связей:', eds.length);
+
+                        // 1. Для каждой скрытой предзадачи находим входящие и исходящие связи
+                        for (let i = 0; i < createdTasks.length; i++) {
+                            const { futureNodeId, newTaskId } = createdTasks[i];
+
+                            // Находим все связи, которые ведут К этой предзадаче (входящие)
+                            const incomingEdges = eds.filter(e => e.target === futureNodeId);
+                            console.log('  → Предзадача', futureNodeId, '- входящих связей:', incomingEdges.length);
+
+                            // Создаём новые входящие связи для задачи
+                            for (const edge of incomingEdges) {
+                                newEdges.push({
+                                    id: `edge-${edge.source}-task-${newTaskId}`,
+                                    source: edge.source,
+                                    target: 'task-' + newTaskId,
+                                    type: 'default',
+                                    animated: true,
+                                    style: { strokeWidth: 2, stroke: '#667eea' }
+                                });
+                                console.log('    → Создаём входящую связь:', edge.source, '→ task-' + newTaskId);
+                            }
+
+                            // Находим все связи, которые идут ОТ этой предзадачи (исходящие)
+                            const outgoingEdges = eds.filter(e => e.source === futureNodeId);
+                            console.log('  → Предзадача', futureNodeId, '- исходящих связей:', outgoingEdges.length);
+
+                            // Создаём новые исходящие связи для задачи (к её предзадачам)
+                            for (const edge of outgoingEdges) {
+                                newEdges.push({
+                                    id: `edge-task-${newTaskId}-${edge.target}`,
+                                    source: 'task-' + newTaskId,
+                                    target: edge.target,
+                                    type: 'default',
+                                    animated: true,
+                                    style: { strokeWidth: 2, stroke: '#667eea' }
+                                });
+                                console.log('    → Создаём исходящую связь: task-' + newTaskId, '→', edge.target);
+                            }
+                        }
+
+                        console.log('  → Создано новых связей:', newEdges.length);
+
+                        // 2. Удаляем связи скрытых предзадач
+                        const filtered = eds.filter(e =>
+                            !futureNodesToHide.includes(e.source) &&
+                            !futureNodesToHide.includes(e.target)
+                        );
+
+                        console.log('  → После фильтрации связей:', filtered.length);
+
+                        // 3. Добавляем новые связи
+                        return [...filtered, ...newEdges];
+                    });
+
+                    setNodes((nds) => {
+                        // Удаляем скрытые предзадачи
+                        const filtered = nds.filter(n => !futureNodesToHide.includes(n.id));
+                        // Добавляем новые задачи
+                        return [...filtered, ...newNodes];
+                    });
+
+                    // Подписываемся на новые задачи через PULL
+                    console.log('  → Подписываемся на новые задачи:', taskIdsToSubscribe.length);
+                    for (const taskId of taskIdsToSubscribe) {
+                        if (window.PullSubscription && !window.PullSubscription.subscriptions[taskId]) {
+                            window.PullSubscription.subscribe(
+                                taskId,
+                                (newStatus, task) => {
+                                    console.log('%c🔄 Статус изменён через PULL:', 'color: #ff9800; font-weight: bold;', taskId, '→', newStatus);
+                                    handleStatusChange(taskId, newStatus);
+                                },
+                                async (completedTaskId, actualStatus, task) => {
+                                    console.log('%c✅ Задача завершена/отменена через PULL:', 'color: #00ff00; font-weight: bold;', completedTaskId, 'status:', actualStatus);
+
+                                    // Обновляем статус
+                                    handleStatusChange(completedTaskId, actualStatus);
+
+                                    // Создаём предзадачи в зависимости от статуса
+                                    if (actualStatus === 5 || actualStatus === '5') {
+                                        console.log('✅ Задача завершена! Создаём предзадачи...');
+                                        await TaskHandler.handleTaskComplete(completedTaskId, window.currentProcessId);
+                                    } else if (actualStatus === 6 || actualStatus === '6') {
+                                        console.log('🚫 Задача отменена! Создаём предзадачи с условием on_cancel...');
+                                        await TaskHandler.handleTaskCancel(completedTaskId, window.currentProcessId);
+                                    }
+                                }
+                            );
+                            console.log('  ✅ Подписка на task-' + taskId);
+                        }
+                    }
+
+                    console.log('✅ Инкрементальное обновление завершено!');
                 };
 
                 // Экспортируем метод для обновления статуса конкретной задачи
@@ -200,7 +376,8 @@ window.FlowCanvasV2 = {
                 return () => {
                     window.FlowCanvasV2.handleDeleteNode = null;
                     window.FlowCanvasV2.handleEditNode = null;
-                    window.FlowCanvasV2.updateNodes = null;
+                    window.FlowCanvasV2.reloadCanvas = null;
+                    window.FlowCanvasV2.addNewTaskNodes = null;
                     window.FlowCanvasV2.updateSingleTaskStatus = null;
                 };
             }, [handleDeleteNode, handleEditNode, updateSingleTaskStatus]); // Зависимости чтобы всегда был актуальный loadProcessData
@@ -390,11 +567,12 @@ window.FlowCanvasV2 = {
                             realTaskId: node.realTaskId,
                             _node: node,  // Сохраняем весь узел
                             // Callback'и как в старом FlowCanvas - вызывают глобальные обработчики
-                            onDelete: node.type === 'future' ? () => {
+                            // onDelete теперь доступен для ВСЕХ типов узлов (task и future)
+                            onDelete: () => {
                                 if (window.FlowCanvasV2?.handleDeleteNode) {
                                     window.FlowCanvasV2.handleDeleteNode(node.nodeId);
                                 }
-                            } : undefined,
+                            },
                             onEdit: node.type === 'future' ? () => {
                                 if (window.FlowCanvasV2?.handleEditNode) {
                                     window.FlowCanvasV2.handleEditNode({ id: node.nodeId });
@@ -588,10 +766,11 @@ window.FlowCanvasV2 = {
                                         statusCode: newNode.status,  // TaskNode использует statusCode!
                                         isFuture: newNode.type === 'future',
                                         conditionType: newNode.condition,
-                                        delayMinutes: newNode.delayMinutes,
                                         realTaskId: newNode.realTaskId,
-                                        _node: newNode
-                                        // Callback'и НЕ передаём - TaskNode использует window.FlowCanvasV2 напрямую
+                                        _node: newNode,
+                                        // Добавляем callbacks для редактирования и удаления
+                                        onEdit: handleEditNode,
+                                        onDelete: handleDeleteNode
                                     }
                                 };
 
@@ -684,27 +863,10 @@ window.FlowCanvasV2 = {
                     return updatedNodes;
                 });
 
-                // 3. Если завершена - создать предзадачи
-                if (newStatus === 5) {
-                    console.log('✅ Задача завершена! Создаём предзадачи...');
-                    await TaskHandler.handleTaskComplete(taskId, window.currentProcessId);
-
-                    // Перезагрузить canvas
-                    setTimeout(() => {
-                        loadProcessData();
-                    }, 1000);
-                }
-
-                // 4. Если отменена - создать предзадачи с условием 'on_cancel'
-                if (newStatus === 6 || newStatus === '6') {
-                    console.log('🚫 Задача отменена! Создаём предзадачи с условием on_cancel...');
-                    await TaskHandler.handleTaskCancel(taskId, window.currentProcessId);
-
-                    // Перезагрузить canvas
-                    setTimeout(() => {
-                        loadProcessData();
-                    }, 1000);
-                }
+                // ВАЖНО: Создание предзадач НЕ вызываем здесь в onStatusChange!
+                // Это будет сделано через onTaskComplete callback в подписке PULL (см. строки 736-748)
+                // Иначе будет двойной вызов и дублирование задач, так как PullSubscription
+                // вызывает СНАЧАЛА onStatusChange, А ПОТОМ onTaskComplete для статусов 5 и 6
             }, []);
 
             // Подписка на BX.PULL при загрузке узлов
@@ -741,9 +903,20 @@ window.FlowCanvasV2 = {
                                     console.log('%c🔄 Статус изменён через PULL:', 'color: #ff9800; font-weight: bold;', taskId, '→', newStatus);
                                     handleStatusChange(taskId, newStatus);
                                 },
-                                (completedTaskId, actualStatus, task) => {
+                                async (completedTaskId, actualStatus, task) => {
                                     console.log('%c✅ Задача завершена/отменена через PULL:', 'color: #00ff00; font-weight: bold;', completedTaskId, 'status:', actualStatus);
+
+                                    // Обновляем статус
                                     handleStatusChange(completedTaskId, actualStatus);
+
+                                    // Создаём предзадачи в зависимости от статуса
+                                    if (actualStatus === 5 || actualStatus === '5') {
+                                        console.log('✅ Задача завершена! Создаём предзадачи...');
+                                        await TaskHandler.handleTaskComplete(completedTaskId, window.currentProcessId);
+                                    } else if (actualStatus === 6 || actualStatus === '6') {
+                                        console.log('🚫 Задача отменена! Создаём предзадачи с условием on_cancel...');
+                                        await TaskHandler.handleTaskCancel(completedTaskId, window.currentProcessId);
+                                    }
                                 }
                             );
                             console.log('  ✅ Подписка на task-' + taskId);
