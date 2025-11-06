@@ -741,9 +741,9 @@ window.FlowCanvasV2 = {
                                     console.log('%c🔄 Статус изменён через PULL:', 'color: #ff9800; font-weight: bold;', taskId, '→', newStatus);
                                     handleStatusChange(taskId, newStatus);
                                 },
-                                (completedTaskId) => {
-                                    console.log('%c✅ Задача завершена через PULL:', 'color: #00ff00; font-weight: bold;', completedTaskId);
-                                    handleStatusChange(completedTaskId, 5);
+                                (completedTaskId, actualStatus, task) => {
+                                    console.log('%c✅ Задача завершена/отменена через PULL:', 'color: #00ff00; font-weight: bold;', completedTaskId, 'status:', actualStatus);
+                                    handleStatusChange(completedTaskId, actualStatus);
                                 }
                             );
                             console.log('  ✅ Подписка на task-' + taskId);

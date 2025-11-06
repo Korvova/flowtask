@@ -173,7 +173,6 @@ window.TaskModalV2 = {
         document.getElementById('futureTaskGroupV2').value = this.editingNode.groupId || '';
         document.getElementById('futureTaskResponsibleV2').value = this.editingNode.responsibleId || '';
         document.getElementById('futureTaskConditionV2').value = this.editingNode.condition || 'immediately';
-        document.getElementById('futureTaskDelayV2').value = this.editingNode.delayMinutes || '0';
 
         // Меняем заголовок модалки
         const modalTitle = document.querySelector('#taskModalV2 h2');
@@ -229,7 +228,6 @@ window.TaskModalV2 = {
         document.getElementById('futureTaskGroupV2').value = '';
         document.getElementById('futureTaskResponsibleV2').value = '';
         document.getElementById('futureTaskConditionV2').value = 'immediately';
-        document.getElementById('futureTaskDelayV2').value = '0';
     },
 
     /**
@@ -242,7 +240,6 @@ window.TaskModalV2 = {
             const groupId = parseInt(document.getElementById('futureTaskGroupV2').value) || 0;
             const responsibleId = parseInt(document.getElementById('futureTaskResponsibleV2').value) || 0;
             const conditionType = document.getElementById('futureTaskConditionV2').value;
-            const delayMinutes = parseInt(document.getElementById('futureTaskDelayV2').value) || 0;
 
             // Валидация
             if (!title) {
@@ -268,8 +265,7 @@ window.TaskModalV2 = {
                     description: description,
                     groupId: groupId,
                     responsibleId: responsibleId,
-                    condition: conditionType,
-                    delayMinutes: delayMinutes
+                    condition: conditionType
                 };
 
                 // Сохранить в EntityManagerV2
@@ -296,7 +292,6 @@ window.TaskModalV2 = {
                     groupId: groupId,
                     responsibleId: responsibleId,
                     condition: conditionType,
-                    delayMinutes: delayMinutes,
                     status: 0,
                     positionX: this.currentPosition.x,
                     positionY: this.currentPosition.y,
@@ -397,19 +392,13 @@ window.TaskModalV2 = {
                         </select>
                     </div>
 
-                    <div style="margin-bottom: 15px;">
+                    <div style="margin-bottom: 20px;">
                         <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">Условие создания</label>
                         <select id="futureTaskConditionV2" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px; background: white;">
                             <option value="immediately">⚡ Создать сразу</option>
-                            <option value="delay">⏰ Создать с задержкой</option>
                             <option value="ifCancel_cancel">❌ Отменить при отмене</option>
                             <option value="ifCancel_create">✅ Создать при отмене</option>
                         </select>
-                    </div>
-
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">Задержка (минуты)</label>
-                        <input type="number" id="futureTaskDelayV2" value="0" min="0" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;" />
                     </div>
 
                     <div style="display: flex; gap: 10px; justify-content: flex-end;">

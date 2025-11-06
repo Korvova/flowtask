@@ -8,8 +8,8 @@ window.PullSubscription = {
     /**
      * Подписка на изменения задачи
      * @param {number} taskId - ID задачи
-     * @param {function} onStatusChange - Callback при изменении статуса
-     * @param {function} onTaskComplete - Callback при завершении задачи
+     * @param {function} onStatusChange - Callback при изменении статуса (taskId, newStatus, task)
+     * @param {function} onTaskComplete - Callback при завершении/отмене задачи (taskId, status, task)
      */
     subscribe: function(taskId, onStatusChange, onTaskComplete) {
         console.log('🔔 Подписываемся на события задачи:', taskId);
@@ -135,7 +135,7 @@ window.PullSubscription = {
                     console.log('%c✅✅✅ ЗАДАЧА ЗАВЕРШЕНА (status=5)!', 'color: #00ff00; font-size: 16px; font-weight: bold;');
                     if (onTaskComplete) {
                         console.log('%c  → Вызываем onTaskComplete callback...', 'color: #00ff00; font-weight: bold;');
-                        onTaskComplete(taskId, taskData.task);
+                        onTaskComplete(taskId, newStatus, taskData.task);
                     } else {
                         console.warn('%c  ⚠️  onTaskComplete callback НЕ ОПРЕДЕЛЁН!', 'color: #ff9800; font-weight: bold;');
                     }
@@ -145,7 +145,7 @@ window.PullSubscription = {
                     console.log('%c🚫🚫🚫 ЗАДАЧА ОТМЕНЕНА (status=6)!', 'color: #ef4444; font-size: 16px; font-weight: bold;');
                     if (onTaskComplete) {
                         console.log('%c  → Вызываем onTaskComplete callback для отмены...', 'color: #ef4444; font-weight: bold;');
-                        onTaskComplete(taskId, taskData.task);
+                        onTaskComplete(taskId, newStatus, taskData.task);
                     } else {
                         console.warn('%c  ⚠️  onTaskComplete callback НЕ ОПРЕДЕЛЁН!', 'color: #ff9800; font-weight: bold;');
                     }

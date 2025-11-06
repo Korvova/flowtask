@@ -135,7 +135,6 @@ window.TaskNode = function({ id, data, selected }) {
         const conditions = {
             'immediately': '⚡ Сразу',
             'on_complete': '✅ При завершении',
-            'delay': '⏰ С задержкой',
             'ifCancel_cancel': '❌ Отменить',
             'ifCancel_create': '✅ При отмене',
             'on_cancel': '✅ При отмене'  // Добавлена поддержка обоих форматов
@@ -243,9 +242,7 @@ window.TaskNode = function({ id, data, selected }) {
 
             // Условие создания для предзадач
             isFuture && data.conditionType && React.createElement('div', { style: getBadgeStyle(data.conditionType) },
-                getConditionName(data.conditionType),
-                data.conditionType === 'delay' && data.delayMinutes &&
-                    ` (${data.delayMinutes} мин)`
+                getConditionName(data.conditionType)
             ),
 
             // Handle для исходящих связей (справа)

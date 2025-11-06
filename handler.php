@@ -39,21 +39,21 @@ CJSCore::Init();
     <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
     <script src="components/EntityManagerV2.js?v=2.2.1-processname-fix"></script>
     <script src="components/TaskHandler.js?v=2.1.1-ifcancel-fix"></script>
-    <script src="components/TaskModalV2.js?v=2.0.3-cleanup"></script>
+    <script src="components/TaskModalV2.js?v=2.0.4-remove-delay"></script>
     <script src="components/ProcessSelector.js?v=2.2.0-processname"></script>
     <script src="components/ProcessSwitcher.js?v=2.3.1-name-format"></script>
-    <script src="components/FlowCanvasV2.js?v=2.4.1-status-fix"></script>
+    <script src="components/FlowCanvasV2.js?v=2.4.2-cancel-status-fix"></script>
     <script src="components/ProcessManager.js?v=2.2.0-processname"></script>
     <script src="components/TaskProcessMapping.js?v=2.2.0-numeric-id"></script>
 
     <!-- Компоненты, используемые обеими версиями -->
     <script src="components/StatusColors.js?v=2.0.2-red-postponed"></script>
-    <script src="components/PullSubscription.js?v=2.1.0-on-cancel"></script>
+    <script src="components/PullSubscription.js?v=2.1.1-pass-status"></script>
 
     <!-- Старая архитектура (временно, для совместимости) -->
     <script src="components/EntityManager.js?v=2.0.1"></script>
     <script src="components/TaskCreator.js?v=2.0.3-cleanup"></script>
-    <script src="components/TaskNode.js?v=2.1.0-red-cancel-badge"></script>
+    <script src="components/TaskNode.js?v=2.1.1-remove-delay"></script>
     <script src="components/TaskModal.js?v=2.0.1"></script>
     <script src="components/FlowCanvas.js?v=2.0.1"></script>
 
