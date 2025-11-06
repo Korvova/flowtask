@@ -269,11 +269,8 @@ window.TemplateManager = {
             await new Promise((resolve, reject) => {
                 BX24.callMethod('entity.item.add', {
                     ENTITY: 'tflow_tmpl',
-                    NAME: 'template_' + Date.now(),
-                    PROPERTY_VALUES: {
-                        TEMPLATE_NAME: templateName,
-                        TEMPLATE_DATA: JSON.stringify(templateData)
-                    }
+                    NAME: templateName,  // Имя шаблона в NAME
+                    DETAIL_TEXT: JSON.stringify(templateData)  // Данные в DETAIL_TEXT
                 }, (result) => {
                     if (result.error()) {
                         console.error('❌ Ошибка сохранения:', result.error());
@@ -315,11 +312,24 @@ window.TemplateManager = {
             }
 
             console.log('📋 Загружено шаблонов:', templates.length);
+            console.log('📋 Структура первого шаблона:', templates[0]);
 
             listContainer.innerHTML = '';
 
             for (const template of templates) {
-                const templateData = JSON.parse(template.PROPERTY_VALUES.TEMPLATE_DATA);
+                console.log('🔍 Обрабатываем шаблон:', template);
+
+                // Проверяем наличие DETAIL_TEXT
+                if (!template.DETAIL_TEXT) {
+                    console.warn('⚠️ Шаблон без DETAIL_TEXT:', template);
+                    continue;
+                }
+
+                const templateData = JSON.parse(template.DETAIL_TEXT);
+                // Добавляем имя из NAME если нет в данных
+                if (!templateData.name) {
+                    templateData.name = template.NAME;
+                }
                 const templateCard = this.createTemplateCard(template.ID, templateData);
                 listContainer.appendChild(templateCard);
             }
@@ -475,10 +485,8 @@ window.TemplateManager = {
                 BX24.callMethod('entity.item.update', {
                     ENTITY: 'tflow_tmpl',
                     ID: templateId,
-                    PROPERTY_VALUES: {
-                        TEMPLATE_NAME: newName,
-                        TEMPLATE_DATA: JSON.stringify(templateData)
-                    }
+                    NAME: newName,
+                    DETAIL_TEXT: JSON.stringify(templateData)
                 }, (result) => {
                     if (result.error()) {
                         reject(result.error());

@@ -42,7 +42,7 @@ CJSCore::Init();
     <script src="components/TaskModalV2.js?v=2.0.4-remove-delay"></script>
     <script src="components/ProcessSelector.js?v=2.2.0-processname"></script>
     <script src="components/ProcessSwitcher.js?v=2.3.1-name-format"></script>
-    <script src="components/TemplateManager.js?v=1.1.2-debug-full"></script>
+    <script src="components/TemplateManager.js?v=1.2.0-detail-text"></script>
     <script src="components/FlowCanvasV2.js?v=2.8.0-fix-state"></script>
     <script src="components/ProcessManager.js?v=2.2.0-processname"></script>
     <script src="components/TaskProcessMapping.js?v=2.2.0-numeric-id"></script>
