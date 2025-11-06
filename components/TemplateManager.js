@@ -537,7 +537,7 @@ window.TemplateManager = {
                 ENTITY: 'tflow_tmpl',
                 NAME: 'Flowtask Templates Storage',
                 ACCESS: {
-                    'AU': 'W'  // Все авторизованные пользователи могут записывать
+                    AU: 'W'  // Все авторизованные пользователи могут записывать
                 }
             }, (result) => {
                 if (result.error()) {

@@ -47,7 +47,7 @@ window.EntityManagerV2 = {
                 ENTITY: 'tflow_nodes',
                 NAME: 'Flowtask Nodes Storage',
                 ACCESS: {
-                    'AU': 'W'  // Все авторизованные пользователи могут записывать
+                    AU: 'W'  // Все авторизованные пользователи могут записывать
                 }
             }, (result) => {
                 if (result.error()) {
