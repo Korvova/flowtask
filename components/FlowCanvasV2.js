@@ -372,8 +372,24 @@ window.FlowCanvasV2 = {
                 window.FlowCanvasV2.updateSingleTaskStatus = updateSingleTaskStatus;
 
                 // Экспортируем методы для работы с шаблонами
-                window.FlowCanvasV2.getCurrentNodes = () => nodes;
-                window.FlowCanvasV2.getCurrentEdges = () => edges;
+                // ВАЖНО: используем callback в setNodes/setEdges чтобы получить актуальное состояние
+                window.FlowCanvasV2.getCurrentNodes = () => {
+                    let currentNodes = [];
+                    setNodes((nds) => {
+                        currentNodes = nds;
+                        return nds; // Возвращаем без изменений
+                    });
+                    return currentNodes;
+                };
+
+                window.FlowCanvasV2.getCurrentEdges = () => {
+                    let currentEdges = [];
+                    setEdges((eds) => {
+                        currentEdges = eds;
+                        return eds; // Возвращаем без изменений
+                    });
+                    return currentEdges;
+                };
 
                 // Метод добавления узлов из шаблона
                 window.FlowCanvasV2.addTemplateNodes = async (templateNodes) => {

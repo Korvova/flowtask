@@ -161,10 +161,16 @@ window.TemplateManager = {
      * Сохранить текущий canvas как шаблон
      */
     saveTemplate: async function() {
+        console.log('🚀 ВЫЗВАН МЕТОД saveTemplate');
+
         const nameInput = document.getElementById('templateName');
+        console.log('📝 nameInput элемент:', nameInput);
+
         const templateName = nameInput.value.trim();
+        console.log('📝 Имя шаблона:', templateName);
 
         if (!templateName) {
+            console.log('⚠️ Имя пустое, показываем alert');
             alert('Введите название шаблона');
             return;
         }
@@ -172,9 +178,17 @@ window.TemplateManager = {
         try {
             console.log('💾 Сохраняем шаблон:', templateName);
 
+            // Отладка: проверяем что доступно
+            console.log('🔍 window.FlowCanvasV2:', window.FlowCanvasV2);
+            console.log('🔍 getCurrentNodes метод:', window.FlowCanvasV2?.getCurrentNodes);
+            console.log('🔍 getCurrentEdges метод:', window.FlowCanvasV2?.getCurrentEdges);
+
             // Получаем текущие узлы и связи с canvas
             const currentNodes = window.FlowCanvasV2?.getCurrentNodes?.() || [];
             const currentEdges = window.FlowCanvasV2?.getCurrentEdges?.() || [];
+
+            console.log('🔍 Результат getCurrentNodes():', currentNodes);
+            console.log('🔍 Длина currentNodes:', currentNodes.length);
 
             if (currentNodes.length === 0) {
                 alert('На canvas нет узлов для сохранения');
