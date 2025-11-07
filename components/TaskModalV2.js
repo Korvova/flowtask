@@ -9,6 +9,42 @@ window.TaskModalV2 = {
 
     init: function() {
         console.log('✅ TaskModalV2 initialized');
+        this.setupClickOutsideHandlers();
+    },
+
+    /**
+     * Настроить обработчики клика вне области для закрытия dropdown
+     */
+    setupClickOutsideHandlers: function() {
+        document.addEventListener('click', (event) => {
+            // Закрытие группового селектора
+            const groupSearchInput = document.getElementById('groupSearchInput');
+            const groupSearchResults = document.getElementById('groupSearchResults');
+            const selectedGroupDisplay = document.getElementById('selectedGroupDisplay');
+
+            if (groupSearchInput && groupSearchResults) {
+                // Проверяем, что клик был вне поля поиска и вне результатов
+                if (!groupSearchInput.contains(event.target) &&
+                    !groupSearchResults.contains(event.target) &&
+                    (!selectedGroupDisplay || !selectedGroupDisplay.contains(event.target))) {
+                    groupSearchResults.style.display = 'none';
+                }
+            }
+
+            // Закрытие пользовательского селектора
+            const userSearchInput = document.getElementById('userSearchInput');
+            const userSearchResults = document.getElementById('userSearchResults');
+            const selectedUserDisplay = document.getElementById('selectedUserDisplay');
+
+            if (userSearchInput && userSearchResults) {
+                // Проверяем, что клик был вне поля поиска и вне результатов
+                if (!userSearchInput.contains(event.target) &&
+                    !userSearchResults.contains(event.target) &&
+                    (!selectedUserDisplay || !selectedUserDisplay.contains(event.target))) {
+                    userSearchResults.style.display = 'none';
+                }
+            }
+        });
     },
 
     /**
