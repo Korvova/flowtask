@@ -578,7 +578,7 @@ window.FlowCanvasV2 = {
                                     const initialNode = {
                                         nodeId: 'task-' + window.currentTaskId,
                                         type: 'task',
-                                        title: 'Задача #' + window.currentTaskId,
+                                        title: window.currentTaskTitle || 'Задача #' + window.currentTaskId,
                                         status: 2, // В работе
                                         positionX: 250,
                                         positionY: 150,
@@ -601,7 +601,7 @@ window.FlowCanvasV2 = {
                                     const initialNode = {
                                         nodeId: 'task-' + window.currentTaskId,
                                         type: 'task',
-                                        title: 'Задача #' + window.currentTaskId,
+                                        title: window.currentTaskTitle || 'Задача #' + window.currentTaskId,
                                         status: 2,
                                         positionX: 250,
                                         positionY: 150,
@@ -747,16 +747,7 @@ window.FlowCanvasV2 = {
                     return false;
                 }
 
-                // 3. Проверяем типы узлов
-                const sourceNode = nodes.find(n => n.id === connection.source);
-                const targetNode = nodes.find(n => n.id === connection.target);
-
-                // Future узлы не могут иметь исходящие связи (только входящие)
-                if (sourceNode?.data?.isFuture) {
-                    console.warn('%c⚠️ Предзадачи не могут иметь исходящие связи', 'color: #ff9800; font-weight: bold;');
-                    return false;
-                }
-
+                // 3. Связь валидна
                 console.log('%c✅ Связь валидна', 'color: #00ff00; font-weight: bold;');
                 return true;
             }, [nodes, edges]);

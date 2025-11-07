@@ -1,0 +1,63 @@
+{
+  "code": "flowtask",
+  "version": "1.0.0",
+  "name": {
+    "ru": "Flowtask - Визуальное управление процессами",
+    "en": "Flowtask - Visual Process Management"
+  },
+  "description": {
+    "ru": "Превратите задачи в наглядные процессы. Автоматическое создание связанных задач, шаблоны процессов, визуальный canvas.",
+    "en": "Turn tasks into visual processes. Automatic linked task creation, process templates, visual canvas."
+  },
+  "category": "productivity",
+  "tags": ["tasks", "workflow", "automation", "visual", "process"],
+  "publisher": {
+    "name": "Flowtask Team",
+    "url": "https://flowtask.ru"
+  },
+  "support": {
+    "email": "support@flowtask.ru",
+    "url": "https://flowtask.ru/support"
+  },
+  "installation": {
+    "handler": "https://test.test-rms.ru/flowtask/install.php"
+  },
+  "placement": {
+    "TASK_TAB": {
+      "handler": "https://test.test-rms.ru/flowtask/handler.php",
+      "title": {
+        "ru": "Процессы",
+        "en": "Processes"
+      }
+    }
+  },
+  "permissions": {
+    "entity": ["W"],
+    "tasks": ["R", "W"],
+    "user": ["R"],
+    "sonet_group": ["R"],
+    "pull": ["R"],
+    "payment": ["R", "W"]
+  },
+  "payment": {
+    "trial": {
+      "enabled": true,
+      "days": 30
+    },
+    "subscription": {
+      "monthly": {
+        "price": 500,
+        "currency": "RUB",
+        "recurrent": true
+      }
+    }
+  },
+  "screenshots": [
+    "https://test.test-rms.ru/flowtask/assets/screenshots/1_main_canvas.png",
+    "https://test.test-rms.ru/flowtask/assets/screenshots/2_create_task.png",
+    "https://test.test-rms.ru/flowtask/assets/screenshots/3_templates.png",
+    "https://test.test-rms.ru/flowtask/assets/screenshots/4_processes.png"
+  ],
+  "icon": "https://test.test-rms.ru/flowtask/assets/icon.png",
+  "logo": "https://test.test-rms.ru/flowtask/assets/logo.png"
+}

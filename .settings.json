@@ -1,0 +1,19 @@
+{
+  "payment": {
+    "enabled": true,
+    "trial": {
+      "enabled": true,
+      "days": 30
+    },
+    "plans": [
+      {
+        "code": "monthly",
+        "name": "Месячная подписка",
+        "price": 500,
+        "currency": "RUB",
+        "period": "monthly",
+        "recurrent": true
+      }
+    ]
+  }
+}

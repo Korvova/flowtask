@@ -37,13 +37,14 @@ CJSCore::Init();
     </div>
 
     <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
+    <script src="components/SubscriptionManager.js?v=1.0.0"></script>
     <script src="components/EntityManagerV2.js?v=2.3.0-no-create"></script>
     <script src="components/TaskHandler.js?v=2.2.0-incremental-update"></script>
-    <script src="components/TaskModalV2.js?v=2.0.4-remove-delay"></script>
+    <script src="components/TaskModalV2.js?v=2.4.0-search-user-selector"></script>
     <script src="components/ProcessSelector.js?v=2.2.0-processname"></script>
     <script src="components/ProcessSwitcher.js?v=2.3.1-name-format"></script>
     <script src="components/TemplateManager.js?v=1.2.0-detail-text"></script>
-    <script src="components/FlowCanvasV2.js?v=2.8.0-fix-state"></script>
+    <script src="components/FlowCanvasV2.js?v=2.8.2-real-task-title"></script>
     <script src="components/ProcessManager.js?v=2.2.0-processname"></script>
     <script src="components/TaskProcessMapping.js?v=2.2.0-numeric-id"></script>
 
@@ -69,8 +70,15 @@ CJSCore::Init();
             BX24.fitWindow();
         }
 
-        BX24.init(function() {
+        BX24.init(async function() {
             console.log('🚀 Flowtask');
+
+            // Проверяем подписку
+            const subscriptionActive = await window.SubscriptionManager.init();
+            if (!subscriptionActive) {
+                console.log('⛔ Подписка неактивна, блокируем приложение');
+                return;
+            }
 
             const placement = BX24.placement.info();
 
@@ -113,6 +121,7 @@ CJSCore::Init();
                     if (typeof window.FlowCanvasV2 !== "undefined") {
                         window.currentProcessId = processId;
                         window.currentTaskId = task.id;
+                        window.currentTaskTitle = task.title; // Сохраняем название задачи
                         window.FlowCanvasV2.render();
                         console.log('✅ Используем FlowCanvasV2 (новая архитектура)');
                     } else if (typeof window.FlowCanvas !== "undefined") {

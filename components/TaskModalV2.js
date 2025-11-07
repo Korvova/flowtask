@@ -6,101 +6,369 @@ window.TaskModalV2 = {
     currentSourceId: null,
     currentProcessId: null,
     onSaveCallback: null,
-    users: [],
-    groups: [],
 
     init: function() {
         console.log('✅ TaskModalV2 initialized');
-        this.loadUsers();
-        this.loadGroups();
     },
 
-    loadUsers: function() {
-        console.log('📥 Загружаем пользователей...');
+    /**
+     * Открыть диалог выбора ответственного с поиском
+     */
+    openUserSelector: function() {
+        console.log('🔍 Открываем селектор пользователя...');
+
+        const searchInput = document.getElementById('userSearchInput');
+        const resultsContainer = document.getElementById('userSearchResults');
+
+        if (!searchInput || !resultsContainer) {
+            console.error('❌ Элементы поиска пользователей не найдены');
+            return;
+        }
+
+        // Показываем поле поиска
+        searchInput.style.display = 'block';
+        searchInput.value = '';
+        searchInput.focus();
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+
+        // Загружаем начальный список пользователей
+        this.searchUsers('');
+    },
+
+    /**
+     * Поиск пользователей с динамической подгрузкой
+     */
+    searchUsers: function(searchQuery) {
+        const resultsContainer = document.getElementById('userSearchResults');
+
+        if (!resultsContainer) return;
+
+        // Показываем loading
+        resultsContainer.innerHTML = '<div style="padding: 10px; text-align: center; color: #9ca3af;">Загрузка...</div>';
+        resultsContainer.style.display = 'block';
+
+        // Формируем фильтр
+        const filter = { ACTIVE: true };
+        if (searchQuery) {
+            filter['NAME_SEARCH'] = searchQuery;
+        }
+
         BX24.callMethod('user.get', {
-            ACTIVE: true
+            FILTER: filter,
+            sort: 'LAST_NAME'
         }, (result) => {
             if (result.error()) {
-                console.error('Ошибка загрузки пользователей:', result.error());
+                console.error('❌ Ошибка загрузки пользователей:', result.error());
+                resultsContainer.innerHTML = '<div style="padding: 10px; color: #dc2626;">Ошибка загрузки</div>';
                 return;
             }
 
-            this.users = result.data().map(user => ({
-                id: user.ID,
-                name: user.NAME + ' ' + user.LAST_NAME,
-                email: user.EMAIL
-            }));
+            const users = result.data();
 
-            console.log('✅ Загружено пользователей:', this.users.length);
-            this.updateResponsibleSelect();
+            if (users.length === 0) {
+                resultsContainer.innerHTML = '<div style="padding: 10px; color: #9ca3af;">Пользователи не найдены</div>';
+                return;
+            }
+
+            // Отображаем результаты
+            let html = '';
+            users.forEach(user => {
+                const fullName = `${user.NAME || ''} ${user.LAST_NAME || ''}`.trim();
+                const safeName = fullName.replace(/"/g, '&quot;').replace(/'/g, "&#39;");
+                const email = user.EMAIL || '';
+
+                html += `
+                    <div onclick="window.TaskModalV2.selectUser('${user.ID}', '${safeName}')" style="
+                        padding: 10px;
+                        cursor: pointer;
+                        border-bottom: 1px solid #e5e7eb;
+                        transition: background 0.2s;
+                    " onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                        <div style="font-weight: 500; color: #374151;">${fullName}</div>
+                        ${email ? `<div style="font-size: 12px; color: #9ca3af; margin-top: 2px;">${email}</div>` : ''}
+                    </div>
+                `;
+            });
+
+            resultsContainer.innerHTML = html;
         });
     },
 
-    loadGroups: function() {
-        console.log('📥 Загружаем группы/проекты...');
+    /**
+     * Выбрать пользователя из результатов поиска
+     */
+    selectUser: function(userId, userName) {
+        console.log('👤 Выбран пользователь:', userId, userName);
+
+        // Декодируем HTML entities
+        const decodedName = userName.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+
+        // Сохраняем в скрытое поле
+        document.getElementById('futureTaskResponsibleV2').value = userId;
+
+        // Обновляем отображение
+        const displayElement = document.getElementById('selectedUserDisplay');
+        const nameElement = document.getElementById('selectedUserName');
+        if (displayElement && nameElement) {
+            nameElement.textContent = decodedName;
+            displayElement.style.display = 'flex';
+        }
+
+        // Очищаем и скрываем поиск
+        const searchInput = document.getElementById('userSearchInput');
+        const resultsContainer = document.getElementById('userSearchResults');
+        if (searchInput) {
+            searchInput.value = '';
+            searchInput.style.display = 'none';
+        }
+        if (resultsContainer) {
+            resultsContainer.style.display = 'none';
+        }
+    },
+
+    /**
+     * Очистить выбранного пользователя
+     */
+    clearUserSelection: function() {
+        document.getElementById('futureTaskResponsibleV2').value = '';
+        const displayElement = document.getElementById('selectedUserDisplay');
+        const nameElement = document.getElementById('selectedUserName');
+        const searchInput = document.getElementById('userSearchInput');
+
+        if (displayElement) {
+            displayElement.style.display = 'none';
+        }
+        if (nameElement) {
+            nameElement.textContent = '';
+        }
+        if (searchInput) {
+            searchInput.style.display = 'block';
+            searchInput.value = '';
+        }
+    },
+
+    /**
+     * Обновить отображение выбранного пользователя при редактировании
+     */
+    updateUserDisplay: function(userId) {
+        if (!userId) {
+            this.clearUserSelection();
+            return;
+        }
+
+        // Загружаем информацию о пользователе
+        BX24.callMethod('user.get', { ID: userId }, (result) => {
+            if (result.error()) {
+                console.error('❌ Ошибка загрузки пользователя:', result.error());
+                return;
+            }
+
+            const users = result.data();
+            if (users && users.length > 0) {
+                const user = users[0];
+                const fullName = `${user.NAME || ''} ${user.LAST_NAME || ''}`.trim();
+                const displayElement = document.getElementById('selectedUserDisplay');
+                const nameElement = document.getElementById('selectedUserName');
+                const searchInput = document.getElementById('userSearchInput');
+
+                if (displayElement && nameElement) {
+                    nameElement.textContent = fullName;
+                    displayElement.style.display = 'flex';
+                }
+                if (searchInput) {
+                    searchInput.style.display = 'none';
+                }
+            }
+        });
+    },
+
+    /**
+     * Открыть диалог выбора группы с поиском
+     */
+    openGroupSelector: function() {
+        console.log('🔍 Открываем селектор группы...');
+
+        const searchInput = document.getElementById('groupSearchInput');
+        const resultsContainer = document.getElementById('groupSearchResults');
+
+        if (!searchInput || !resultsContainer) {
+            console.error('❌ Элементы поиска не найдены');
+            return;
+        }
+
+        // Показываем поле поиска
+        searchInput.style.display = 'block';
+        searchInput.value = '';
+        searchInput.focus();
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+
+        // Загружаем начальный список групп
+        this.searchGroups('');
+    },
+
+    /**
+     * Поиск групп с динамической подгрузкой
+     */
+    searchGroups: function(searchQuery) {
+        const resultsContainer = document.getElementById('groupSearchResults');
+
+        if (!resultsContainer) return;
+
+        // Показываем loading
+        resultsContainer.innerHTML = '<div style="padding: 10px; text-align: center; color: #9ca3af;">Загрузка...</div>';
+        resultsContainer.style.display = 'block';
+
+        // Формируем фильтр
+        const filter = {};
+        if (searchQuery) {
+            filter['%NAME'] = searchQuery;
+        }
+
         BX24.callMethod('sonet_group.get', {
-            ORDER: { NAME: 'ASC' }
+            ORDER: { NAME: 'ASC' },
+            FILTER: filter
         }, (result) => {
             if (result.error()) {
-                console.warn('Ошибка загрузки через sonet_group.get, пробуем workgroup.list');
-
-                // Пробуем альтернативный метод
-                BX24.callMethod('workgroup.list', {
-                    SELECT: ['ID', 'NAME']
-                }, (result2) => {
-                    if (result2.error()) {
-                        console.error('Ошибка загрузки групп:', result2.error());
-                        this.groups = [];
-                        return;
-                    }
-
-                    this.groups = result2.data().map(group => ({
-                        id: group.ID,
-                        name: group.NAME
-                    }));
-
-                    console.log('✅ Загружено групп:', this.groups.length);
-                    this.updateGroupSelect();
-                });
+                console.error('❌ Ошибка загрузки групп:', result.error());
+                resultsContainer.innerHTML = '<div style="padding: 10px; color: #dc2626;">Ошибка загрузки</div>';
                 return;
             }
 
-            this.groups = result.data().map(group => ({
-                id: group.ID,
-                name: group.NAME
-            }));
+            const groups = result.data();
 
-            console.log('✅ Загружено групп:', this.groups.length);
-            this.updateGroupSelect();
+            if (groups.length === 0) {
+                resultsContainer.innerHTML = '<div style="padding: 10px; color: #9ca3af;">Группы не найдены</div>';
+                return;
+            }
+
+            // Отображаем результаты
+            let html = '';
+            groups.forEach(group => {
+                const safeName = group.NAME.replace(/"/g, '&quot;').replace(/'/g, "&#39;");
+                html += `
+                    <div onclick="window.TaskModalV2.selectGroup('${group.ID}', '${safeName}')" style="
+                        padding: 10px;
+                        cursor: pointer;
+                        border-bottom: 1px solid #e5e7eb;
+                        transition: background 0.2s;
+                    " onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                        <div style="font-weight: 500; color: #374151;">${group.NAME}</div>
+                        ${group.DESCRIPTION ? `<div style="font-size: 12px; color: #9ca3af; margin-top: 2px;">${group.DESCRIPTION}</div>` : ''}
+                    </div>
+                `;
+            });
+
+            resultsContainer.innerHTML = html;
         });
     },
 
-    updateResponsibleSelect: function() {
-        const select = document.getElementById('futureTaskResponsibleV2');
-        if (!select) return;
+    /**
+     * Выбрать группу из результатов поиска
+     */
+    selectGroup: function(groupId, groupName) {
+        console.log('📋 Выбрана группа:', groupId, groupName);
 
-        select.innerHTML = '<option value="">-- Выберите ответственного --</option>';
+        // Декодируем HTML entities
+        const decodedName = groupName.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 
-        this.users.forEach(user => {
-            const option = document.createElement('option');
-            option.value = user.id;
-            option.textContent = user.name + (user.email ? ' (' + user.email + ')' : '');
-            select.appendChild(option);
+        // Сохраняем в скрытое поле
+        document.getElementById('futureTaskGroupV2').value = groupId;
+
+        // Обновляем отображение
+        const displayElement = document.getElementById('selectedGroupDisplay');
+        const nameElement = document.getElementById('selectedGroupName');
+        if (displayElement && nameElement) {
+            nameElement.textContent = decodedName;
+            displayElement.style.display = 'flex';
+        }
+
+        // Очищаем и скрываем поиск
+        const searchInput = document.getElementById('groupSearchInput');
+        const resultsContainer = document.getElementById('groupSearchResults');
+        if (searchInput) {
+            searchInput.value = '';
+            searchInput.style.display = 'none';
+        }
+        if (resultsContainer) {
+            resultsContainer.style.display = 'none';
+        }
+    },
+
+    /**
+     * Очистить выбранную группу
+     */
+    clearGroupSelection: function() {
+        document.getElementById('futureTaskGroupV2').value = '';
+        const displayElement = document.getElementById('selectedGroupDisplay');
+        const nameElement = document.getElementById('selectedGroupName');
+        const searchInput = document.getElementById('groupSearchInput');
+
+        if (displayElement) {
+            displayElement.style.display = 'none';
+        }
+        if (nameElement) {
+            nameElement.textContent = '';
+        }
+        if (searchInput) {
+            searchInput.style.display = 'block';
+            searchInput.value = '';
+        }
+    },
+
+    /**
+     * Обновить отображение выбранной группы при редактировании
+     */
+    updateGroupDisplay: function(groupId) {
+        if (!groupId) {
+            this.clearGroupSelection();
+            return;
+        }
+
+        // Загружаем информацию о группе
+        BX24.callMethod('sonet_group.get', { ID: groupId }, (result) => {
+            if (result.error()) {
+                console.error('❌ Ошибка загрузки группы:', result.error());
+                return;
+            }
+
+            const groups = result.data();
+            if (groups && groups.length > 0) {
+                const group = groups[0];
+                const displayElement = document.getElementById('selectedGroupDisplay');
+                const nameElement = document.getElementById('selectedGroupName');
+                const searchInput = document.getElementById('groupSearchInput');
+
+                if (displayElement && nameElement) {
+                    nameElement.textContent = group.NAME;
+                    displayElement.style.display = 'flex';
+                }
+                if (searchInput) {
+                    searchInput.style.display = 'none';
+                }
+            }
         });
     },
 
-    updateGroupSelect: function() {
-        const select = document.getElementById('futureTaskGroupV2');
-        if (!select) return;
+    /**
+     * Обработчик изменения условия создания
+     */
+    onConditionChange: function() {
+        const immediatelyRadio = document.getElementById('conditionImmediately');
+        const cancelContainer = document.getElementById('cancelOnParentCancelContainer');
 
-        select.innerHTML = '<option value="">-- Без группы --</option>';
+        if (!immediatelyRadio || !cancelContainer) return;
 
-        this.groups.forEach(group => {
-            const option = document.createElement('option');
-            option.value = group.id;
-            option.textContent = group.name;
-            select.appendChild(option);
-        });
+        // Показываем чекбокс только когда выбрано "Создать сразу"
+        if (immediatelyRadio.checked) {
+            cancelContainer.style.display = 'flex';
+        } else {
+            cancelContainer.style.display = 'none';
+            // Сбрасываем чекбокс при переключении на "Создать при отмене"
+            const checkbox = document.getElementById('cancelOnParentCancel');
+            if (checkbox) checkbox.checked = false;
+        }
     },
 
     /**
@@ -163,16 +431,37 @@ window.TaskModalV2 = {
             this.createModal();
         }
 
-        // Обновляем селекты
-        this.updateResponsibleSelect();
-        this.updateGroupSelect();
-
         // Заполняем форму данными узла
         document.getElementById('futureTaskTitleV2').value = this.editingNode.title || '';
         document.getElementById('futureTaskDescriptionV2').value = this.editingNode.description || '';
         document.getElementById('futureTaskGroupV2').value = this.editingNode.groupId || '';
         document.getElementById('futureTaskResponsibleV2').value = this.editingNode.responsibleId || '';
-        document.getElementById('futureTaskConditionV2').value = this.editingNode.condition || 'immediately';
+
+        // Обновляем отображение выбранной группы и пользователя
+        this.updateGroupDisplay(this.editingNode.groupId);
+        this.updateUserDisplay(this.editingNode.responsibleId);
+
+        // Устанавливаем радио-кнопки и чекбокс на основе condition
+        const condition = this.editingNode.condition || 'immediately';
+        if (condition === 'ifCancel_cancel') {
+            // "Создать сразу" + чекбокс включен
+            document.getElementById('conditionImmediately').checked = true;
+            document.getElementById('conditionIfCancel').checked = false;
+            document.getElementById('cancelOnParentCancel').checked = true;
+        } else if (condition === 'ifCancel_create') {
+            // "Создать при отмене"
+            document.getElementById('conditionImmediately').checked = false;
+            document.getElementById('conditionIfCancel').checked = true;
+            document.getElementById('cancelOnParentCancel').checked = false;
+        } else {
+            // "Создать сразу" без чекбокса
+            document.getElementById('conditionImmediately').checked = true;
+            document.getElementById('conditionIfCancel').checked = false;
+            document.getElementById('cancelOnParentCancel').checked = false;
+        }
+
+        // Обновляем видимость чекбокса
+        this.onConditionChange();
 
         // Меняем заголовок модалки
         const modalTitle = document.querySelector('#taskModalV2 h2');
@@ -200,10 +489,6 @@ window.TaskModalV2 = {
             this.createModal();
         }
 
-        // Обновляем селекты
-        this.updateResponsibleSelect();
-        this.updateGroupSelect();
-
         // Очищаем форму
         this.reset();
 
@@ -227,7 +512,18 @@ window.TaskModalV2 = {
         document.getElementById('futureTaskDescriptionV2').value = '';
         document.getElementById('futureTaskGroupV2').value = '';
         document.getElementById('futureTaskResponsibleV2').value = '';
-        document.getElementById('futureTaskConditionV2').value = 'immediately';
+
+        // Сбрасываем отображение группы и пользователя
+        this.clearGroupSelection();
+        this.clearUserSelection();
+
+        // Сбрасываем радио-кнопки и чекбокс
+        document.getElementById('conditionImmediately').checked = true;
+        document.getElementById('conditionIfCancel').checked = false;
+        document.getElementById('cancelOnParentCancel').checked = false;
+
+        // Обновляем видимость чекбокса
+        this.onConditionChange();
     },
 
     /**
@@ -239,7 +535,25 @@ window.TaskModalV2 = {
             const description = document.getElementById('futureTaskDescriptionV2').value.trim();
             const groupId = parseInt(document.getElementById('futureTaskGroupV2').value) || 0;
             const responsibleId = parseInt(document.getElementById('futureTaskResponsibleV2').value) || 0;
-            const conditionType = document.getElementById('futureTaskConditionV2').value;
+
+            // Определяем тип условия на основе радио-кнопок и чекбокса
+            let conditionType;
+            const immediatelyChecked = document.getElementById('conditionImmediately').checked;
+            const cancelOnParentChecked = document.getElementById('cancelOnParentCancel').checked;
+
+            if (immediatelyChecked) {
+                // "Создать сразу"
+                if (cancelOnParentChecked) {
+                    // С чекбоксом "Отменить при отмене"
+                    conditionType = 'ifCancel_cancel';
+                } else {
+                    // Без чекбокса
+                    conditionType = 'immediately';
+                }
+            } else {
+                // "Создать при отмене"
+                conditionType = 'ifCancel_create';
+            }
 
             // Валидация
             if (!title) {
@@ -380,25 +694,72 @@ window.TaskModalV2 = {
 
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">Группа/Проект</label>
-                        <select id="futureTaskGroupV2" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px; background: white;">
-                            <option value="">-- Без группы --</option>
-                        </select>
+                        <input type="hidden" id="futureTaskGroupV2" value="" />
+
+                        <!-- Выбранная группа -->
+                        <div id="selectedGroupDisplay" style="display: none; align-items: center; gap: 10px; padding: 10px; background: #f3f4f6; border-radius: 5px; margin-bottom: 10px;">
+                            <span id="selectedGroupName" style="flex: 1; font-size: 14px; color: #374151;"></span>
+                            <button type="button" onclick="window.TaskModalV2.clearGroupSelection()" style="padding: 5px 10px; background: #fee2e2; color: #dc2626; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                ✕ Удалить
+                            </button>
+                        </div>
+
+                        <!-- Поле поиска -->
+                        <div style="position: relative;">
+                            <input type="text" id="groupSearchInput" placeholder="Найти группу..." onclick="window.TaskModalV2.openGroupSelector()" oninput="window.TaskModalV2.searchGroups(this.value)" autocomplete="off" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;" />
+
+                            <!-- Результаты поиска -->
+                            <div id="groupSearchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; max-height: 300px; overflow-y: auto; background: white; border: 1px solid #d1d5db; border-radius: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 1000; margin-top: 5px;">
+                            </div>
+                        </div>
                     </div>
 
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">Ответственный *</label>
-                        <select id="futureTaskResponsibleV2" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px; background: white;">
-                            <option value="">-- Выберите ответственного --</option>
-                        </select>
+                        <input type="hidden" id="futureTaskResponsibleV2" value="" />
+
+                        <!-- Выбранный пользователь -->
+                        <div id="selectedUserDisplay" style="display: none; align-items: center; gap: 10px; padding: 10px; background: #f3f4f6; border-radius: 5px; margin-bottom: 10px;">
+                            <span id="selectedUserName" style="flex: 1; font-size: 14px; color: #374151;"></span>
+                            <button type="button" onclick="window.TaskModalV2.clearUserSelection()" style="padding: 5px 10px; background: #fee2e2; color: #dc2626; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                ✕ Удалить
+                            </button>
+                        </div>
+
+                        <!-- Поле поиска -->
+                        <div style="position: relative;">
+                            <input type="text" id="userSearchInput" placeholder="Найти пользователя..." onclick="window.TaskModalV2.openUserSelector()" oninput="window.TaskModalV2.searchUsers(this.value)" autocomplete="off" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;" />
+
+                            <!-- Результаты поиска -->
+                            <div id="userSearchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; max-height: 300px; overflow-y: auto; background: white; border: 1px solid #d1d5db; border-radius: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 1000; margin-top: 5px;">
+                            </div>
+                        </div>
                     </div>
 
                     <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">Условие создания</label>
-                        <select id="futureTaskConditionV2" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px; background: white;">
-                            <option value="immediately">⚡ Создать сразу</option>
-                            <option value="ifCancel_cancel">❌ Отменить при отмене</option>
-                            <option value="ifCancel_create">✅ Создать при отмене</option>
-                        </select>
+                        <label style="display: block; margin-bottom: 10px; font-weight: 500; color: #374151;">Условие создания</label>
+
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <!-- Первая строка: радио "Создать сразу" + чекбокс на одной линии -->
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <label style="display: flex; align-items: center; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; cursor: pointer; background: white; flex: 1;">
+                                    <input type="radio" name="conditionType" value="immediately" id="conditionImmediately" checked style="margin-right: 10px;" onchange="window.TaskModalV2.onConditionChange()">
+                                    <span style="font-size: 14px;">⚡ Создать сразу</span>
+                                </label>
+
+                                <!-- Чекбокс на той же строке -->
+                                <label id="cancelOnParentCancelContainer" style="display: none; align-items: center; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; cursor: pointer; background: white; white-space: nowrap;">
+                                    <input type="checkbox" id="cancelOnParentCancel" style="margin-right: 8px;">
+                                    <span style="font-size: 14px; color: #374151;">❌ Отменить при отмене</span>
+                                </label>
+                            </div>
+
+                            <!-- Вторая строка: радио "Создать при отмене" -->
+                            <label style="display: flex; align-items: center; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; cursor: pointer; background: white;">
+                                <input type="radio" name="conditionType" value="ifCancel_create" id="conditionIfCancel" style="margin-right: 10px;" onchange="window.TaskModalV2.onConditionChange()">
+                                <span style="font-size: 14px;">❌ Создать при отмене</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div style="display: flex; gap: 10px; justify-content: flex-end;">
