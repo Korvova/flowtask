@@ -755,6 +755,7 @@ window.FlowCanvasV2 = {
                                         target: targetId,
                                         type: 'custom',
                                         animated: false,
+                                        style: { stroke: '#667eea', strokeWidth: 2 },
                                         data: {
                                             onDelete: handleDeleteEdge
                                         }
@@ -838,7 +839,7 @@ window.FlowCanvasV2 = {
                     await EntityManagerV2.saveNode(window.currentProcessId, sourceNode);
                     console.log('✅ Связь сохранена в базу');
 
-                    // Обновить edges с анимацией (из документации React Flow)
+                    // Обновить edges с анимацией и пунктиром (новая связь)
                     setEdges((eds) => [
                         ...eds,
                         {
@@ -847,7 +848,11 @@ window.FlowCanvasV2 = {
                             target: connection.target,
                             type: 'custom',
                             animated: true,
-                            style: { strokeWidth: 2, stroke: '#667eea' },
+                            style: {
+                                strokeWidth: 2,
+                                stroke: '#667eea',
+                                strokeDasharray: '5, 5' // Пунктирная линия
+                            },
                             data: {
                                 onDelete: handleDeleteEdge
                             }
@@ -922,7 +927,11 @@ window.FlowCanvasV2 = {
                                     target: newNode.nodeId,
                                     type: 'custom',
                                     animated: true,
-                                    style: { stroke: '#667eea', strokeWidth: 2 },
+                                    style: {
+                                        stroke: '#667eea',
+                                        strokeWidth: 2,
+                                        strokeDasharray: '5, 5' // Пунктирная линия
+                                    },
                                     data: {
                                         onDelete: handleDeleteEdge
                                     }

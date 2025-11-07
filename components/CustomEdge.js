@@ -3,7 +3,7 @@
  *
  * Использует EdgeLabelRenderer для отображения кнопки удаления над связью
  */
-window.CustomEdge = function({ id, source, target, sourceX, sourceY, targetX, targetY, data }) {
+window.CustomEdge = function({ id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style = {}, markerEnd, data }) {
     const React = window.React;
     const RF = window.ReactFlow || window.reactflow;
 
@@ -14,12 +14,14 @@ window.CustomEdge = function({ id, source, target, sourceX, sourceY, targetX, ta
 
     const { BaseEdge, EdgeLabelRenderer, getBezierPath } = RF;
 
-    // Вычисляем путь связи
+    // Вычисляем путь связи (bezier - красивая изогнутая)
     const [edgePath, labelX, labelY] = getBezierPath({
         sourceX,
         sourceY,
+        sourcePosition,
         targetX,
         targetY,
+        targetPosition
     });
 
     // Обработчик удаления
@@ -37,18 +39,16 @@ window.CustomEdge = function({ id, source, target, sourceX, sourceY, targetX, ta
         React.createElement(BaseEdge, {
             id: id,
             path: edgePath,
-            style: {
-                stroke: '#667eea',
-                strokeWidth: 2
-            }
+            markerEnd: markerEnd,
+            style: style
         }),
 
-        // Кнопка удаления
+        // Кнопка удаления (НАД линией)
         React.createElement(EdgeLabelRenderer, null,
             React.createElement('div', {
                 style: {
                     position: 'absolute',
-                    transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+                    transform: `translate(-50%, -50%) translate(${labelX}px,${labelY - 20}px)`, // -20px чтобы была ВЫШЕ линии
                     pointerEvents: 'all',
                     opacity: 0, // Скрыта по умолчанию
                     transition: 'opacity 0.2s'

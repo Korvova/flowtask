@@ -44,8 +44,8 @@ CJSCore::Init();
     <script src="components/ProcessSelector.js?v=2.2.1-process-default-name"></script>
     <script src="components/ProcessSwitcher.js?v=2.3.1-name-format"></script>
     <script src="components/TemplateManager.js?v=1.2.0-detail-text"></script>
-    <script src="components/CustomEdge.js?v=1.0.0"></script>
-    <script src="components/FlowCanvasV2.js?v=2.9.0-delete-edge-button"></script>
+    <script src="components/CustomEdge.js?v=1.0.1-bezier-button-above"></script>
+    <script src="components/FlowCanvasV2.js?v=2.9.1-dashed-animated-edges"></script>
     <script src="components/ProcessManager.js?v=2.2.0-processname"></script>
     <script src="components/TaskProcessMapping.js?v=2.2.0-numeric-id"></script>
 
