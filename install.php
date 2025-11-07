@@ -276,7 +276,7 @@ CJSCore::Init();
             
             BX24.callMethod('placement.bind', {
                 PLACEMENT: 'TASK_VIEW_TAB',
-                HANDLER: 'https://test.test-rms.ru/flowtask/handler.php',
+                HANDLER: window.location.origin + '/flowtask/handler.php',
                 LANG_ALL: {
                     ru: { TITLE: 'Процессы' },
                     en: { TITLE: 'Processes' }
@@ -301,7 +301,7 @@ CJSCore::Init();
             // Регистрируем webhook для ONTASKUPDATE
             BX24.callMethod('event.bind', {
                 event: 'ONTASKUPDATE',
-                handler: 'https://test.test-rms.ru/flowtask/task_update_webhook.php'
+                handler: window.location.origin + '/flowtask/task_update_webhook.php'
             }, function(eventResult) {
                 if (eventResult.error()) {
                     console.warn('⚠️ Webhook ONTASKUPDATE не зарегистрирован:', eventResult.error());
