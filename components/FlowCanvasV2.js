@@ -681,8 +681,13 @@ window.FlowCanvasV2 = {
                     // Построить edges для ReactFlow из ВИДИМЫХ узлов
                     const rfEdges = [];
                     visibleNodes.forEach(node => {
-                        if (node.connectionsFrom) {
+                        if (node.connectionsFrom && Array.isArray(node.connectionsFrom)) {
                             node.connectionsFrom.forEach(conn => {
+                                // Пропускаем невалидные соединения
+                                if (!conn || !conn.id) {
+                                    return;
+                                }
+
                                 // Перенаправляем target если это созданная предзадача
                                 let targetId = conn.id;
                                 if (futureToTaskMap[targetId]) {
@@ -700,8 +705,6 @@ window.FlowCanvasV2 = {
                                         type: 'default',
                                         animated: false
                                     });
-                                } else {
-                                    console.warn('⚠️ Target не найден:', targetId);
                                 }
                             });
                         }
