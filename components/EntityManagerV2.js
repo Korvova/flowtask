@@ -365,8 +365,8 @@ window.EntityManagerV2 = {
                                     // Проверяем КАЖДЫЙ узел на наличие processName
                                     try {
                                         const nodeData = JSON.parse(item.DETAIL_TEXT);
-                                        if (nodeData.processName && processMap[processId].processName === processId) {
-                                            // Обновляем processName если нашли узел с названием
+                                        if (nodeData.processName && processMap[processId].processName === 'Процесс') {
+                                            // Обновляем processName если нашли узел с реальным названием
                                             processMap[processId].processName = nodeData.processName;
                                         }
                                     } catch (e) {

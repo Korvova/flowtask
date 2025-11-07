@@ -38,7 +38,7 @@ CJSCore::Init();
 
     <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
     <script src="components/SubscriptionManager.js?v=1.0.0"></script>
-    <script src="components/EntityManagerV2.js?v=2.3.1-process-default-name"></script>
+    <script src="components/EntityManagerV2.js?v=2.3.2-fix-processname-detection"></script>
     <script src="components/TaskHandler.js?v=2.2.0-incremental-update"></script>
     <script src="components/TaskModalV2.js?v=2.5.1-performance-optimization"></script>
     <script src="components/ProcessSelector.js?v=2.2.1-process-default-name"></script>
