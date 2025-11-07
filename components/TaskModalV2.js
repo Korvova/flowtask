@@ -17,13 +17,16 @@ window.TaskModalV2 = {
      */
     setupClickOutsideHandlers: function() {
         document.addEventListener('click', (event) => {
-            // Закрытие группового селектора
-            const groupSearchInput = document.getElementById('groupSearchInput');
-            const groupSearchResults = document.getElementById('groupSearchResults');
-            const selectedGroupDisplay = document.getElementById('selectedGroupDisplay');
+            // Быстрая проверка - если модалка закрыта, ничего не делаем
+            const modal = document.getElementById('taskModalV2');
+            if (!modal || modal.style.display === 'none') return;
 
-            if (groupSearchInput && groupSearchResults) {
-                // Проверяем, что клик был вне поля поиска и вне результатов
+            // Закрытие группового селектора (только если он открыт)
+            const groupSearchResults = document.getElementById('groupSearchResults');
+            if (groupSearchResults && groupSearchResults.style.display !== 'none') {
+                const groupSearchInput = document.getElementById('groupSearchInput');
+                const selectedGroupDisplay = document.getElementById('selectedGroupDisplay');
+
                 if (!groupSearchInput.contains(event.target) &&
                     !groupSearchResults.contains(event.target) &&
                     (!selectedGroupDisplay || !selectedGroupDisplay.contains(event.target))) {
@@ -31,13 +34,12 @@ window.TaskModalV2 = {
                 }
             }
 
-            // Закрытие пользовательского селектора
-            const userSearchInput = document.getElementById('userSearchInput');
+            // Закрытие пользовательского селектора (только если он открыт)
             const userSearchResults = document.getElementById('userSearchResults');
-            const selectedUserDisplay = document.getElementById('selectedUserDisplay');
+            if (userSearchResults && userSearchResults.style.display !== 'none') {
+                const userSearchInput = document.getElementById('userSearchInput');
+                const selectedUserDisplay = document.getElementById('selectedUserDisplay');
 
-            if (userSearchInput && userSearchResults) {
-                // Проверяем, что клик был вне поля поиска и вне результатов
                 if (!userSearchInput.contains(event.target) &&
                     !userSearchResults.contains(event.target) &&
                     (!selectedUserDisplay || !selectedUserDisplay.contains(event.target))) {
