@@ -510,6 +510,40 @@ window.TaskModalV2 = {
     },
 
     /**
+     * Установить текущего пользователя как ответственного по умолчанию
+     */
+    setCurrentUserAsDefault: function() {
+        BX24.callMethod('user.current', {}, (result) => {
+            if (result.error()) {
+                console.error('❌ Ошибка получения текущего пользователя:', result.error());
+                return;
+            }
+
+            const currentUser = result.data();
+            if (currentUser && currentUser.ID) {
+                const fullName = `${currentUser.NAME || ''} ${currentUser.LAST_NAME || ''}`.trim();
+                console.log('👤 Устанавливаем текущего пользователя по умолчанию:', fullName);
+
+                // Устанавливаем ID в скрытое поле
+                document.getElementById('futureTaskResponsibleV2').value = currentUser.ID;
+
+                // Отображаем выбранного пользователя
+                const displayElement = document.getElementById('selectedUserDisplay');
+                const nameElement = document.getElementById('selectedUserName');
+                const searchInput = document.getElementById('userSearchInput');
+
+                if (displayElement && nameElement) {
+                    nameElement.textContent = fullName;
+                    displayElement.style.display = 'flex';
+                }
+                if (searchInput) {
+                    searchInput.style.display = 'none';
+                }
+            }
+        });
+    },
+
+    /**
      * Показать модальное окно
      */
     show: function() {
@@ -527,6 +561,9 @@ window.TaskModalV2 = {
 
         // Очищаем форму
         this.reset();
+
+        // Устанавливаем текущего пользователя по умолчанию
+        this.setCurrentUserAsDefault();
 
         // Возвращаем заголовок на место
         const modalTitle = document.querySelector('#taskModalV2 h2');
