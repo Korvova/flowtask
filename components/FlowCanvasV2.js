@@ -44,6 +44,11 @@ window.FlowCanvasV2 = {
                 future: window.TaskNode
             }), []);
 
+            // Типы связей (edges)
+            const edgeTypes = useMemo(() => ({
+                custom: window.CustomEdge
+            }), []);
+
             // Удаление предзадачи
             const handleDeleteNode = useCallback(async (nodeId) => {
                 try {
@@ -90,6 +95,52 @@ window.FlowCanvasV2 = {
                     alert('Ошибка удаления: ' + error.message);
                 }
             }, [setNodes, setEdges]);
+
+            // Удаление связи
+            const handleDeleteEdge = useCallback(async (sourceId, targetId) => {
+                try {
+                    console.log('🗑️ Удаляем связь:', sourceId, '→', targetId);
+
+                    if (!confirm(`Удалить связь между узлами?\n\n${sourceId} → ${targetId}`)) {
+                        return;
+                    }
+
+                    // Загружаем все узлы
+                    const allNodes = await EntityManagerV2.loadProcess(window.currentProcessId);
+                    const sourceNode = allNodes.find(n => n.nodeId === sourceId);
+
+                    if (!sourceNode) {
+                        console.error('❌ Исходный узел не найден');
+                        alert('Ошибка: исходный узел не найден');
+                        return;
+                    }
+
+                    // Удаляем связь из connectionsFrom
+                    if (sourceNode.connectionsFrom && Array.isArray(sourceNode.connectionsFrom)) {
+                        const initialLength = sourceNode.connectionsFrom.length;
+                        sourceNode.connectionsFrom = sourceNode.connectionsFrom.filter(conn => conn.id !== targetId);
+
+                        const removedCount = initialLength - sourceNode.connectionsFrom.length;
+                        console.log(`🗑️ Удалено связей из connectionsFrom: ${removedCount}`);
+
+                        if (removedCount === 0) {
+                            console.warn('⚠️ Связь не найдена в connectionsFrom');
+                        }
+
+                        // Сохраняем обновленный узел
+                        await EntityManagerV2.saveNode(window.currentProcessId, sourceNode);
+                        console.log('✅ Связь удалена из базы данных');
+                    }
+
+                    // Удаляем edge из canvas
+                    setEdges((eds) => eds.filter(e => !(e.source === sourceId && e.target === targetId)));
+                    console.log('✅ Связь удалена с canvas');
+
+                } catch (error) {
+                    console.error('❌ Ошибка удаления связи:', error);
+                    alert('Ошибка удаления связи: ' + error.message);
+                }
+            }, [setEdges]);
 
             // Редактирование предзадачи
             const handleEditNode = useCallback(async (nodeData) => {
@@ -702,8 +753,11 @@ window.FlowCanvasV2 = {
                                         id: `edge-${node.nodeId}-${targetId}`,
                                         source: node.nodeId,
                                         target: targetId,
-                                        type: 'default',
-                                        animated: false
+                                        type: 'custom',
+                                        animated: false,
+                                        data: {
+                                            onDelete: handleDeleteEdge
+                                        }
                                     });
                                 }
                             });
@@ -791,9 +845,12 @@ window.FlowCanvasV2 = {
                             id: `edge-${connection.source}-${connection.target}`,
                             source: connection.source,
                             target: connection.target,
-                            type: 'default',
+                            type: 'custom',
                             animated: true,
-                            style: { strokeWidth: 2, stroke: '#667eea' }
+                            style: { strokeWidth: 2, stroke: '#667eea' },
+                            data: {
+                                onDelete: handleDeleteEdge
+                            }
                         }
                     ]);
 
@@ -863,8 +920,12 @@ window.FlowCanvasV2 = {
                                     id: `${sourceId}-${newNode.nodeId}`,
                                     source: sourceId,
                                     target: newNode.nodeId,
+                                    type: 'custom',
                                     animated: true,
-                                    style: { stroke: '#667eea', strokeWidth: 2 }
+                                    style: { stroke: '#667eea', strokeWidth: 2 },
+                                    data: {
+                                        onDelete: handleDeleteEdge
+                                    }
                                 };
 
                                 setEdges((eds) => [...eds, newEdge]);
@@ -1144,6 +1205,7 @@ window.FlowCanvasV2 = {
                         console.log('✅ ReactFlow готов');
                     },
                     nodeTypes: nodeTypes,
+                    edgeTypes: edgeTypes,
                     fitView: true,
                     minZoom: 0.5,
                     maxZoom: 1.5,
