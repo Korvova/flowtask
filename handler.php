@@ -38,10 +38,10 @@ CJSCore::Init();
 
     <!-- НОВАЯ АРХИТЕКТУРА - Одна таблица -->
     <script src="components/SubscriptionManager.js?v=1.0.0"></script>
-    <script src="components/EntityManagerV2.js?v=2.3.0-no-create"></script>
+    <script src="components/EntityManagerV2.js?v=2.3.1-process-default-name"></script>
     <script src="components/TaskHandler.js?v=2.2.0-incremental-update"></script>
     <script src="components/TaskModalV2.js?v=2.5.0-default-current-user"></script>
-    <script src="components/ProcessSelector.js?v=2.2.0-processname"></script>
+    <script src="components/ProcessSelector.js?v=2.2.1-process-default-name"></script>
     <script src="components/ProcessSwitcher.js?v=2.3.1-name-format"></script>
     <script src="components/TemplateManager.js?v=1.2.0-detail-text"></script>
     <script src="components/FlowCanvasV2.js?v=2.8.3-fix-undefined-connections"></script>

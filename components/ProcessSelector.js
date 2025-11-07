@@ -82,7 +82,7 @@ window.ProcessSelector = {
                                 try {
                                     const data = JSON.parse(item.DETAIL_TEXT);
                                     // processName может быть только у первого узла процесса
-                                    const processName = data.processName || processId;
+                                    const processName = data.processName || 'Процесс';
 
                                     processMap.set(processId, {
                                         id: processId,

@@ -355,7 +355,7 @@ window.EntityManagerV2 = {
                                         // Создаём запись для нового процесса
                                         processMap[processId] = {
                                             processId: processId,
-                                            processName: processId, // По умолчанию = ID
+                                            processName: 'Процесс', // По умолчанию = "Процесс"
                                             nodeCount: 0,
                                             lastModified: item.DATE_ACTIVE_TO || item.DATE_ACTIVE_FROM
                                         };
