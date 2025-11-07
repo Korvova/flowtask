@@ -1,0 +1,65 @@
+Flowtask - Visual Process Management in Tasks
+
+Transform tasks into manageable processes with a visual editor! Flowtask adds a powerful tool for creating linked task chains right in the task card.
+
+🎯 KEY FEATURES:
+
+• Visual process editor - intuitive drag & drop interface for building task schemes
+• Future tasks - plan future tasks that will be created automatically when conditions are met
+• Smart creation conditions:
+  - Create immediately
+  - Create when parent task is completed
+  - Create when parent task is cancelled
+• Real-time updates - instant display of task status changes
+• Process templates - save typical processes and apply them with one click
+• Multiple processes - work with several processes within one task
+• Connection management - create and delete connections between tasks right on the scheme
+
+📋 HOW IT WORKS:
+
+1. Open any task in Bitrix24
+2. Go to the "Processes" tab
+3. Create a process or join an existing one
+4. Build a process scheme by adding future tasks
+5. Configure creation conditions for each future task
+6. Save the process as a template for reuse
+
+✨ UNIQUE CAPABILITIES:
+
+• Visualization of the entire process on one screen
+• Automatic task creation when conditions are met
+• Flexible configuration of conditions for each connection
+• Beautiful animated visualization of connections
+• Ability to delete connections right on the scheme
+• Real-time tracking of all process task statuses
+
+🚀 USE CASES:
+
+Perfect for:
+- Managing projects with sequential stages
+- Automating business processes
+- Planning dependent tasks
+- Creating recurring processes from templates
+- Visualizing complex workflows
+
+💼 BUSINESS BENEFITS:
+
+• Reducing errors when creating linked tasks
+• Saving time on routine operations
+• Transparency of all process stages
+• Ability to standardize processes through templates
+• Automation of subsequent task creation
+
+🔧 TECHNICAL FEATURES:
+
+• Works completely in Bitrix24 cloud
+• No additional software installation required
+• Secure data storage in Entity Storage
+• Uses standard Bitrix24 APIs
+• Real-time synchronization via Push & Pull
+
+📞 SUPPORT:
+
+If you have any questions or suggestions, contact us through the feedback form in the marketplace.
+
+Start managing processes visually today!
