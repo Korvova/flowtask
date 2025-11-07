@@ -236,8 +236,10 @@ window.TaskNode = function({ id, data, selected }) {
             React.createElement('div', { style: titleStyle }, data.title),
 
             // Статус для реальных задач
-            !isFuture && data.statusCode && React.createElement('div', { style: statusStyle },
-                window.StatusColors.getName(data.statusCode)
+            !isFuture && React.createElement('div', { style: statusStyle },
+                data.statusCode
+                    ? window.StatusColors.getName(data.statusCode)
+                    : React.createElement('span', { style: { color: '#ef4444', fontWeight: '600' } }, '❌ Задача удалена')
             ),
 
             // Условие создания для предзадач

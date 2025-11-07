@@ -55,7 +55,7 @@ CJSCore::Init();
     <!-- Старая архитектура (временно, для совместимости) -->
     <script src="components/EntityManager.js?v=2.0.1"></script>
     <script src="components/TaskCreator.js?v=2.0.3-cleanup"></script>
-    <script src="components/TaskNode.js?v=2.2.0-delete-button"></script>
+    <script src="components/TaskNode.js?v=2.2.1-deleted-task-label"></script>
     <script src="components/TaskModal.js?v=2.0.1"></script>
     <script src="components/FlowCanvas.js?v=2.0.1"></script>
 
